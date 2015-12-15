@@ -8,6 +8,8 @@
 #include <sys.hpp>
 #include <gl.hpp>
 
+#include <platform.hpp>
+
 #include <math.hpp>
 #include <game.hpp>
 
@@ -29,6 +31,8 @@ extern "C" {
 struct MainLoopArgs {	
 	GameMemory game_memory;
 	GameInput game_input;
+
+	u32 game_button_to_key_map[ButtonId_count];
 
 	u32 samples_per_second;
 	u32 bytes_per_sample;
@@ -63,10 +67,10 @@ void async_audio_request(void * user_ptr) {
 	emscripten_async_call(async_audio_request, 0, 1);
 }
 
-void audio_callback(void * user_ptr, u8 * buffer_ptr, s32 buffer_size) {
+void audio_callback(void * user_ptr, u8 * buffer_ptr, i32 buffer_size) {
 	MainLoopArgs * args = (MainLoopArgs *)user_ptr;
 
-	game_sample(&args->game_memory, (s16 *)buffer_ptr, (u32)buffer_size / (args->bytes_per_sample * args->channels), args->samples_per_second);
+	game_sample(&args->game_memory, (i16 *)buffer_ptr, (u32)buffer_size / (args->bytes_per_sample * args->channels), args->samples_per_second);
 }
 
 void main_loop(void * user_ptr) {
@@ -86,9 +90,23 @@ void main_loop(void * user_ptr) {
 
 		args->game_input.total_time += args->game_input.delta_time;
 
-		for(u32 i = 0; i < ARRAY_COUNT(args->game_input.num_keys); i++) {
-			args->game_input.num_keys[i] = false;
+		for(u32 i = 0; i < ButtonId_count; i++) {
+			u8 val = args->game_input.buttons[i];
+			val &= ~(1 << KEY_PRESSED_BIT);
+			val &= ~(1 << KEY_RELEASED_BIT);
+
+			args->game_input.buttons[i] = val;
 		}
+
+		SDL_PumpEvents();
+
+		i32 mouse_x;
+		i32 mouse_y;
+		SDL_GetMouseState(&mouse_x, &mouse_y);
+
+		math::Vec2 mouse_pos = math::vec2((f32)mouse_x, (f32)mouse_y);
+		args->game_input.mouse_delta = mouse_pos - args->game_input.mouse_pos;
+		args->game_input.mouse_pos = mouse_pos;
 
 		SDL_Event event;
 		while(SDL_PollEvent(&event)) {
@@ -99,11 +117,30 @@ void main_loop(void * user_ptr) {
 						emscripten_cancel_main_loop();
 					}
 
-					for(u32 i = 0; i < ARRAY_COUNT(args->game_input.num_keys); i++) {
-						if(event.key.keysym.sym == (SDLK_0 + i)) {
-							args->game_input.num_keys[i] = true;
+					for(u32 i = 0; i < ButtonId_count; i++) {
+						if(event.key.keysym.sym == args->game_button_to_key_map[i]) {
+							u8 val = args->game_input.buttons[i];
+							val |= ((!(val & KEY_DOWN)) << KEY_PRESSED_BIT);
+							val |= (1 << KEY_DOWN_BIT);
+
+							args->game_input.buttons[i] = val;
 						}
 					}
+
+					break;
+				}
+
+				case SDL_KEYUP: {
+					for(u32 i = 0; i < ButtonId_count; i++) {
+						if(event.key.keysym.sym == args->game_button_to_key_map[i]) {
+							u8 val = args->game_input.buttons[i];
+							val |= ((val & KEY_DOWN) << KEY_RELEASED_BIT);
+							val &= ~(1 << KEY_DOWN_BIT);
+
+							args->game_input.buttons[i] = val;
+						}
+					}
+
 
 					break;
 				}
@@ -138,8 +175,27 @@ int main() {
 
 	args.game_input.back_buffer_width = window_width;
 	args.game_input.back_buffer_height = window_height;
+
+	u32 null_key_code = ~0;
+	for(u32 i = 0; i < ButtonId_count; i++) {
+		args.game_button_to_key_map[i] = null_key_code;
+	}
+
+	args.game_button_to_key_map[ButtonId_left] = SDLK_a;
+	args.game_button_to_key_map[ButtonId_right] = SDLK_d;
+	args.game_button_to_key_map[ButtonId_jump] = SDLK_SPACE;
+
+	args.game_button_to_key_map[ButtonId_reset] = SDLK_RETURN;
+	args.game_button_to_key_map[ButtonId_vol_up] = SDLK_UP;
+	args.game_button_to_key_map[ButtonId_vol_down] = SDLK_DOWN;
+	args.game_button_to_key_map[ButtonId_pitch_up] = SDLK_RIGHT;
+	args.game_button_to_key_map[ButtonId_pitch_down] = SDLK_LEFT;
+
+	for(u32 i = 0; i < ButtonId_count; i++) {
+		ASSERT(args.game_button_to_key_map[i] != null_key_code);
+	}
 	
-	args.bytes_per_sample = sizeof(s16);
+	args.bytes_per_sample = sizeof(i16);
 	args.channels = 2;
 
 	if(web_audio_init(args.channels, 2048, &args.samples_per_second, (void *)audio_callback, &args)) {

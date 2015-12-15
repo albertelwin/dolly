@@ -21,12 +21,12 @@ namespace intrin {
 		return std::tanf(x);
 	}
 
-	s32 round_to_s32(f32 x) {
-		return (s32)(x + 0.5f);
+	i32 round_to_i32(f32 x) {
+		return (i32)(x + 0.5f);
 	}
 
-	s32 ceil_to_s32(f32 x) {
-		return (s32)std::ceil(x);
+	i32 ceil_to_i32(f32 x) {
+		return (i32)std::ceil(x);
 	}
 }
 

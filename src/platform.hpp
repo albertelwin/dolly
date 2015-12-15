@@ -1,0 +1,13 @@
+
+#ifndef PLATFORM_HPP_INCLUDED
+#define PLATFORM_HPP_INCLUDED
+
+#define KEY_DOWN_BIT 0
+#define KEY_PRESSED_BIT 1
+#define KEY_RELEASED_BIT 2
+
+#define KEY_DOWN (1 << KEY_DOWN_BIT)
+#define KEY_PRESSED (1 << KEY_PRESSED_BIT)
+#define KEY_RELEASED (1 << KEY_RELEASED_BIT)
+
+#endif

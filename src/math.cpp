@@ -81,14 +81,14 @@ namespace math {
 		128, 195,  78,  66, 215,  61, 156, 180,
 	};
 
-	s8 const noise_gradients[12][2] = {
+	i8 const noise_gradients[12][2] = {
 		{ 1, 1 }, {-1, 1 }, { 1,-1 }, {-1,-1 },
 		{ 1, 0 }, {-1, 0 }, { 1, 0 }, {-1, 0 },
 		{ 0, 1 }, { 0,-1 }, { 0, 1 }, { 0,-1 },
 	};
 
-	s32 floor_f32_to_s32(f32 x) {
-		return (x > 0) ? (s32)x : (s32)x - 1;
+	i32 floor_f32_to_i32(f32 x) {
+		return (x > 0) ? (i32)x : (i32)x - 1;
 	}
 
 	f32 simplex_noise(f32 x, f32 y) {
@@ -96,28 +96,28 @@ namespace math {
 		f32 g2 = (3.0f - std::sqrtf(3.0f)) / 6.0f;
 
 	    f32 s = (x + y) * f2;
-	    s32 i = floor_f32_to_s32(x + s);
-	    s32 j = floor_f32_to_s32(y + s);
+	    i32 i = floor_f32_to_i32(x + s);
+	    i32 j = floor_f32_to_i32(y + s);
 
 	    f32 t = (i + j) * g2;
 
 	    f32 x0 = x - (i - t);
 	    f32 y0 = y - (j - t);
 
-	    s32 i1 = (x0 > y0) ? 1 : 0;
-	    s32 j1 = (x0 > y0) ? 0 : 1;
+	    i32 i1 = (x0 > y0) ? 1 : 0;
+	    i32 j1 = (x0 > y0) ? 0 : 1;
 
 	    f32 x1 = x0 - i1 + g2;
 	    f32 y1 = y0 - j1 + g2;
 	    f32 x2 = x0 - 1.0f + 2.0f * g2;
 	    f32 y2 = y0 - 1.0f + 2.0f * g2;
 
-	    s32 ii = i & 0xFF;
-	    s32 jj = j & 0xFF;
+	    i32 ii = i & 0xFF;
+	    i32 jj = j & 0xFF;
 
-	    s32 g_idx0 = noise_permutations[ii + noise_permutations[jj]] % 12;
-	    s32 g_idx1 = noise_permutations[ii + i1 + noise_permutations[jj + j1]] % 12;
-	    s32 g_idx2 = noise_permutations[ii + 1 + noise_permutations[jj + 1]] % 12;
+	    i32 g_idx0 = noise_permutations[ii + noise_permutations[jj]] % 12;
+	    i32 g_idx1 = noise_permutations[ii + i1 + noise_permutations[jj + j1]] % 12;
+	    i32 g_idx2 = noise_permutations[ii + 1 + noise_permutations[jj + 1]] % 12;
 
 	    f32 t0 = 0.5f - (x0 * x0) - (y0 * y0);
 	    f32 t1 = 0.5f - (x1 * x1) - (y1 * y1);

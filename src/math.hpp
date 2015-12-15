@@ -41,7 +41,7 @@ namespace math {
 	}
 
 	f32 frac(f32 x) {
-		return x - (s32)x;
+		return x - (i32)x;
 	}
 
 	f32 pow(f32 x, f32 e) {

@@ -1,6 +1,6 @@
 
-#ifndef NAMESPACE_GAME_INCLUDED
-#define NAMESPACE_GAME_INCLUDED
+#ifndef GAME_HPP_INCLUDED
+#define GAME_HPP_INCLUDED
 
 #include <math.hpp>
 
@@ -19,7 +19,7 @@ enum AudioClipId {
 
 struct AudioClip {
 	u32 samples;
-	s16 * sample_data;
+	i16 * sample_data;
 
 	f32 length;
 };
@@ -44,11 +44,31 @@ struct AudioSource {
 	b32 is_free;
 };
 
+struct Entity {
+	math::Vec2 pos;
+};
+
 struct GameMemory {
 	size_t size;
 	void * ptr;
 
 	b32 initialized;
+};
+
+enum ButtonId {
+	ButtonId_left,
+	ButtonId_right,
+	ButtonId_jump,
+
+	ButtonId_reset,
+
+	//TODO: Temp!!
+	ButtonId_vol_up,
+	ButtonId_vol_down,
+	ButtonId_pitch_up,
+	ButtonId_pitch_down,
+
+	ButtonId_count,
 };
 
 struct GameInput {
@@ -60,7 +80,10 @@ struct GameInput {
 	f32 delta_time;
 	f32 total_time;
 
-	b32 num_keys[10];
+	math::Vec2 mouse_pos;
+	math::Vec2 mouse_delta;
+
+	u8 buttons[ButtonId_count];
 };
 
 struct GameState {
@@ -79,6 +102,8 @@ struct GameState {
 	AudioSource * audio_source_free_list;
 
 	AudioSource * music;
+
+	Entity * player;
 };
 
 #endif

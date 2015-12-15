@@ -43,14 +43,14 @@ struct BmpHeader {
 	u32 bitmap_offset;
 
 	u32 size;
-	s32 width;
-	s32 height;
+	i32 width;
+	i32 height;
 	u16 planes;
 	u16 bits_per_pixel;
 	u32 compression;
 	u32 size_of_bitmap;
-	s32 horz_res;
-	s32 vert_res;
+	i32 horz_res;
+	i32 vert_res;
 	u32 colors_used;
 	u32 colors_important;
 };
@@ -86,17 +86,17 @@ void load_audio_clip_from_file(GameState * game_state, AudioClip * clip, char co
 	WavFormat * wav_format = (WavFormat *)((u8 *)wav_format_header + sizeof(WavChunkHeader));
 	ASSERT(wav_format->channels <= AUDIO_CHANNELS);
 	ASSERT(wav_format->samples_per_second == AUDIO_CLIP_SAMPLES_PER_SECOND);
-	ASSERT((wav_format->bits_per_sample / 8) == sizeof(s16));
+	ASSERT((wav_format->bits_per_sample / 8) == sizeof(i16));
 
 	WavChunkHeader * wav_data_header = (WavChunkHeader *)((u8 *)wav_format_header + sizeof(WavChunkHeader) + wav_format_header->size);
 	ASSERT(wav_data_header->id == RiffCode_data);
 
-	s16 * wav_data = (s16 *)((u8 *)wav_data_header + sizeof(WavChunkHeader));
+	i16 * wav_data = (i16 *)((u8 *)wav_data_header + sizeof(WavChunkHeader));
 
-	clip->samples = wav_data_header->size / (wav_format->channels * sizeof(s16));
+	clip->samples = wav_data_header->size / (wav_format->channels * sizeof(i16));
 	u32 samples_with_padding = clip->samples + AUDIO_PADDING_SAMPLES;
 	//TODO: Should all clips be forced stereo??
-	clip->sample_data = PUSH_ARRAY(&game_state->memory_pool, s16, samples_with_padding * 2);
+	clip->sample_data = PUSH_ARRAY(&game_state->memory_pool, i16, samples_with_padding * 2);
 	if(wav_format->channels == 2) {
 		for(u32 i = 0; i < samples_with_padding * 2; i++) {
 			clip->sample_data[i] = wav_data[i % (clip->samples * 2)];
@@ -104,7 +104,7 @@ void load_audio_clip_from_file(GameState * game_state, AudioClip * clip, char co
 	}
 	else {
 		for(u32 i = 0, sample_index = 0; i < samples_with_padding; i++) {
-			s16 sample = wav_data[i % clip->samples];
+			i16 sample = wav_data[i % clip->samples];
 			clip->sample_data[sample_index++] = sample;
 			clip->sample_data[sample_index++] = sample;
 		}
@@ -150,7 +150,7 @@ AudioSource * play_audio_clip(GameState * game_state, AudioClipId clip_id, b32 l
 	return source;
 }
 
-void change_audio_volume(AudioSource * source, math::Vec2 volume, f32 time_) {
+void change_volume(AudioSource * source, math::Vec2 volume, f32 time_) {
 	//TODO: Assert or ignore null ptrs??
 	ASSERT(source);
 
@@ -163,6 +163,12 @@ void change_audio_volume(AudioSource * source, math::Vec2 volume, f32 time_) {
 		source->target_volume = clamped_volume;
 		source->volume_delta = (source->target_volume - source->volume) * (1.0f / time_);
 	}
+}
+
+void change_pitch(AudioSource * source, f32 pitch) {
+	//TODO: Pick appropriate min/max values!!
+	source->pitch = math::clamp(pitch, 0.001f, 10.0f);
+	std::printf("LOG: pitch: %f\n", source->pitch);
 }
 
 void game_tick(GameMemory * game_memory, GameInput * game_input) {
@@ -218,7 +224,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		game_state->view_matrix = math::look_at(camera_pos, camera_pos - camera_forward, math::VEC3_UP);
 
 		f32 aspect_ratio = (f32)game_input->back_buffer_width / (f32)game_input->back_buffer_height;
-		game_state->projection_matrix = math::perspective_projection(aspect_ratio, 60.0f, 0.03f, sys::FLOAT_MAX);
+		game_state->projection_matrix = math::perspective_projection(aspect_ratio, 60.0f, 0.03f, F32_MAX);
 
 		if(game_input->audio_supported) {
 			//TODO: Temp until asset pack!!
@@ -227,37 +233,51 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			load_audio_clip_from_file(game_state, &game_state->audio_clips[AudioClipId_woosh], "woosh.wav");
 			load_audio_clip_from_file(game_state, &game_state->audio_clips[AudioClipId_music], "music.wav");
 
-			game_state->music = play_audio_clip(game_state, AudioClipId_sin_440, true);			
+			game_state->music = play_audio_clip(game_state, AudioClipId_sin_440, true);
+			change_volume(game_state->music, math::vec2(0.0f), 0.0f);
 		}
+
+		game_state->player = PUSH_STRUCT(&game_state->memory_pool, Entity);
+		game_state->player->pos = math::vec2(0.0f);
 
 		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	}
 
+	Entity * player = game_state->player;
+	f32 player_speed = 1.0f;
+
+	if(game_input->buttons[ButtonId_left] & KEY_DOWN) {
+		player->pos.x -= player_speed * game_input->delta_time;
+	}
+
+	if(game_input->buttons[ButtonId_right] & KEY_DOWN) {
+		player->pos.x += player_speed * game_input->delta_time;
+	}
+
 	AudioSource * music = game_state->music;
 	if(music) {
-		if(game_input->num_keys[1]) {
-			change_audio_volume(music, math::vec2(0.0f), 5.0f);
+		if(game_input->buttons[ButtonId_reset] & KEY_PRESSED) {
+			change_volume(music, math::vec2(1.0f), 0.0f);
+			music->pitch = 1.0f;
 		}
 
-		if(game_input->num_keys[2]) {
-			change_audio_volume(music, math::vec2(1.0f), 5.0f);
+		if(game_input->buttons[ButtonId_vol_up] & KEY_PRESSED) {
+			change_volume(music, math::vec2(1.0f), 1.0f);
 		}
 
-		f32 pitch_step = 0.02f;
-
-		if(game_input->num_keys[3]) {
-			music->pitch -= pitch_step;
-			if(music->pitch < pitch_step) {
-				music->pitch = pitch_step;
-			}
-
-			std::printf("LOG: pitch: %f\n", music->pitch);
+		if(game_input->buttons[ButtonId_vol_down] & KEY_PRESSED) {
+			change_volume(music, math::vec2(0.0f), 1.0f);
 		}
 
-		if(game_input->num_keys[4]) {
-			music->pitch += pitch_step;
-			std::printf("LOG: pitch: %f\n", music->pitch);
-		}		
+		f32 pitch_delta = 0.2f * game_input->delta_time;
+
+		if(game_input->buttons[ButtonId_pitch_up] & KEY_DOWN) {
+			change_pitch(music, music->pitch + pitch_delta);
+		}
+
+		if(game_input->buttons[ButtonId_pitch_down] & KEY_DOWN) {
+			change_pitch(music, music->pitch - pitch_delta);
+		}
 	}
 
 	math::Mat4 view_projection_matrix = game_state->projection_matrix * game_state->view_matrix;
@@ -270,7 +290,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 	glUseProgram(game_state->program_id);
 
-	math::Mat4 xform = view_projection_matrix * math::rotate_around_y(game_input->total_time);
+	math::Mat4 xform = view_projection_matrix * math::translate(player->pos.x, 0.0f, 0.0f) * math::rotate_around_y(game_input->total_time);
 
 	u32 xform_id = glGetUniformLocation(game_state->program_id, "xform");
 	glUniformMatrix4fv(xform_id, 1, GL_FALSE, xform.v);
@@ -291,21 +311,21 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 #if 0
 static u32 global_sample_index = 0;
 
-void game_sample(GameMemory * game_memory, s16 * sample_memory_ptr, u32 samples_to_write, u32 samples_per_second) {
+void game_sample(GameMemory * game_memory, i16 * sample_memory_ptr, u32 samples_to_write, u32 samples_per_second) {
 	f32 tone_hz = 440.0f;
 
 	for(u32 i = 0, sample_index = 0; i < samples_to_write; i++) {
 		f32 sample_time = (f32)global_sample_index++ / (f32)samples_per_second;
 
 		f32 sample_f32 = intrin::sin(sample_time * math::TAU * tone_hz);
-		s16 sample = (s16)(sample_f32 * (sample_f32 > 0.0f ? 32767.0f : 32768.0f));
+		i16 sample = (i16)(sample_f32 * (sample_f32 > 0.0f ? 32767.0f : 32768.0f));
 
 		sample_memory_ptr[sample_index++] = sample;
 		sample_memory_ptr[sample_index++] = sample;
 	}
 }
 #else
-void game_sample(GameMemory * game_memory, s16 * sample_memory_ptr, u32 samples_to_write, u32 samples_per_second) {
+void game_sample(GameMemory * game_memory, i16 * sample_memory_ptr, u32 samples_to_write, u32 samples_per_second) {
 	for(u32 i = 0, sample_index = 0; i < samples_to_write; i++) {
 		sample_memory_ptr[sample_index++] = 0;
 		sample_memory_ptr[sample_index++] = 0;
@@ -364,25 +384,25 @@ void game_sample(GameMemory * game_memory, s16 * sample_memory_ptr, u32 samples_
 						u32 sample_index = source->sample_pos.int_part;
 						ASSERT(sample_index < clip->samples);
 
-						s16 sample_s16 = clip->sample_data[sample_index * 2 + ii];
-						f32 sample_f32 = (f32)sample_s16 / (sample_s16 > 0 ? 32767.0f : 32768.0f);
+						i16 sample_i16 = clip->sample_data[sample_index * 2 + ii];
+						f32 sample_f32 = (f32)sample_i16 / (sample_i16 > 0 ? 32767.0f : 32768.0f);
 
 						u32 next_sample_index = sample_index + 1;
 						ASSERT(next_sample_index < (clip->samples + AUDIO_PADDING_SAMPLES));
 
-						s16 next_sample_s16 = clip->sample_data[next_sample_index * 2 + ii];
-						f32 next_sample_f32 = (f32)next_sample_s16 / (next_sample_s16 > 0 ? 32767.0f : 32768.0f);
+						i16 next_sample_i16 = clip->sample_data[next_sample_index * 2 + ii];
+						f32 next_sample_f32 = (f32)next_sample_i16 / (next_sample_i16 > 0 ? 32767.0f : 32768.0f);
 
 						sample_f32 = math::lerp(sample_f32, next_sample_f32, source->sample_pos.frc_part);
 
 						u32 out_sample_index = samples_written * 2 + ii;
-						s16 out_sample_s16 = sample_memory_ptr[out_sample_index];
-						f32 out_sample_f32 = (f32)out_sample_s16 / (out_sample_s16 > 0 ? 32767.0f : 32768.0f);
+						i16 out_sample_i16 = sample_memory_ptr[out_sample_index];
+						f32 out_sample_f32 = (f32)out_sample_i16 / (out_sample_i16 > 0 ? 32767.0f : 32768.0f);
 
 						out_sample_f32 += sample_f32 * source->volume.v[ii];
 						out_sample_f32 = math::clamp(out_sample_f32, -1.0f, 1.0f);
 
-						sample_memory_ptr[out_sample_index] = out_sample_f32 > 0.0f ? (s16)(out_sample_f32 * 32767.0f) : (s16)(out_sample_f32 * 32768.0f);
+						sample_memory_ptr[out_sample_index] = out_sample_f32 > 0.0f ? (i16)(out_sample_f32 * 32767.0f) : (i16)(out_sample_f32 * 32768.0f);
 					}
 
 					source->sample_pos.frc_part += pitch64.frc_part;

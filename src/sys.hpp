@@ -1,6 +1,6 @@
 
-#ifndef NAMESPACE_SYS_INCLUDED
-#define NAMESPACE_SYS_INCLUDED
+#ifndef SYS_HPP_INCLUDED
+#define SYS_HPP_INCLUDED
 
 #include <cstdint>
 #include <cstdio>
@@ -44,15 +44,17 @@ typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
 
-typedef int8_t s8;
-typedef int16_t s16;
-typedef int32_t s32;
-typedef int64_t s64;
+typedef int8_t i8;
+typedef int16_t i16;
+typedef int32_t i32;
+typedef int64_t i64;
 
 typedef float f32;
 typedef double f64;
 
 typedef uint32_t b32;
+
+#define F32_MAX 1e+37f
 
 struct MemoryPool {
 	size_t size;
@@ -78,11 +80,6 @@ void * push_memory_(MemoryPool * pool, size_t size) {
 	void * ptr = pool->base_address + pool->used;
 	pool->used += size;
 	return ptr;
-}
-
-namespace sys {
-	//NOTE: No constexpr in VS :(
-	f32 const FLOAT_MAX = 1e+37f;
 }
 
 #endif
