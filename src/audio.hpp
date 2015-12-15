@@ -1,0 +1,5 @@
+
+#ifndef NAMESPACE_AUDIO_INCLUDED
+#define NAMESPACE_AUDIO_INCLUDED
+
+#endif
