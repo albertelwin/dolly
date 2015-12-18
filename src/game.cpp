@@ -168,7 +168,57 @@ void change_volume(AudioSource * source, math::Vec2 volume, f32 time_) {
 void change_pitch(AudioSource * source, f32 pitch) {
 	//TODO: Pick appropriate min/max values!!
 	source->pitch = math::clamp(pitch, 0.001f, 10.0f);
-	std::printf("LOG: pitch: %f\n", source->pitch);
+}
+
+Texture load_texture_from_file(char const * file_name) {
+	u8 * file_buffer = read_file_to_memory(file_name);
+
+	BmpHeader * bmp_header = (BmpHeader *)file_buffer;
+	ASSERT(bmp_header->file_type == 0x4D42);
+
+	u8 * bmp_data = (u8 *)(file_buffer + bmp_header->bitmap_offset);
+	for(u32 i = 0; i < bmp_header->width * bmp_header->height; i++) {
+		u8 a = bmp_data[i * 4 + 0];
+		u8 b = bmp_data[i * 4 + 1];
+		u8 g = bmp_data[i * 4 + 2];
+		u8 r = bmp_data[i * 4 + 3];
+
+		bmp_data[i * 4 + 0] = r;
+		bmp_data[i * 4 + 1] = g;
+		bmp_data[i * 4 + 2] = b;
+		bmp_data[i * 4 + 3] = a;
+	}
+
+	Texture tex = {};
+	tex.width = bmp_header->width;
+	tex.height = bmp_header->height;
+	tex.id = gl::create_texture(bmp_data, tex.width, tex.height, GL_RGBA, GL_LINEAR, GL_CLAMP_TO_EDGE);
+	ASSERT(tex.id);
+
+	delete[] file_buffer;
+
+	return tex;
+}
+
+void render_entity(GameState * game_state, Entity * entity, math::Mat4 const & view_projection_matrix) {
+	glUseProgram(game_state->program_id);
+
+	math::Mat4 xform = view_projection_matrix * math::translate(entity->pos.x, entity->pos.y, 0.0f) * math::scale(entity->scale.x, entity->scale.y, 1.0f);
+
+	u32 xform_id = glGetUniformLocation(game_state->program_id, "xform");
+	glUniformMatrix4fv(xform_id, 1, GL_FALSE, xform.v);
+
+	glUniform1f(glGetUniformLocation(game_state->program_id, "tex_offset"), entity->tex_offset);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, entity->tex.id);
+	glUniform1i(glGetUniformLocation(game_state->program_id, "tex0"), 0);
+
+	glBindBuffer(GL_ARRAY_BUFFER, game_state->vertex_buffer.id);
+	glVertexAttribPointer(0, 3, GL_FLOAT, 0, 0, 0);
+	glEnableVertexAttribArray(0);
+
+	glDrawArrays(GL_TRIANGLES, 0, game_state->vertex_buffer.vert_count);	
 }
 
 void game_tick(GameMemory * game_memory, GameInput * game_input) {
@@ -195,32 +245,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		game_state->vertex_buffer = gl::create_vertex_buffer(verts, ARRAY_COUNT(verts), 3, GL_STATIC_DRAW);
 
-		{
-			u8 * file_buffer = read_file_to_memory("texture_256.bmp");
-
-			BmpHeader * bmp_header = (BmpHeader *)file_buffer;
-			ASSERT(bmp_header->file_type == 0x4D42);
-
-			u8 * bmp_data = (u8 *)(file_buffer + bmp_header->bitmap_offset);
-			for(u32 i = 0; i < bmp_header->width * bmp_header->height; i++) {
-				u8 a = bmp_data[i * 4 + 0];
-				u8 b = bmp_data[i * 4 + 1];
-				u8 g = bmp_data[i * 4 + 2];
-				u8 r = bmp_data[i * 4 + 3];
-
-				bmp_data[i * 4 + 0] = r;
-				bmp_data[i * 4 + 1] = g;
-				bmp_data[i * 4 + 2] = b;
-				bmp_data[i * 4 + 3] = a;
-			}
-
-			game_state->texture = gl::create_texture(bmp_data, bmp_header->width, bmp_header->height, GL_RGBA, GL_LINEAR, GL_CLAMP_TO_EDGE);
-
-			delete[] file_buffer;
-		}
-
 		math::Vec3 camera_forward = math::VEC3_FORWARD;
-		math::Vec3 camera_pos = camera_forward * 2.0f;
+		math::Vec3 camera_pos = camera_forward * 0.75f;
 		game_state->view_matrix = math::look_at(camera_pos, camera_pos - camera_forward, math::VEC3_UP);
 
 		f32 aspect_ratio = (f32)game_input->back_buffer_width / (f32)game_input->back_buffer_height;
@@ -233,51 +259,53 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			load_audio_clip_from_file(game_state, &game_state->audio_clips[AudioClipId_woosh], "woosh.wav");
 			load_audio_clip_from_file(game_state, &game_state->audio_clips[AudioClipId_music], "music.wav");
 
-			game_state->music = play_audio_clip(game_state, AudioClipId_sin_440, true);
-			change_volume(game_state->music, math::vec2(0.0f), 0.0f);
+			game_state->music = play_audio_clip(game_state, AudioClipId_music, true);
 		}
 
 		game_state->player = PUSH_STRUCT(&game_state->memory_pool, Entity);
-		game_state->player->pos = math::vec2(0.0f);
+		game_state->player->pos = math::vec2(-0.5f, 0.0f);
+		game_state->player->scale = math::vec2(0.128f);
+		game_state->player->tex = load_texture_from_file("dolly.bmp");
 
-		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+		game_state->background = PUSH_STRUCT(&game_state->memory_pool, Entity);
+		game_state->background->pos = math::vec2(0.0f);
+		game_state->background->tex = load_texture_from_file("background.bmp");
+		game_state->background->scale = math::vec2(1.6f, 0.9f);
+		game_state->background->scroll_velocity = 1.0f;
+
+		glClearColor(0.1f, 0.1f, 0.1f, 0.0f);
 	}
 
 	Entity * player = game_state->player;
-	f32 player_speed = 1.0f;
+	f32 player_accel = 1.0f * game_input->delta_time;
+
+	if(game_input->buttons[ButtonId_up] & KEY_DOWN) {
+		player->pos.y += player_accel;
+	}
+
+	if(game_input->buttons[ButtonId_down] & KEY_DOWN) {
+		player->pos.y -= player_accel;
+	}
+
+	Entity * background = game_state->background;
+	f32 scroll_accel = 0.5f * game_input->delta_time;
 
 	if(game_input->buttons[ButtonId_left] & KEY_DOWN) {
-		player->pos.x -= player_speed * game_input->delta_time;
+		background->scroll_velocity -= scroll_accel;
+		if(background->scroll_velocity < 0.0f) {
+			background->scroll_velocity = 0.0f;
+		}
 	}
 
 	if(game_input->buttons[ButtonId_right] & KEY_DOWN) {
-		player->pos.x += player_speed * game_input->delta_time;
+		background->scroll_velocity += scroll_accel;
 	}
+
+	background->tex_offset += background->scroll_velocity * game_input->delta_time;
 
 	AudioSource * music = game_state->music;
 	if(music) {
-		if(game_input->buttons[ButtonId_reset] & KEY_PRESSED) {
-			change_volume(music, math::vec2(1.0f), 0.0f);
-			music->pitch = 1.0f;
-		}
-
-		if(game_input->buttons[ButtonId_vol_up] & KEY_PRESSED) {
-			change_volume(music, math::vec2(1.0f), 1.0f);
-		}
-
-		if(game_input->buttons[ButtonId_vol_down] & KEY_PRESSED) {
-			change_volume(music, math::vec2(0.0f), 1.0f);
-		}
-
-		f32 pitch_delta = 0.2f * game_input->delta_time;
-
-		if(game_input->buttons[ButtonId_pitch_up] & KEY_DOWN) {
-			change_pitch(music, music->pitch + pitch_delta);
-		}
-
-		if(game_input->buttons[ButtonId_pitch_down] & KEY_DOWN) {
-			change_pitch(music, music->pitch - pitch_delta);
-		}
+		change_pitch(music, background->scroll_velocity);
 	}
 
 	math::Mat4 view_projection_matrix = game_state->projection_matrix * game_state->view_matrix;
@@ -290,20 +318,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 	glUseProgram(game_state->program_id);
 
-	math::Mat4 xform = view_projection_matrix * math::translate(player->pos.x, 0.0f, 0.0f) * math::rotate_around_y(game_input->total_time);
-
-	u32 xform_id = glGetUniformLocation(game_state->program_id, "xform");
-	glUniformMatrix4fv(xform_id, 1, GL_FALSE, xform.v);
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, game_state->texture);
-	glUniform1i(glGetUniformLocation(game_state->program_id, "tex0"), 0);
-
-	glBindBuffer(GL_ARRAY_BUFFER, game_state->vertex_buffer.id);
-	glVertexAttribPointer(0, 3, GL_FLOAT, 0, 0, 0);
-	glEnableVertexAttribArray(0);
-
-	glDrawArrays(GL_TRIANGLES, 0, game_state->vertex_buffer.vert_count);
+	render_entity(game_state, game_state->background, view_projection_matrix);
+	render_entity(game_state, game_state->player, view_projection_matrix);
 
 	glDisable(GL_BLEND);
 }

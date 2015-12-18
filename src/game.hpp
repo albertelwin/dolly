@@ -44,8 +44,20 @@ struct AudioSource {
 	b32 is_free;
 };
 
+struct Texture {
+	u32 width;
+	u32 height;
+	u32 id;
+};
+
 struct Entity {
 	math::Vec2 pos;
+	math::Vec2 scale;
+
+	Texture tex;
+	f32 tex_offset;
+
+	f32 scroll_velocity;
 };
 
 struct GameMemory {
@@ -58,15 +70,11 @@ struct GameMemory {
 enum ButtonId {
 	ButtonId_left,
 	ButtonId_right,
-	ButtonId_jump,
-
-	ButtonId_reset,
+	ButtonId_up,
+	ButtonId_down,
 
 	//TODO: Temp!!
-	ButtonId_vol_up,
-	ButtonId_vol_down,
-	ButtonId_pitch_up,
-	ButtonId_pitch_down,
+	ButtonId_mute,
 
 	ButtonId_count,
 };
@@ -103,7 +111,10 @@ struct GameState {
 
 	AudioSource * music;
 
+	Entity entites[32];
+
 	Entity * player;
+	Entity * background;
 };
 
 #endif

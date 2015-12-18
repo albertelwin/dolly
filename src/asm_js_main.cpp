@@ -164,8 +164,10 @@ int main() {
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 8);
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
-	u32 window_width = 640;
-	u32 window_height = 360;
+	u32 window_width = 960;
+	u32 window_height = 540;
+	// u32 window_width = 640;
+	// u32 window_height = 360;
 
 	SDL_Surface * surface = SDL_SetVideoMode(window_width, window_height, 32, SDL_OPENGL);
 
@@ -181,15 +183,12 @@ int main() {
 		args.game_button_to_key_map[i] = null_key_code;
 	}
 
-	args.game_button_to_key_map[ButtonId_left] = SDLK_a;
-	args.game_button_to_key_map[ButtonId_right] = SDLK_d;
-	args.game_button_to_key_map[ButtonId_jump] = SDLK_SPACE;
+	args.game_button_to_key_map[ButtonId_left] = SDLK_LEFT;
+	args.game_button_to_key_map[ButtonId_right] = SDLK_RIGHT;
+	args.game_button_to_key_map[ButtonId_up] = SDLK_UP;
+	args.game_button_to_key_map[ButtonId_down] = SDLK_DOWN;
 
-	args.game_button_to_key_map[ButtonId_reset] = SDLK_RETURN;
-	args.game_button_to_key_map[ButtonId_vol_up] = SDLK_UP;
-	args.game_button_to_key_map[ButtonId_vol_down] = SDLK_DOWN;
-	args.game_button_to_key_map[ButtonId_pitch_up] = SDLK_RIGHT;
-	args.game_button_to_key_map[ButtonId_pitch_down] = SDLK_LEFT;
+	args.game_button_to_key_map[ButtonId_mute] = SDLK_RETURN;
 
 	for(u32 i = 0; i < ButtonId_count; i++) {
 		ASSERT(args.game_button_to_key_map[i] != null_key_code);
