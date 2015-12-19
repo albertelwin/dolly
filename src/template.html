@@ -3,16 +3,22 @@
 	<head>
 		<meta charset="utf-8">
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-		<title></title>
-		<style></style>
+		<title>Dolly Dolly Dolly Days!</title>
 	</head>
-	<body style="margin: 0;">
+	<body style="margin: 0; padding: 8px">
+		<div id="log" style='font-family: "Courier New"; font-size: 14px;'></div>
 		<canvas style="padding: none; border 0px none;" id="canvas" oncontextmenu="event.preventDefault()"></canvas>
 
-		<script type='text/javascript'> 
+		<script type='text/javascript'>
+			var log_elem = document.getElementById('log');
+
 			var Module = {
 				preRun: [],
-				postRun: [],
+
+				postRun: [ function() {
+					log_elem.innerHTML = '';
+				}],
+
 				print: function(text) {
 					if(arguments.length > 1) {
 						text = Array.prototype.slice.call(arguments).join(' ');
@@ -20,6 +26,7 @@
 
 					console.log(text);
 				},
+
 				printErr: function(text) {
 					if(arguments.length > 1) {
 						text = Array.prototype.slice.call(arguments).join(' ');
@@ -27,6 +34,7 @@
 
 					console.error(text);
 				},
+
 				canvas: (function() {
 					var canvas = document.getElementById('canvas');
 
@@ -36,11 +44,15 @@
 					canvas.addEventListener("webglcontextlost", function(e) { alert('WebGL context lost. You will need to reload the page.'); e.preventDefault(); }, false);
 					return canvas;
 				})(),
+
 				setStatus: function(text) {
 					if(text !== '') {
+						text = text.replace(/#/g, '█');
 						console.log('STATUS: ' + text + '\n');
+						log_elem.innerHTML = text;
 					}
 				},
+
 				totalDependencies: 0,
 				monitorRunDependencies: function(left) {
 					this.totalDependencies = Math.max(this.totalDependencies, left);
