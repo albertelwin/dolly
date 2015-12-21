@@ -3,8 +3,6 @@
 #define NAMESPACE_GL_INCLUDED
 
 #define STRINGIFY_GLSL_SHADER(version, shader) "#version " #version "\n" #shader
-#include <basic.vert>
-#include <basic.frag>
 
 #define GL_MAX_INFO_LOG_LENGTH 1024
 

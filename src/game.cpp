@@ -151,26 +151,27 @@ AudioSource * play_audio_clip(GameState * game_state, AudioClipId clip_id, b32 l
 }
 
 void change_volume(AudioSource * source, math::Vec2 volume, f32 time_) {
-	//TODO: Assert or ignore null ptrs??
-	ASSERT(source);
-
-	math::Vec2 clamped_volume = math::clamp01(volume);
-	if(time_ <= 0.0f) {
-		source->volume = clamped_volume;
-		source->volume_delta = math::vec2(0.0f);
-	}
-	else {
-		source->target_volume = clamped_volume;
-		source->volume_delta = (source->target_volume - source->volume) * (1.0f / time_);
+	if(source) {
+		math::Vec2 clamped_volume = math::clamp01(volume);
+		if(time_ <= 0.0f) {
+			source->volume = clamped_volume;
+			source->volume_delta = math::vec2(0.0f);
+		}
+		else {
+			source->target_volume = clamped_volume;
+			source->volume_delta = (source->target_volume - source->volume) * (1.0f / time_);
+		}		
 	}
 }
 
 void change_pitch(AudioSource * source, f32 pitch) {
-	//TODO: Pick appropriate min/max values!!
-	source->pitch = math::clamp(pitch, 0.001f, 10.0f);
+	if(source) {
+		//TODO: Pick appropriate min/max values!!
+		source->pitch = math::clamp(pitch, 0.001f, 10.0f);		
+	}
 }
 
-Texture load_texture_from_file(char const * file_name) {
+Texture load_texture_from_file(char const * file_name, i32 filter_mode = GL_LINEAR) {
 	u8 * file_buffer = read_file_to_memory(file_name);
 
 	BmpHeader * bmp_header = (BmpHeader *)file_buffer;
@@ -192,7 +193,7 @@ Texture load_texture_from_file(char const * file_name) {
 	Texture tex = {};
 	tex.width = bmp_header->width;
 	tex.height = bmp_header->height;
-	tex.id = gl::create_texture(bmp_data, tex.width, tex.height, GL_RGBA, GL_LINEAR, GL_CLAMP_TO_EDGE);
+	tex.id = gl::create_texture(bmp_data, tex.width, tex.height, GL_RGBA, filter_mode, GL_CLAMP_TO_EDGE);
 	ASSERT(tex.id);
 
 	delete[] file_buffer;
@@ -201,24 +202,24 @@ Texture load_texture_from_file(char const * file_name) {
 }
 
 void render_entity(GameState * game_state, Entity * entity, math::Mat4 const & view_projection_matrix) {
-	glUseProgram(game_state->program_id);
+	glUseProgram(game_state->entity_program);
 
 	math::Mat4 xform = view_projection_matrix * math::translate(entity->pos.x, entity->pos.y, 0.0f) * math::scale(entity->scale.x, entity->scale.y, 1.0f);
 
-	u32 xform_id = glGetUniformLocation(game_state->program_id, "xform");
+	u32 xform_id = glGetUniformLocation(game_state->entity_program, "xform");
 	glUniformMatrix4fv(xform_id, 1, GL_FALSE, xform.v);
 
-	glUniform1f(glGetUniformLocation(game_state->program_id, "tex_offset"), entity->tex_offset);
+	glUniform1f(glGetUniformLocation(game_state->entity_program, "tex_offset"), entity->tex_offset);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, entity->tex.id);
-	glUniform1i(glGetUniformLocation(game_state->program_id, "tex0"), 0);
+	glUniform1i(glGetUniformLocation(game_state->entity_program, "tex0"), 0);
 
-	glBindBuffer(GL_ARRAY_BUFFER, game_state->vertex_buffer.id);
+	glBindBuffer(GL_ARRAY_BUFFER, game_state->entity_vertex_buffer.id);
 	glVertexAttribPointer(0, 3, GL_FLOAT, 0, 0, 0);
 	glEnableVertexAttribArray(0);
 
-	glDrawArrays(GL_TRIANGLES, 0, game_state->vertex_buffer.vert_count);	
+	glDrawArrays(GL_TRIANGLES, 0, game_state->entity_vertex_buffer.vert_count);
 }
 
 void game_tick(GameMemory * game_memory, GameInput * game_input) {
@@ -230,23 +231,38 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		game_state->memory_pool = create_memory_pool((u8 *)game_memory->ptr + sizeof(GameState), game_memory->size - sizeof(GameState));
 
-		u32 vert_id = gl::compile_shader_from_source(BASIC_VERT_SRC, GL_VERTEX_SHADER);
-		u32 frag_id = gl::compile_shader_from_source(BASIC_FRAG_SRC, GL_FRAGMENT_SHADER);
-		game_state->program_id = gl::link_shader_program(vert_id, frag_id);
+		u32 basic_vert = gl::compile_shader_from_source(BASIC_VERT_SRC, GL_VERTEX_SHADER);
+		u32 basic_frag = gl::compile_shader_from_source(BASIC_FRAG_SRC, GL_FRAGMENT_SHADER);
+		game_state->entity_program = gl::link_shader_program(basic_vert, basic_frag);
 
-		f32 verts[] = {
+		f32 quad_verts[] = {
 			-0.5f,-0.5f, 0.0f,
 			 0.5f, 0.5f, 0.0f,
 			-0.5f, 0.5f, 0.0f,
 			-0.5f,-0.5f, 0.0f,
 			 0.5f, 0.5f, 0.0f,
-			 0.5f,-0.5f, 0.0f, 
+			 0.5f,-0.5f, 0.0f,
 		};
 
-		game_state->vertex_buffer = gl::create_vertex_buffer(verts, ARRAY_COUNT(verts), 3, GL_STATIC_DRAW);
+		game_state->entity_vertex_buffer = gl::create_vertex_buffer(quad_verts, ARRAY_COUNT(quad_verts), 3, GL_STATIC_DRAW);
+
+		u32 font_vert = gl::compile_shader_from_source(FONT_VERT_SRC, GL_VERTEX_SHADER);
+		u32 font_frag = gl::compile_shader_from_source(FONT_FRAG_SRC, GL_FRAGMENT_SHADER);
+		game_state->font_program = gl::link_shader_program(font_vert, font_frag);
+
+		f32 font_verts[] = {
+			-0.5f,-0.5f, 0.0f, 0.0f, 0.0f,
+			 0.5f, 0.5f, 0.0f, 1.0f, 1.0f,
+			-0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
+			-0.5f,-0.5f, 0.0f, 0.0f, 0.0f,
+			 0.5f, 0.5f, 0.0f, 1.0f, 1.0f,
+			 0.5f,-0.5f, 0.0f, 1.0f, 0.0f,
+		};
+
+		game_state->font_vertex_buffer = gl::create_vertex_buffer(font_verts, ARRAY_COUNT(font_verts), 5, GL_STATIC_DRAW);
 
 		math::Vec3 camera_forward = math::VEC3_FORWARD;
-		math::Vec3 camera_pos = camera_forward * 0.75f;
+		math::Vec3 camera_pos = camera_forward * 0.62f;
 		game_state->view_matrix = math::look_at(camera_pos, camera_pos - camera_forward, math::VEC3_UP);
 
 		f32 aspect_ratio = (f32)game_input->back_buffer_width / (f32)game_input->back_buffer_height;
@@ -260,20 +276,25 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			load_audio_clip_from_file(game_state, &game_state->audio_clips[AudioClipId_music], "music.wav");
 
 			game_state->music = play_audio_clip(game_state, AudioClipId_music, true);
+			change_volume(game_state->music, math::vec2(0.0f), 0.0f);
 		}
+
+		f32 tex_scale = 1.0f / 1000.0f;
 
 		game_state->player = PUSH_STRUCT(&game_state->memory_pool, Entity);
 		game_state->player->pos = math::vec2(-0.5f, 0.0f);
-		game_state->player->scale = math::vec2(0.128f);
 		game_state->player->tex = load_texture_from_file("dolly.bmp");
+		game_state->player->scale = math::vec2(game_state->player->tex.width, game_state->player->tex.height) * tex_scale;
 
 		game_state->background = PUSH_STRUCT(&game_state->memory_pool, Entity);
 		game_state->background->pos = math::vec2(0.0f);
 		game_state->background->tex = load_texture_from_file("background.bmp");
-		game_state->background->scale = math::vec2(1.6f, 0.9f);
+		game_state->background->scale = math::vec2(game_state->background->tex.width, game_state->background->tex.height) * tex_scale;
 		game_state->background->scroll_velocity = 1.0f;
 
-		glClearColor(0.1f, 0.1f, 0.1f, 0.0f);
+		game_state->font_tex = load_texture_from_file("font.bmp", GL_NEAREST);
+
+		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	}
 
 	Entity * player = game_state->player;
@@ -302,11 +323,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	}
 
 	background->tex_offset += background->scroll_velocity * game_input->delta_time;
-
-	AudioSource * music = game_state->music;
-	if(music) {
-		change_pitch(music, background->scroll_velocity);
-	}
+	change_pitch(game_state->music, background->scroll_velocity);
 
 	math::Mat4 view_projection_matrix = game_state->projection_matrix * game_state->view_matrix;
 	
@@ -316,10 +333,35 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	glUseProgram(game_state->program_id);
+	glUseProgram(game_state->entity_program);
 
 	render_entity(game_state, game_state->background, view_projection_matrix);
 	render_entity(game_state, game_state->player, view_projection_matrix);
+
+	{
+		glUseProgram(game_state->font_program);
+
+		math::Mat4 xform = view_projection_matrix * math::scale(0.5f);
+
+		u32 xform_id = glGetUniformLocation(game_state->font_program, "xform");
+		glUniformMatrix4fv(xform_id, 1, GL_FALSE, xform.v);
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, game_state->font_tex.id);
+		glUniform1i(glGetUniformLocation(game_state->font_program, "tex0"), 0);
+
+		glBindBuffer(GL_ARRAY_BUFFER, game_state->font_vertex_buffer.id);
+
+		u32 stride = game_state->font_vertex_buffer.vert_size * sizeof(f32);
+
+		glVertexAttribPointer(0, 3, GL_FLOAT, 0, stride, 0);
+		glEnableVertexAttribArray(0);
+
+		glVertexAttribPointer(1, 2, GL_FLOAT, 0, stride, (void *)(3 * sizeof(f32)));
+		glEnableVertexAttribArray(1);
+
+		glDrawArrays(GL_TRIANGLES, 0, game_state->font_vertex_buffer.vert_count);		
+	}
 
 	glDisable(GL_BLEND);
 }

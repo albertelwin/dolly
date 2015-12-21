@@ -6,9 +6,12 @@
 #include <SDL/SDL_opengl.h>
 
 #include <sys.hpp>
-#include <gl.hpp>
 
-#include <platform.hpp>
+#include <gl.hpp>
+#include <basic.vert>
+#include <basic.frag>
+#include <font.vert>
+#include <font.frag>
 
 #include <math.hpp>
 #include <game.hpp>

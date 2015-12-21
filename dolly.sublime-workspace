@@ -4,6 +4,10 @@
 		"selected_items":
 		[
 			[
+				"totl",
+				"total_bars"
+			],
+			[
 				"stat",
 				"status_text"
 			],
@@ -510,10 +514,6 @@
 			[
 				"Player1Con",
 				"Player1Console"
-			],
-			[
-				"step",
-				"step_time_left"
 			]
 		]
 	},
@@ -523,7 +523,15 @@
 			"file": "build.bat",
 			"settings":
 			{
-				"buffer_size": 377,
+				"buffer_size": 378,
+				"line_ending": "Windows"
+			}
+		},
+		{
+			"file": "bin/dolly.js",
+			"settings":
+			{
+				"buffer_size": 303405,
 				"line_ending": "Windows"
 			}
 		},
@@ -555,7 +563,7 @@
 			"file": "src/template.html",
 			"settings":
 			{
-				"buffer_size": 2283,
+				"buffer_size": 2361,
 				"line_ending": "Windows"
 			}
 		}
@@ -734,6 +742,8 @@
 	],
 	"file_history":
 	[
+		"/C/Users/Albert/.ssh/id_rsa.pub",
+		"/C/Emscripten/emscripten/1.35.0/tools/file_packager.py",
 		"/C/Users/Albert/Downloads/hellophaser/index.html",
 		"/C/Users/Albert/Downloads/haiku.html",
 		"/C/Users/Albert/Blog/.gitignore",
@@ -859,9 +869,7 @@
 		"/C/Emscripten/emscripten/1.35.0/tests/hello_world_sdl.cpp",
 		"/C/Users/albertelwin/Emscripten/repo/src/xform.cpp",
 		"/C/Emscripten/emscripten/1.35.0/tests/cubegeom.c",
-		"/C/Users/albertelwin/Museum/repo/src/sys.hpp",
-		"/C/Users/albertelwin/Museum/repo/src/basic.frag",
-		"/C/Users/albertelwin/Museum/repo/src/basic.vert"
+		"/C/Users/albertelwin/Museum/repo/src/sys.hpp"
 	],
 	"find":
 	{
@@ -880,6 +888,7 @@
 		"case_sensitive": false,
 		"find_history":
 		[
+			"loaded_bars",
 			"status_text",
 			"player_speed",
 			"scroll_speed",
@@ -1006,8 +1015,7 @@
 			"DWORD",
 			"WORD",
 			"BitsPerPixel",
-			"Height",
-			"/* "
+			"Height"
 		],
 		"highlight": true,
 		"in_selection": false,
@@ -1034,15 +1042,15 @@
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 377,
+						"buffer_size": 378,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								0,
-								0
+								378,
+								378
 							]
 						],
 						"settings":
@@ -1053,11 +1061,41 @@
 						"translation.y": 0.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 4,
+					"stack_index": 1,
 					"type": "text"
 				},
 				{
 					"buffer": 1,
+					"file": "bin/dolly.js",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 303405,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								2804,
+								2804
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/JavaScript/JavaScript.tmLanguage",
+							"tab_size": 2,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 2,
+					"type": "text"
+				},
+				{
+					"buffer": 2,
 					"file": "src/asm_js_main.cpp",
 					"semi_transient": false,
 					"settings":
@@ -1086,7 +1124,7 @@
 					"type": "text"
 				},
 				{
-					"buffer": 2,
+					"buffer": 3,
 					"file": "run.bat",
 					"semi_transient": false,
 					"settings":
@@ -1111,11 +1149,11 @@
 						"translation.y": 0.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 2,
+					"stack_index": 4,
 					"type": "text"
 				},
 				{
-					"buffer": 3,
+					"buffer": 4,
 					"file": "src/game.cpp",
 					"semi_transient": false,
 					"settings":
@@ -1127,8 +1165,8 @@
 						"selection":
 						[
 							[
-								8485,
-								8485
+								8742,
+								8742
 							]
 						],
 						"settings":
@@ -1140,24 +1178,24 @@
 						"translation.y": 2964.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 1,
+					"stack_index": 0,
 					"type": "text"
 				},
 				{
-					"buffer": 4,
+					"buffer": 5,
 					"file": "src/template.html",
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 2283,
+						"buffer_size": 2361,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								1415,
-								1415
+								931,
+								931
 							]
 						],
 						"settings":
@@ -1166,10 +1204,10 @@
 							"translate_tabs_to_spaces": false
 						},
 						"translation.x": 0.0,
-						"translation.y": 78.0,
+						"translation.y": 182.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 0,
+					"stack_index": 5,
 					"type": "text"
 				}
 			]
@@ -1177,7 +1215,7 @@
 	],
 	"incremental_find":
 	{
-		"height": 21.0
+		"height": 34.0
 	},
 	"input":
 	{
@@ -1229,7 +1267,11 @@
 		[
 			[
 				"",
-				"src\\template.html"
+				"src\\game.cpp"
+			],
+			[
+				"doll",
+				"bin\\dolly.js"
 			],
 			[
 				"template",
@@ -1734,10 +1776,6 @@
 			[
 				"pil",
 				"PilotController.cs"
-			],
-			[
-				"otheron",
-				"OtherController.cs"
 			]
 		],
 		"width": 0.0

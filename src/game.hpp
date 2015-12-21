@@ -44,6 +44,10 @@ struct AudioSource {
 	b32 is_free;
 };
 
+//TODO: Put audio related state in here!!
+// struct AudioState {
+// };
+
 struct Texture {
 	u32 width;
 	u32 height;
@@ -97,10 +101,11 @@ struct GameInput {
 struct GameState {
 	MemoryPool memory_pool;
 
-	u32 program_id;
+	u32 entity_program;
+	gl::VertexBuffer entity_vertex_buffer;
 
-	gl::VertexBuffer vertex_buffer;
-	u32 texture;
+	u32 font_program;
+	gl::VertexBuffer font_vertex_buffer;
 
 	math::Mat4 view_matrix;
 	math::Mat4 projection_matrix;
@@ -115,6 +120,8 @@ struct GameState {
 
 	Entity * player;
 	Entity * background;
+
+	Texture font_tex;
 };
 
 #endif
