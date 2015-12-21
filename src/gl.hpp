@@ -14,6 +14,12 @@ namespace gl {
 		u32 size_in_bytes;
 	};
 
+	struct Texture {
+		GLuint id;
+		u32 width;
+		u32 height;
+	};
+
 	struct FrameBuffer {
 		GLuint id;
 		GLuint texture_id;
@@ -148,10 +154,13 @@ namespace gl {
 	}
 #endif
 
-	u32 create_texture(u8 * texture_data, u32 width, u32 height, GLenum format, GLint filter, GLint wrap_mode) {
-		u32 tex_id;
-		glGenTextures(1, &tex_id);
-		glBindTexture(GL_TEXTURE_2D, tex_id);
+	Texture create_texture(u8 * texture_data, u32 width, u32 height, GLenum format, GLint filter, GLint wrap_mode) {
+		Texture tex = {};
+		tex.width = width;
+		tex.height = height;
+
+		glGenTextures(1, &tex.id);
+		glBindTexture(GL_TEXTURE_2D, tex.id);
 
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, format, GL_UNSIGNED_BYTE, texture_data);
 
@@ -161,7 +170,7 @@ namespace gl {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
 
-		return tex_id;
+		return tex;
 	}	
 }
 

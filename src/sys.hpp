@@ -91,6 +91,12 @@ void * push_memory_(MemoryPool * pool, size_t size) {
 	return ptr;
 }
 
+void zero_memory(u8 * ptr, size_t size) {
+	for(u32 i = 0; i < size; i++) {
+		ptr[i] = 0;
+	}
+}
+
 #define KEY_DOWN_BIT 0
 #define KEY_PRESSED_BIT 1
 #define KEY_RELEASED_BIT 2

@@ -48,27 +48,14 @@ struct AudioSource {
 // struct AudioState {
 // };
 
-struct Texture {
-	u32 width;
-	u32 height;
-	u32 id;
-};
-
 struct Entity {
 	math::Vec2 pos;
 	math::Vec2 scale;
 
-	Texture tex;
+	gl::Texture tex;
 	f32 tex_offset;
 
 	f32 scroll_velocity;
-};
-
-struct GameMemory {
-	size_t size;
-	void * ptr;
-
-	b32 initialized;
 };
 
 enum ButtonId {
@@ -81,6 +68,23 @@ enum ButtonId {
 	ButtonId_mute,
 
 	ButtonId_count,
+};
+
+struct TextBuffer {
+	u32 max_len;
+	char * str;
+
+	u32 vertex_array_length;
+	f32 * vertex_array;
+
+	gl::VertexBuffer vertex_buffer;
+};
+
+struct GameMemory {
+	size_t size;
+	void * ptr;
+
+	b32 initialized;
 };
 
 struct GameInput {
@@ -105,7 +109,9 @@ struct GameState {
 	gl::VertexBuffer entity_vertex_buffer;
 
 	u32 font_program;
-	gl::VertexBuffer font_vertex_buffer;
+	gl::Texture font_tex;
+
+	TextBuffer * text_buf;
 
 	math::Mat4 view_matrix;
 	math::Mat4 projection_matrix;
@@ -120,8 +126,6 @@ struct GameState {
 
 	Entity * player;
 	Entity * background;
-
-	Texture font_tex;
 };
 
 #endif

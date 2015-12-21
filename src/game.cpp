@@ -167,11 +167,11 @@ void change_volume(AudioSource * source, math::Vec2 volume, f32 time_) {
 void change_pitch(AudioSource * source, f32 pitch) {
 	if(source) {
 		//TODO: Pick appropriate min/max values!!
-		source->pitch = math::clamp(pitch, 0.001f, 10.0f);		
+		source->pitch = math::clamp(pitch, 0.001f, 10.0f);
 	}
 }
 
-Texture load_texture_from_file(char const * file_name, i32 filter_mode = GL_LINEAR) {
+gl::Texture load_texture_from_file(char const * file_name, i32 filter_mode = GL_LINEAR) {
 	u8 * file_buffer = read_file_to_memory(file_name);
 
 	BmpHeader * bmp_header = (BmpHeader *)file_buffer;
@@ -190,10 +190,7 @@ Texture load_texture_from_file(char const * file_name, i32 filter_mode = GL_LINE
 		bmp_data[i * 4 + 3] = a;
 	}
 
-	Texture tex = {};
-	tex.width = bmp_header->width;
-	tex.height = bmp_header->height;
-	tex.id = gl::create_texture(bmp_data, tex.width, tex.height, GL_RGBA, filter_mode, GL_CLAMP_TO_EDGE);
+	gl::Texture tex = gl::create_texture(bmp_data, bmp_header->width, bmp_header->height, GL_RGBA, filter_mode, GL_CLAMP_TO_EDGE);
 	ASSERT(tex.id);
 
 	delete[] file_buffer;
@@ -222,25 +219,20 @@ void render_entity(GameState * game_state, Entity * entity, math::Mat4 const & v
 	glDrawArrays(GL_TRIANGLES, 0, game_state->entity_vertex_buffer.vert_count);
 }
 
-math::Vec4 char_to_tex_coord(char char_) {
-	u32 x = (char_ - 24) % 12;
-	u32 y = (char_ - 24) / 12;
+TextBuffer * allocate_text_buffer(MemoryPool * pool, u32 max_len, u32 vert_size) {
+	TextBuffer * buf = PUSH_STRUCT(pool, TextBuffer);
 
-	u32 tex_size = 64;
+	buf->max_len = 64;
+	buf->str = PUSH_ARRAY(pool, char, max_len);
 
-	u32 glyph_width = 5;
-	u32 glyph_height = 7;
-	u32 glyph_padding = 1;
+	u32 verts_per_char = 6;
+	buf->vertex_array_length = max_len * verts_per_char * vert_size;
+	buf->vertex_array = PUSH_ARRAY(pool, f32, buf->vertex_array_length);
+	zero_memory((u8 *)buf->vertex_array, buf->vertex_array_length * sizeof(f32));
 
-	u32 u = x * glyph_width + glyph_padding;
-	u32 v = y * glyph_height + glyph_padding;
+	buf->vertex_buffer = gl::create_vertex_buffer(buf->vertex_array, buf->vertex_array_length, vert_size, GL_STATIC_DRAW);
 
-	math::Vec4 tex_coord = math::vec4(0.0f);
-	tex_coord.x = u / (f32)tex_size;
-	tex_coord.y = (tex_size - (v + 5)) / (f32)tex_size;
-	tex_coord.z = (u + 3) / (f32)tex_size;
-	tex_coord.w = (tex_size - v) / (f32)tex_size;
-	return tex_coord; 
+	return buf;
 }
 
 void game_tick(GameMemory * game_memory, GameInput * game_input) {
@@ -270,47 +262,9 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		u32 font_vert = gl::compile_shader_from_source(FONT_VERT_SRC, GL_VERTEX_SHADER);
 		u32 font_frag = gl::compile_shader_from_source(FONT_FRAG_SRC, GL_FRAGMENT_SHADER);
 		game_state->font_program = gl::link_shader_program(font_vert, font_frag);
-
 		game_state->font_tex = load_texture_from_file("font.bmp", GL_NEAREST);
 
-		{
-			char const * str = "DOLLY DOLLY DOLLY DAYS! [21-12-2015]";
-			u32 len = str_len(str);
-
-			u32 verts_per_char = 6;
-			u32 vert_size = 5;
-			u32 vert_array_length = len * verts_per_char * vert_size;
-
-			f32 * font_verts = PUSH_ARRAY(&game_state->memory_pool, f32, vert_array_length);
-
-			f32 glyph_scale = 0.05f;
-			f32 glyph_width = 0.3f * glyph_scale;
-			f32 glyph_height = 0.5f * glyph_scale;
-			f32 glyph_spacing = 0.1f * glyph_scale;
-
-			f32 anchor_x = -0.626f;
-			f32 anchor_y = -0.35f;
-
-			for(u32 i = 0; i < len; i++) {
-				f32 x0 = anchor_x + (glyph_width + glyph_spacing) * i;
-				f32 y0 = anchor_y;
-
-				f32 x1 = x0 + glyph_width;
-				f32 y1 = y0 + glyph_height;
-
-				math::Vec4 tex_coord = char_to_tex_coord(str[i]);
-
-				u32 e = i * verts_per_char * vert_size;
-				font_verts[e++] = x0; font_verts[e++] = y0; font_verts[e++] = 0.0f; font_verts[e++] = tex_coord.x; font_verts[e++] = tex_coord.y;
-				font_verts[e++] = x1; font_verts[e++] = y1; font_verts[e++] = 0.0f; font_verts[e++] = tex_coord.z; font_verts[e++] = tex_coord.w;
-				font_verts[e++] = x0; font_verts[e++] = y1; font_verts[e++] = 0.0f; font_verts[e++] = tex_coord.x; font_verts[e++] = tex_coord.w;
-				font_verts[e++] = x0; font_verts[e++] = y0; font_verts[e++] = 0.0f; font_verts[e++] = tex_coord.x; font_verts[e++] = tex_coord.y;
-				font_verts[e++] = x1; font_verts[e++] = y1; font_verts[e++] = 0.0f; font_verts[e++] = tex_coord.z; font_verts[e++] = tex_coord.w;
-				font_verts[e++] = x1; font_verts[e++] = y0; font_verts[e++] = 0.0f; font_verts[e++] = tex_coord.z; font_verts[e++] = tex_coord.y;
-			}
-
-			game_state->font_vertex_buffer = gl::create_vertex_buffer(font_verts, vert_array_length, vert_size, GL_STATIC_DRAW);
-		}
+		game_state->text_buf = allocate_text_buffer(&game_state->memory_pool, 64, 5);
 
 		math::Vec3 camera_forward = math::VEC3_FORWARD;
 		math::Vec3 camera_pos = camera_forward * 0.62f;
@@ -375,6 +329,59 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	background->tex_offset += background->scroll_velocity * game_input->delta_time;
 	change_pitch(game_state->music, background->scroll_velocity);
 
+	{
+		std::sprintf(game_state->text_buf->str, "DOLLY DOLLY DOLLY DAYS!\ndt: %.4f | pitch: %.4f\n", game_input->delta_time, background->scroll_velocity);
+		ASSERT(str_len(game_state->text_buf->str) < game_state->text_buf->max_len);
+
+		f32 glyph_scale = 0.04f;
+		f32 glyph_width = 0.3f * glyph_scale;
+		f32 glyph_height = 0.5f * glyph_scale;
+		f32 glyph_spacing = 0.1f * glyph_scale;
+
+		u32 tex_size = 64;
+
+		u32 pixel_width = 3;
+		u32 pixel_height = 5;
+		u32 pixel_padding = 1;
+
+		f32 * verts = game_state->text_buf->vertex_array;
+		u32 vert_size = game_state->text_buf->vertex_buffer.vert_size;
+
+		zero_memory((u8 *)verts, game_state->text_buf->vertex_array_length * sizeof(f32));
+
+		f32 anchor_x = -0.626f;
+		f32 anchor_y = -0.325f;
+
+		math::Vec2 pos = math::vec2(anchor_x, anchor_y);
+
+		for(u32 i = 0, e = 0; i < str_len(game_state->text_buf->str); i++) {
+			char char_ = game_state->text_buf->str[i];
+			if(char_ == '\n') {
+				pos.x = anchor_x;
+				pos.y -= (glyph_height + glyph_spacing);
+			}
+			else {
+				math::Vec2 pos0 = pos;
+				math::Vec2 pos1 = math::vec2(pos0.x + glyph_width, pos0.y + glyph_height);
+
+				pos.x += (glyph_width + glyph_spacing);
+
+				u32 u = ((char_ - 24) % 12) * (pixel_width + pixel_padding * 2) + pixel_padding;
+				u32 v = ((char_ - 24) / 12) * (pixel_height + pixel_padding * 2) + pixel_padding;
+
+				math::Vec2 uv0 = math::vec2(u, tex_size - (v + pixel_height)) / (f32)tex_size;
+				math::Vec2 uv1 = math::vec2(u + pixel_width, tex_size - v) / (f32)tex_size;
+
+				verts[e++] = pos0.x; verts[e++] = pos0.y; verts[e++] = 0.0f; verts[e++] = uv0.x; verts[e++] = uv0.y;
+				verts[e++] = pos1.x; verts[e++] = pos1.y; verts[e++] = 0.0f; verts[e++] = uv1.x; verts[e++] = uv1.y;
+				verts[e++] = pos0.x; verts[e++] = pos1.y; verts[e++] = 0.0f; verts[e++] = uv0.x; verts[e++] = uv1.y;
+				verts[e++] = pos0.x; verts[e++] = pos0.y; verts[e++] = 0.0f; verts[e++] = uv0.x; verts[e++] = uv0.y;
+				verts[e++] = pos1.x; verts[e++] = pos1.y; verts[e++] = 0.0f; verts[e++] = uv1.x; verts[e++] = uv1.y;
+				verts[e++] = pos1.x; verts[e++] = pos0.y; verts[e++] = 0.0f; verts[e++] = uv1.x; verts[e++] = uv0.y;
+			}
+		}
+	}
+
 	math::Mat4 view_projection_matrix = game_state->projection_matrix * game_state->view_matrix;
 	
 	glViewport(0, 0, game_input->back_buffer_width, game_input->back_buffer_height);
@@ -400,9 +407,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		glBindTexture(GL_TEXTURE_2D, game_state->font_tex.id);
 		glUniform1i(glGetUniformLocation(game_state->font_program, "tex0"), 0);
 
-		glBindBuffer(GL_ARRAY_BUFFER, game_state->font_vertex_buffer.id);
+		glBindBuffer(GL_ARRAY_BUFFER, game_state->text_buf->vertex_buffer.id);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, game_state->text_buf->vertex_buffer.size_in_bytes, game_state->text_buf->vertex_array);
 
-		u32 stride = game_state->font_vertex_buffer.vert_size * sizeof(f32);
+		u32 stride = game_state->text_buf->vertex_buffer.vert_size * sizeof(f32);
 
 		glVertexAttribPointer(0, 3, GL_FLOAT, 0, stride, 0);
 		glEnableVertexAttribArray(0);
@@ -410,7 +418,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		glVertexAttribPointer(1, 2, GL_FLOAT, 0, stride, (void *)(3 * sizeof(f32)));
 		glEnableVertexAttribArray(1);
 
-		glDrawArrays(GL_TRIANGLES, 0, game_state->font_vertex_buffer.vert_count);		
+		glDrawArrays(GL_TRIANGLES, 0, game_state->text_buf->vertex_buffer.vert_count);		
 	}
 
 	glDisable(GL_BLEND);
