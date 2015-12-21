@@ -56,6 +56,15 @@ typedef uint32_t b32;
 
 #define F32_MAX 1e+37f
 
+u32 str_len(char const * str) {
+	u32 len = 0;
+	while(str[len]) {
+		len++;
+	}
+
+	return len;
+}
+
 struct MemoryPool {
 	size_t size;
 	size_t used;

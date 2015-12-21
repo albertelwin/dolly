@@ -222,6 +222,27 @@ void render_entity(GameState * game_state, Entity * entity, math::Mat4 const & v
 	glDrawArrays(GL_TRIANGLES, 0, game_state->entity_vertex_buffer.vert_count);
 }
 
+math::Vec4 char_to_tex_coord(char char_) {
+	u32 x = (char_ - 24) % 12;
+	u32 y = (char_ - 24) / 12;
+
+	u32 tex_size = 64;
+
+	u32 glyph_width = 5;
+	u32 glyph_height = 7;
+	u32 glyph_padding = 1;
+
+	u32 u = x * glyph_width + glyph_padding;
+	u32 v = y * glyph_height + glyph_padding;
+
+	math::Vec4 tex_coord = math::vec4(0.0f);
+	tex_coord.x = u / (f32)tex_size;
+	tex_coord.y = (tex_size - (v + 5)) / (f32)tex_size;
+	tex_coord.z = (u + 3) / (f32)tex_size;
+	tex_coord.w = (tex_size - v) / (f32)tex_size;
+	return tex_coord; 
+}
+
 void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	ASSERT(sizeof(GameState) <= game_memory->size);
 	GameState * game_state = (GameState *)game_memory->ptr;
@@ -250,16 +271,46 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		u32 font_frag = gl::compile_shader_from_source(FONT_FRAG_SRC, GL_FRAGMENT_SHADER);
 		game_state->font_program = gl::link_shader_program(font_vert, font_frag);
 
-		f32 font_verts[] = {
-			-0.5f,-0.5f, 0.0f, 0.0f, 0.0f,
-			 0.5f, 0.5f, 0.0f, 1.0f, 1.0f,
-			-0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
-			-0.5f,-0.5f, 0.0f, 0.0f, 0.0f,
-			 0.5f, 0.5f, 0.0f, 1.0f, 1.0f,
-			 0.5f,-0.5f, 0.0f, 1.0f, 0.0f,
-		};
+		game_state->font_tex = load_texture_from_file("font.bmp", GL_NEAREST);
 
-		game_state->font_vertex_buffer = gl::create_vertex_buffer(font_verts, ARRAY_COUNT(font_verts), 5, GL_STATIC_DRAW);
+		{
+			char const * str = "DOLLY DOLLY DOLLY DAYS! [21-12-2015]";
+			u32 len = str_len(str);
+
+			u32 verts_per_char = 6;
+			u32 vert_size = 5;
+			u32 vert_array_length = len * verts_per_char * vert_size;
+
+			f32 * font_verts = PUSH_ARRAY(&game_state->memory_pool, f32, vert_array_length);
+
+			f32 glyph_scale = 0.05f;
+			f32 glyph_width = 0.3f * glyph_scale;
+			f32 glyph_height = 0.5f * glyph_scale;
+			f32 glyph_spacing = 0.1f * glyph_scale;
+
+			f32 anchor_x = -0.626f;
+			f32 anchor_y = -0.35f;
+
+			for(u32 i = 0; i < len; i++) {
+				f32 x0 = anchor_x + (glyph_width + glyph_spacing) * i;
+				f32 y0 = anchor_y;
+
+				f32 x1 = x0 + glyph_width;
+				f32 y1 = y0 + glyph_height;
+
+				math::Vec4 tex_coord = char_to_tex_coord(str[i]);
+
+				u32 e = i * verts_per_char * vert_size;
+				font_verts[e++] = x0; font_verts[e++] = y0; font_verts[e++] = 0.0f; font_verts[e++] = tex_coord.x; font_verts[e++] = tex_coord.y;
+				font_verts[e++] = x1; font_verts[e++] = y1; font_verts[e++] = 0.0f; font_verts[e++] = tex_coord.z; font_verts[e++] = tex_coord.w;
+				font_verts[e++] = x0; font_verts[e++] = y1; font_verts[e++] = 0.0f; font_verts[e++] = tex_coord.x; font_verts[e++] = tex_coord.w;
+				font_verts[e++] = x0; font_verts[e++] = y0; font_verts[e++] = 0.0f; font_verts[e++] = tex_coord.x; font_verts[e++] = tex_coord.y;
+				font_verts[e++] = x1; font_verts[e++] = y1; font_verts[e++] = 0.0f; font_verts[e++] = tex_coord.z; font_verts[e++] = tex_coord.w;
+				font_verts[e++] = x1; font_verts[e++] = y0; font_verts[e++] = 0.0f; font_verts[e++] = tex_coord.z; font_verts[e++] = tex_coord.y;
+			}
+
+			game_state->font_vertex_buffer = gl::create_vertex_buffer(font_verts, vert_array_length, vert_size, GL_STATIC_DRAW);
+		}
 
 		math::Vec3 camera_forward = math::VEC3_FORWARD;
 		math::Vec3 camera_pos = camera_forward * 0.62f;
@@ -292,7 +343,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		game_state->background->scale = math::vec2(game_state->background->tex.width, game_state->background->tex.height) * tex_scale;
 		game_state->background->scroll_velocity = 1.0f;
 
-		game_state->font_tex = load_texture_from_file("font.bmp", GL_NEAREST);
 
 		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	}
@@ -341,7 +391,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	{
 		glUseProgram(game_state->font_program);
 
-		math::Mat4 xform = view_projection_matrix * math::scale(0.5f);
+		math::Mat4 xform = view_projection_matrix;
 
 		u32 xform_id = glGetUniformLocation(game_state->font_program, "xform");
 		glUniformMatrix4fv(xform_id, 1, GL_FALSE, xform.v);
