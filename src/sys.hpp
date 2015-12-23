@@ -56,13 +56,81 @@ typedef uint32_t b32;
 
 #define F32_MAX 1e+37f
 
-u32 str_len(char const * str) {
+#define ASCII_NUMBER_BASE 48
+
+u32 str_length(char const * str) {
 	u32 len = 0;
 	while(str[len]) {
 		len++;
 	}
 
 	return len;
+}
+
+void str_copy(char * dst, char const * src) {
+	while(*src) {
+		*dst++ = *src++;
+	}
+
+	*dst = 0;
+}
+
+void str_push(char * dst, char const * src) {
+	while(*dst) {
+		dst++;
+	}
+
+	while(*src) {
+		*dst++ = *src++;
+	}
+
+	*dst = 0;
+}
+
+void str_push(char * dst, u32 src) {
+	while(*dst) {
+		dst++;
+	}
+
+	if(!src) {
+		*dst++ = ASCII_NUMBER_BASE;
+		*dst = 0;
+	}
+	else {
+		u32 src_ = src;
+		while(src_) {
+			dst++;
+			src_ /= 10;
+		}
+
+		*dst-- = 0;
+
+		while(src) {
+			*dst-- = ASCII_NUMBER_BASE + src % 10;
+			src /= 10; 
+		}
+	}
+}
+
+void str_push(char * dst, f32 src) {
+	str_push(dst, (u32)src);
+
+	while(*dst) {
+		dst++;
+	}
+
+	*dst++ = '.';
+
+	u32 p = 10000;
+	u32 frc = (u32)((src - (u32)src) * p);
+
+	p /= 10;
+	while(p) {
+		*dst++ = ASCII_NUMBER_BASE + ((frc / p) % 10);
+		p /= 10;
+	}
+
+	*dst = 0;
 }
 
 struct MemoryPool {

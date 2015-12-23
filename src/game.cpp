@@ -222,7 +222,7 @@ void render_entity(GameState * game_state, Entity * entity, math::Mat4 const & v
 TextBuffer * allocate_text_buffer(MemoryPool * pool, u32 max_len, u32 vert_size) {
 	TextBuffer * buf = PUSH_STRUCT(pool, TextBuffer);
 
-	buf->max_len = 64;
+	buf->max_len = max_len;
 	buf->str = PUSH_ARRAY(pool, char, max_len);
 
 	u32 verts_per_char = 6;
@@ -281,7 +281,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			load_audio_clip_from_file(game_state, &game_state->audio_clips[AudioClipId_music], "music.wav");
 
 			game_state->music = play_audio_clip(game_state, AudioClipId_music, true);
-			change_volume(game_state->music, math::vec2(0.0f), 0.0f);
+			// change_volume(game_state->music, math::vec2(0.0f), 0.0f);
 		}
 
 		f32 tex_scale = 1.0f / 1000.0f;
@@ -327,11 +327,20 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	}
 
 	background->tex_offset += background->scroll_velocity * game_input->delta_time;
+	background->tex_offset = math::frac(background->tex_offset);
+
 	change_pitch(game_state->music, background->scroll_velocity);
 
 	{
-		std::sprintf(game_state->text_buf->str, "DOLLY DOLLY DOLLY DAYS!\ndt: %.4f | pitch: %.4f\n", game_input->delta_time, background->scroll_velocity);
-		ASSERT(str_len(game_state->text_buf->str) < game_state->text_buf->max_len);
+		char * str = game_state->text_buf->str;
+
+		zero_memory((u8 *)str, game_state->text_buf->max_len);
+		str_push(str, "DOLLY DOLLY DOLLY DAYS!\nDT: ");
+		str_push(str, game_input->delta_time);
+		str_push(str, " | PITCH: ");
+		str_push(str, background->scroll_velocity);
+
+		ASSERT(str_length(str) < game_state->text_buf->max_len);
 
 		f32 glyph_scale = 0.04f;
 		f32 glyph_width = 0.3f * glyph_scale;
@@ -354,8 +363,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		math::Vec2 pos = math::vec2(anchor_x, anchor_y);
 
-		for(u32 i = 0, e = 0; i < str_len(game_state->text_buf->str); i++) {
-			char char_ = game_state->text_buf->str[i];
+		for(u32 i = 0, e = 0; i < str_length(str); i++) {
+			char char_ = str[i];
 			if(char_ == '\n') {
 				pos.x = anchor_x;
 				pos.y -= (glyph_height + glyph_spacing);
