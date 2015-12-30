@@ -57,6 +57,25 @@ typedef uint32_t b32;
 
 #define F32_MAX 1e+37f
 
+#define F32_SIGN_MASK 0x80000000
+#define F32_EXPONENT_MASK 0x7F800000
+#define F32_MANTISSA_MASK 0x007FFFFF
+
+b32 f32_is_nan(f32 val) {
+	u32 bits = *((u32 *)&val);
+	return (bits & F32_EXPONENT_MASK) == F32_EXPONENT_MASK && (bits & F32_MANTISSA_MASK) != 0;
+}
+
+b32 f32_is_inf(f32 val) {
+	u32 bits = *((u32 *)&val);
+	return (bits & F32_EXPONENT_MASK) == F32_EXPONENT_MASK && (bits & F32_MANTISSA_MASK) == 0;
+}
+
+b32 f32_is_neg(f32 val) {
+	u32 bits = *((u32 *)&val);
+	return (bits & F32_SIGN_MASK) == F32_SIGN_MASK;
+}
+
 struct Str {
 	char * ptr;
 	u32 len;
@@ -106,27 +125,35 @@ void str_push(Str * str, u32 val) {
 }
 
 void str_push(Str * str, f32 val) {
-	if(val < 0.0f) {
+	if(f32_is_neg(val)) {
 		str->ptr[str->len++] = '-';
-		val = -val;
+		val = -val;		
 	}
 
-	str_push(str, (u32)val);
+	if(f32_is_inf(val)) {
+		str_push(str, "inf");
+	}
+	else if(f32_is_nan(val)) {
+		str_push(str, "nan");
+	}
+	else {
+		str_push(str, (u32)val);
 
-	char * dst = str->ptr + str->len;
+		char * dst = str->ptr + str->len;
 
-	*dst++ = '.'; str->len++;
+		*dst++ = '.'; str->len++;
 
-	u32 p = 10000;
-	u32 frc = (u32)((val - (u32)val) * p);
+		u32 p = 10000;
+		u32 frc = (u32)((val - (u32)val) * p);
 
-	p /= 10;
-	while(p) {
-		*dst++ = '0' + ((frc / p) % 10); str->len++;
 		p /= 10;
-	}
+		while(p) {
+			*dst++ = '0' + ((frc / p) % 10); str->len++;
+			p /= 10;
+		}
 
-	*dst = 0;
+		*dst = 0;
+	}
 
 	ASSERT(str->len < str->max_len);
 }
