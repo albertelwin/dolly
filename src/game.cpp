@@ -198,36 +198,16 @@ gl::Texture load_texture_from_file(char const * file_name, i32 filter_mode = GL_
 	
 	delete[] file_buffer.ptr;
 #endif
+	stbi_set_flip_vertically_on_load(true);
 
 	i32 width, height, channels;
-	u8 * raw_img_data = stbi_load(file_name, &width, &height, &channels, 0);
+	u8 * img_data = stbi_load(file_name, &width, &height, &channels, 0);
 	ASSERT(channels == 4);
-
-	u8 * img_data = (u8 *)malloc(width * height * 4);
-
-	i32 pitch = width * 4;
-
-	u8 * src = img_data;
-	u8 * dst = raw_img_data + pitch * height;
-	for(u32 y = 0; y < height; y++) {
-
-		dst -= pitch;
-
-		for(u32 x = 0; x < width; x++) {
-			*src++ = *dst++;
-			*src++ = *dst++;
-			*src++ = *dst++;
-			*src++ = *dst++;
-		}
-
-		dst -= pitch;
-	}
 
 	gl::Texture tex = gl::create_texture(img_data, width, height, GL_RGBA, filter_mode, GL_CLAMP_TO_EDGE);
 	ASSERT(tex.id);
 
-	free(img_data);
-	stbi_image_free(raw_img_data);
+	stbi_image_free(img_data);
 
 	return tex;
 }
