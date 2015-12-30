@@ -58,6 +58,12 @@ typedef uint32_t b32;
 
 #define ASCII_NUMBER_BASE 48
 
+//TODO: Str struct!!
+// struct Str {
+// 	char * buf;
+// 	u32 len;
+// };
+
 u32 str_length(char const * str) {
 	u32 len = 0;
 	while(str[len]) {

@@ -4,6 +4,11 @@
 
 #include <math.hpp>
 
+struct FileBuffer {
+	size_t size;
+	u8 * ptr;
+};
+
 #define AUDIO_CHANNELS 2
 #define AUDIO_CLIP_SAMPLES_PER_SECOND 48000
 #define AUDIO_PADDING_SAMPLES 1

@@ -56,27 +56,29 @@ struct BmpHeader {
 };
 #pragma pack(pop)
 
-u8 * read_file_to_memory(char const * file_name) {
+FileBuffer read_file_to_memory(char const * file_name) {
 	std::FILE * file_ptr = std::fopen(file_name, "rb");
 	ASSERT(file_ptr != 0);
 
+	FileBuffer buf;
+
 	std::fseek(file_ptr, 0, SEEK_END);
-	long file_size = std::ftell(file_ptr);
+	buf.size = (size_t)std::ftell(file_ptr);
 	std::rewind(file_ptr);
 
-	u8 * file_buffer = new u8[file_size];
-	size_t read_result = std::fread(file_buffer, 1, file_size, file_ptr);
-	ASSERT(read_result == file_size);
+	buf.ptr = (u8 *)malloc(buf.size);
+	size_t read_result = std::fread(buf.ptr, 1, buf.size, file_ptr);
+	ASSERT(read_result == buf.size);
 
 	std::fclose(file_ptr);
 
-	return file_buffer;
+	return buf;
 }
 
 void load_audio_clip_from_file(GameState * game_state, AudioClip * clip, char const * file_name) {
-	u8 * file_buffer = read_file_to_memory(file_name);
+	FileBuffer file_buffer = read_file_to_memory(file_name);
 
-	WavHeader * wav_header = (WavHeader *)file_buffer;
+	WavHeader * wav_header = (WavHeader *)file_buffer.ptr;
 	ASSERT(wav_header->riff_id == RiffCode_RIFF);
 	ASSERT(wav_header->wave_id == RiffCode_WAVE);
 
@@ -112,7 +114,7 @@ void load_audio_clip_from_file(GameState * game_state, AudioClip * clip, char co
 
 	clip->length = (f32)clip->samples / (f32)wav_format->samples_per_second;
 
-	delete[] file_buffer;
+	delete[] file_buffer.ptr;
 }
 
 AudioVal64 audio_val64(f32 val_f32) {
@@ -172,12 +174,13 @@ void change_pitch(AudioSource * source, f32 pitch) {
 }
 
 gl::Texture load_texture_from_file(char const * file_name, i32 filter_mode = GL_LINEAR) {
-	u8 * file_buffer = read_file_to_memory(file_name);
+#if 0
+	FileBuffer file_buffer = read_file_to_memory(file_name);
 
-	BmpHeader * bmp_header = (BmpHeader *)file_buffer;
+	BmpHeader * bmp_header = (BmpHeader *)file_buffer.ptr;
 	ASSERT(bmp_header->file_type == 0x4D42);
 
-	u8 * bmp_data = (u8 *)(file_buffer + bmp_header->bitmap_offset);
+	u8 * bmp_data = (u8 *)(file_buffer.ptr + bmp_header->bitmap_offset);
 	for(u32 i = 0; i < bmp_header->width * bmp_header->height; i++) {
 		u8 a = bmp_data[i * 4 + 0];
 		u8 b = bmp_data[i * 4 + 1];
@@ -192,8 +195,39 @@ gl::Texture load_texture_from_file(char const * file_name, i32 filter_mode = GL_
 
 	gl::Texture tex = gl::create_texture(bmp_data, bmp_header->width, bmp_header->height, GL_RGBA, filter_mode, GL_CLAMP_TO_EDGE);
 	ASSERT(tex.id);
+	
+	delete[] file_buffer.ptr;
+#endif
 
-	delete[] file_buffer;
+	i32 width, height, channels;
+	u8 * raw_img_data = stbi_load(file_name, &width, &height, &channels, 0);
+	ASSERT(channels == 4);
+
+	u8 * img_data = (u8 *)malloc(width * height * 4);
+
+	i32 pitch = width * 4;
+
+	u8 * src = img_data;
+	u8 * dst = raw_img_data + pitch * height;
+	for(u32 y = 0; y < height; y++) {
+
+		dst -= pitch;
+
+		for(u32 x = 0; x < width; x++) {
+			*src++ = *dst++;
+			*src++ = *dst++;
+			*src++ = *dst++;
+			*src++ = *dst++;
+		}
+
+		dst -= pitch;
+	}
+
+	gl::Texture tex = gl::create_texture(img_data, width, height, GL_RGBA, filter_mode, GL_CLAMP_TO_EDGE);
+	ASSERT(tex.id);
+
+	free(img_data);
+	stbi_image_free(raw_img_data);
 
 	return tex;
 }
@@ -262,7 +296,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		u32 font_vert = gl::compile_shader_from_source(FONT_VERT_SRC, GL_VERTEX_SHADER);
 		u32 font_frag = gl::compile_shader_from_source(FONT_FRAG_SRC, GL_FRAGMENT_SHADER);
 		game_state->font_program = gl::link_shader_program(font_vert, font_frag);
-		game_state->font_tex = load_texture_from_file("font.bmp", GL_NEAREST);
+		game_state->font_tex = load_texture_from_file("font.png", GL_NEAREST);
 
 		game_state->text_buf = allocate_text_buffer(&game_state->memory_pool, 64, 5);
 
@@ -288,12 +322,12 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		game_state->player = PUSH_STRUCT(&game_state->memory_pool, Entity);
 		game_state->player->pos = math::vec2(-0.5f, 0.0f);
-		game_state->player->tex = load_texture_from_file("dolly.bmp");
+		game_state->player->tex = load_texture_from_file("dolly.png");
 		game_state->player->scale = math::vec2(game_state->player->tex.width, game_state->player->tex.height) * tex_scale;
 
 		game_state->background = PUSH_STRUCT(&game_state->memory_pool, Entity);
 		game_state->background->pos = math::vec2(0.0f);
-		game_state->background->tex = load_texture_from_file("background.bmp");
+		game_state->background->tex = load_texture_from_file("background.png");
 		game_state->background->scale = math::vec2(game_state->background->tex.width, game_state->background->tex.height) * tex_scale;
 		game_state->background->scroll_velocity = 1.0f;
 
