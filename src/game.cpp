@@ -34,26 +34,6 @@ struct WavFormat {
 	u32 channel_mask;
 	u8 guid[16];
 };
-
-struct BmpHeader {
-	u16 file_type;
-	u32 file_size;
-	u16 reserved0_;
-	u16 reserved1_;
-	u32 bitmap_offset;
-
-	u32 size;
-	i32 width;
-	i32 height;
-	u16 planes;
-	u16 bits_per_pixel;
-	u32 compression;
-	u32 size_of_bitmap;
-	i32 horz_res;
-	i32 vert_res;
-	u32 colors_used;
-	u32 colors_important;
-};
 #pragma pack(pop)
 
 FileBuffer read_file_to_memory(char const * file_name) {
@@ -174,35 +154,11 @@ void change_pitch(AudioSource * source, f32 pitch) {
 }
 
 gl::Texture load_texture_from_file(char const * file_name, i32 filter_mode = GL_LINEAR) {
-#if 0
-	FileBuffer file_buffer = read_file_to_memory(file_name);
-
-	BmpHeader * bmp_header = (BmpHeader *)file_buffer.ptr;
-	ASSERT(bmp_header->file_type == 0x4D42);
-
-	u8 * bmp_data = (u8 *)(file_buffer.ptr + bmp_header->bitmap_offset);
-	for(u32 i = 0; i < bmp_header->width * bmp_header->height; i++) {
-		u8 a = bmp_data[i * 4 + 0];
-		u8 b = bmp_data[i * 4 + 1];
-		u8 g = bmp_data[i * 4 + 2];
-		u8 r = bmp_data[i * 4 + 3];
-
-		bmp_data[i * 4 + 0] = r;
-		bmp_data[i * 4 + 1] = g;
-		bmp_data[i * 4 + 2] = b;
-		bmp_data[i * 4 + 3] = a;
-	}
-
-	gl::Texture tex = gl::create_texture(bmp_data, bmp_header->width, bmp_header->height, GL_RGBA, filter_mode, GL_CLAMP_TO_EDGE);
-	ASSERT(tex.id);
-	
-	delete[] file_buffer.ptr;
-#endif
 	stbi_set_flip_vertically_on_load(true);
 
 	i32 width, height, channels;
 	u8 * img_data = stbi_load(file_name, &width, &height, &channels, 0);
-	ASSERT(channels == 4);
+	ASSERT(channels == TEXTURE_CHANNELS);
 
 	gl::Texture tex = gl::create_texture(img_data, width, height, GL_RGBA, filter_mode, GL_CLAMP_TO_EDGE);
 	ASSERT(tex.id);
@@ -236,8 +192,9 @@ void render_entity(GameState * game_state, Entity * entity, math::Mat4 const & v
 TextBuffer * allocate_text_buffer(MemoryPool * pool, u32 max_len, u32 vert_size) {
 	TextBuffer * buf = PUSH_STRUCT(pool, TextBuffer);
 
-	buf->max_len = max_len;
-	buf->str = PUSH_ARRAY(pool, char, max_len);
+	buf->str.max_len = max_len;
+	buf->str.len = 0;
+	buf->str.ptr = PUSH_ARRAY(pool, char, max_len);
 
 	u32 verts_per_char = 6;
 	buf->vertex_array_length = max_len * verts_per_char * vert_size;
@@ -346,15 +303,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	change_pitch(game_state->music, background->scroll_velocity);
 
 	{
-		char * str = game_state->text_buf->str;
+		Str * str = &game_state->text_buf->str;
 
-		zero_memory((u8 *)str, game_state->text_buf->max_len);
-		str_push(str, "DOLLY DOLLY DOLLY DAYS!\nDT: ");
-		str_push(str, game_input->delta_time);
-		str_push(str, " | PITCH: ");
-		str_push(str, background->scroll_velocity);
-
-		ASSERT(str_length(str) < game_state->text_buf->max_len);
+		str_clear(str);
+		str_print(str, "DOLLY DOLLY DOLLY DAYS!\nDT: %f | PITCH: %f", game_input->delta_time, background->scroll_velocity);
 
 		f32 glyph_scale = 0.04f;
 		f32 glyph_width = 0.3f * glyph_scale;
@@ -377,8 +329,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		math::Vec2 pos = math::vec2(anchor_x, anchor_y);
 
-		for(u32 i = 0, e = 0; i < str_length(str); i++) {
-			char char_ = str[i];
+		for(u32 i = 0, e = 0; i < str->len; i++) {
+			char char_ = str->ptr[i];
 			if(char_ == '\n') {
 				pos.x = anchor_x;
 				pos.y -= (glyph_height + glyph_spacing);

@@ -4,6 +4,8 @@
 
 #include <math.hpp>
 
+#define TEXTURE_CHANNELS 4
+
 struct FileBuffer {
 	size_t size;
 	u8 * ptr;
@@ -76,8 +78,7 @@ enum ButtonId {
 };
 
 struct TextBuffer {
-	u32 max_len;
-	char * str;
+	Str str;
 
 	u32 vertex_array_length;
 	f32 * vertex_array;
@@ -87,7 +88,7 @@ struct TextBuffer {
 
 struct GameMemory {
 	size_t size;
-	void * ptr;
+	u8 * ptr;
 
 	b32 initialized;
 };

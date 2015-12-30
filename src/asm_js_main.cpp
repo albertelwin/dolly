@@ -180,7 +180,8 @@ int main() {
 
 	MainLoopArgs args = {};
 	args.game_memory.size = MEGABYTES(8);
-	args.game_memory.ptr = new u8[args.game_memory.size];
+	args.game_memory.ptr = (u8 *)malloc(args.game_memory.size);
+	zero_memory(args.game_memory.ptr, args.game_memory.size);
 
 	args.game_input.back_buffer_width = window_width;
 	args.game_input.back_buffer_height = window_height;

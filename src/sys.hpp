@@ -2,6 +2,7 @@
 #ifndef SYS_HPP_INCLUDED
 #define SYS_HPP_INCLUDED
 
+#include <cstdarg>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -56,87 +57,113 @@ typedef uint32_t b32;
 
 #define F32_MAX 1e+37f
 
-#define ASCII_NUMBER_BASE 48
+struct Str {
+	char * ptr;
+	u32 len;
+	u32 max_len;
+};
 
-//TODO: Str struct!!
-// struct Str {
-// 	char * buf;
-// 	u32 len;
-// };
-
-u32 str_length(char const * str) {
-	u32 len = 0;
-	while(str[len]) {
-		len++;
-	}
-
-	return len;
+void str_clear(Str * str) {
+	str->ptr[0] = 0;
+	str->len = 0;
 }
 
-void str_copy(char * dst, char const * src) {
-	while(*src) {
-		*dst++ = *src++;
+void str_push(Str * str, char const * val) {
+	char * dst = str->ptr + str->len;
+
+	while(*val) {
+		*dst++ = *val++; str->len++;
 	}
 
 	*dst = 0;
+
+	ASSERT(str->len < str->max_len);
 }
 
-void str_push(char * dst, char const * src) {
-	while(*dst) {
-		dst++;
-	}
+void str_push(Str * str, u32 val) {
+	char * dst = str->ptr + str->len;
 
-	while(*src) {
-		*dst++ = *src++;
-	}
-
-	*dst = 0;
-}
-
-void str_push(char * dst, u32 src) {
-	while(*dst) {
-		dst++;
-	}
-
-	if(!src) {
-		*dst++ = ASCII_NUMBER_BASE;
+	if(!val) {
+		*dst++ = '0'; str->len++;
 		*dst = 0;
 	}
 	else {
-		u32 src_ = src;
-		while(src_) {
-			dst++;
-			src_ /= 10;
+		u32 val_ = val;
+		while(val_) {
+			dst++; str->len++;
+			val_ /= 10;
 		}
 
 		*dst-- = 0;
 
-		while(src) {
-			*dst-- = ASCII_NUMBER_BASE + src % 10;
-			src /= 10; 
+		while(val) {
+			*dst-- = '0' + val % 10;
+			val /= 10; 
 		}
 	}
+
+	ASSERT(str->len < str->max_len);
 }
 
-void str_push(char * dst, f32 src) {
-	str_push(dst, (u32)src);
-
-	while(*dst) {
-		dst++;
+void str_push(Str * str, f32 val) {
+	if(val < 0.0f) {
+		str->ptr[str->len++] = '-';
+		val = -val;
 	}
 
-	*dst++ = '.';
+	str_push(str, (u32)val);
+
+	char * dst = str->ptr + str->len;
+
+	*dst++ = '.'; str->len++;
 
 	u32 p = 10000;
-	u32 frc = (u32)((src - (u32)src) * p);
+	u32 frc = (u32)((val - (u32)val) * p);
 
 	p /= 10;
 	while(p) {
-		*dst++ = ASCII_NUMBER_BASE + ((frc / p) % 10);
+		*dst++ = '0' + ((frc / p) % 10); str->len++;
 		p /= 10;
 	}
 
 	*dst = 0;
+
+	ASSERT(str->len < str->max_len);
+}
+
+void str_print(Str * str, char const * fmt, ...) {
+	va_list args;
+	va_start(args, fmt);
+
+	while(*fmt) {
+		if(fmt[0] == '%') {
+			switch(fmt[1]) {
+				case 'f': {
+					str_push(str, (f32)va_arg(args, f64));
+					break;
+				}
+
+				case 'u': {
+					str_push(str, va_arg(args, u32));
+					break;
+				}
+
+				default: {
+					ASSERT(false);
+					break;
+				}
+			}
+
+			fmt += 2;
+		}
+		else {
+			str->ptr[str->len++] = *fmt;
+			fmt++;			
+		}
+	}
+
+	str->ptr[str->len] = 0;
+	va_end(args);
 }
 
 struct MemoryPool {
