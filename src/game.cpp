@@ -235,7 +235,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		game_state->font_program = gl::link_shader_program(font_vert, font_frag);
 		game_state->font_tex = load_texture_from_file("font.png", GL_NEAREST);
 
-		game_state->text_buf = allocate_text_buffer(&game_state->memory_pool, 64, 5);
+		game_state->text_buf = allocate_text_buffer(&game_state->memory_pool, 1024, 5);
 
 		math::Vec3 camera_forward = math::VEC3_FORWARD;
 		math::Vec3 camera_pos = camera_forward * 0.62f;
@@ -303,10 +303,12 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	change_pitch(game_state->music, background->scroll_velocity);
 
 	{
+		DEBUG_TIME_BLOCK();
+
 		Str * str = &game_state->text_buf->str;
 
-		str_clear(str);
-		str_print(str, "DOLLY DOLLY DOLLY DAYS!\nDT: %f | PITCH: %f", game_input->delta_time, background->scroll_velocity);
+		// str_clear(str);
+		// str_print(str, "DOLLY DOLLY DOLLY DAYS!\nDT: %f | PITCH: %f\n", game_input->delta_time, background->scroll_velocity);
 
 		f32 glyph_scale = 0.04f;
 		f32 glyph_width = 0.3f * glyph_scale;
@@ -325,7 +327,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		zero_memory((u8 *)verts, game_state->text_buf->vertex_array_length * sizeof(f32));
 
 		f32 anchor_x = -0.626f;
-		f32 anchor_y = -0.325f;
+		f32 anchor_y = 0.3275f;
 
 		math::Vec2 pos = math::vec2(anchor_x, anchor_y);
 
@@ -371,6 +373,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	render_entity(game_state, game_state->player, view_projection_matrix);
 
 	{
+		DEBUG_TIME_BLOCK();
+
 		glUseProgram(game_state->font_program);
 
 		math::Mat4 xform = view_projection_matrix;
@@ -417,6 +421,8 @@ void game_sample(GameMemory * game_memory, i16 * sample_memory_ptr, u32 samples_
 }
 #else
 void game_sample(GameMemory * game_memory, i16 * sample_memory_ptr, u32 samples_to_write, u32 samples_per_second) {
+	DEBUG_TIME_BLOCK();
+
 	for(u32 i = 0, sample_index = 0; i < samples_to_write; i++) {
 		sample_memory_ptr[sample_index++] = 0;
 		sample_memory_ptr[sample_index++] = 0;
@@ -537,3 +543,24 @@ void game_sample(GameMemory * game_memory, i16 * sample_memory_ptr, u32 samples_
 	}
 }
 #endif
+
+DebugBlockProfile debug_block_profiles[__COUNTER__];
+
+void debug_game_tick(GameMemory * game_memory) {
+	if(game_memory->initialized) {
+		GameState * game_state = (GameState *)game_memory->ptr;
+
+		Str * str = &game_state->text_buf->str;
+
+		str_clear(str);
+
+		for(u32 i = 0; i < ARRAY_COUNT(debug_block_profiles); i++) {
+			DebugBlockProfile * profile = debug_block_profiles + i;
+
+			str_print(str, "%s[%u]: time: %fms | hits: %u\n", profile->func, profile->id, profile->ms, profile->hits);
+
+			profile->ms = 0.0;
+			profile->hits = 0;
+		}
+	}
+}

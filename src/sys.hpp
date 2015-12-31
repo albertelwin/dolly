@@ -83,33 +83,34 @@ struct Str {
 };
 
 void str_clear(Str * str) {
-	str->ptr[0] = 0;
 	str->len = 0;
+	str->ptr[0] = 0;
 }
 
-void str_push(Str * str, char const * val) {
-	char * dst = str->ptr + str->len;
+void str_push(Str * str, char char_) {
+	ASSERT(str->len < (str->max_len - 1));
 
+	str->ptr[str->len++] = char_;
+	str->ptr[str->len] = 0;
+}
+
+void str_push_c_str(Str * str, char const * val) {
 	while(*val) {
-		*dst++ = *val++; str->len++;
+		str_push(str, *val++);
 	}
-
-	*dst = 0;
-
-	ASSERT(str->len < str->max_len);
 }
 
-void str_push(Str * str, u32 val) {
-	char * dst = str->ptr + str->len;
-
+void str_push_u32(Str * str, u32 val) {
 	if(!val) {
-		*dst++ = '0'; str->len++;
-		*dst = 0;
+		str_push(str, '0');
 	}
 	else {
+		char * dst = str->ptr + str->len;
+
 		u32 val_ = val;
 		while(val_) {
-			dst++; str->len++;
+			dst++;
+			str->len++;
 			val_ /= 10;
 		}
 
@@ -120,42 +121,33 @@ void str_push(Str * str, u32 val) {
 			val /= 10; 
 		}
 	}
-
-	ASSERT(str->len < str->max_len);
 }
 
-void str_push(Str * str, f32 val) {
+void str_push_f32(Str * str, f32 val) {
 	if(f32_is_neg(val)) {
-		str->ptr[str->len++] = '-';
-		val = -val;		
+		str_push(str, '-');
+		val = -val;
 	}
 
 	if(f32_is_inf(val)) {
-		str_push(str, "inf");
+		str_push_c_str(str, "inf");
 	}
 	else if(f32_is_nan(val)) {
-		str_push(str, "nan");
+		str_push_c_str(str, "nan");
 	}
 	else {
-		str_push(str, (u32)val);
-
-		char * dst = str->ptr + str->len;
-
-		*dst++ = '.'; str->len++;
+		str_push_u32(str, (u32)val);
+		str_push(str, '.');
 
 		u32 p = 10000;
 		u32 frc = (u32)((val - (u32)val) * p);
 
 		p /= 10;
 		while(p) {
-			*dst++ = '0' + ((frc / p) % 10); str->len++;
+			str_push(str, '0' + ((frc / p) % 10));
 			p /= 10;
 		}
-
-		*dst = 0;
 	}
-
-	ASSERT(str->len < str->max_len);
 }
 
 void str_print(Str * str, char const * fmt, ...) {
@@ -165,13 +157,18 @@ void str_print(Str * str, char const * fmt, ...) {
 	while(*fmt) {
 		if(fmt[0] == '%') {
 			switch(fmt[1]) {
+				case 's': {
+					str_push_c_str(str, va_arg(args, char *));
+					break;
+				}
+
 				case 'f': {
-					str_push(str, (f32)va_arg(args, f64));
+					str_push_f32(str, (f32)va_arg(args, f64));
 					break;
 				}
 
 				case 'u': {
-					str_push(str, va_arg(args, u32));
+					str_push_u32(str, va_arg(args, u32));
 					break;
 				}
 
@@ -184,8 +181,7 @@ void str_print(Str * str, char const * fmt, ...) {
 			fmt += 2;
 		}
 		else {
-			str->ptr[str->len++] = *fmt;
-			fmt++;			
+			str_push(str, *fmt++);
 		}
 	}
 

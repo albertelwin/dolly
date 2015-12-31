@@ -17,6 +17,7 @@
 #include <font.vert>
 #include <font.frag>
 
+#include <debug.hpp>
 #include <math.hpp>
 #include <game.hpp>
 
@@ -159,6 +160,8 @@ void main_loop(void * user_ptr) {
 		game_tick(&args->game_memory, &args->game_input);
 
 		web_audio_request_samples();
+
+		debug_game_tick(&args->game_memory);
 
 		SDL_GL_SwapBuffers();
 	}
