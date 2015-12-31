@@ -1,6 +1,6 @@
 
-#ifndef NAMESPACE_INTRIN_INCLUDED
-#define NAMESPACE_INTRIN_INCLUDED
+#ifndef INTRIN_HPP_INCLUDED
+#define INTRIN_HPP_INCLUDED
 
 #include <cmath>
 

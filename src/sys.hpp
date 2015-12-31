@@ -6,7 +6,6 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 
 #define __TOKEN_STRINGIFY(x) #x
 #define TOKEN_STRINGIFY(x) __TOKEN_STRINGIFY(x)
@@ -228,5 +227,29 @@ void zero_memory(u8 * ptr, size_t size) {
 #define KEY_DOWN (1 << KEY_DOWN_BIT)
 #define KEY_PRESSED (1 << KEY_PRESSED_BIT)
 #define KEY_RELEASED (1 << KEY_RELEASED_BIT)
+
+struct FileBuffer {
+	size_t size;
+	u8 * ptr;
+};
+
+FileBuffer read_file_to_memory(char const * file_name) {
+	std::FILE * file_ptr = std::fopen(file_name, "rb");
+	ASSERT(file_ptr != 0);
+
+	FileBuffer buf;
+
+	std::fseek(file_ptr, 0, SEEK_END);
+	buf.size = (size_t)std::ftell(file_ptr);
+	std::rewind(file_ptr);
+
+	buf.ptr = (u8 *)malloc(buf.size);
+	size_t read_result = std::fread(buf.ptr, 1, buf.size, file_ptr);
+	ASSERT(read_result == buf.size);
+
+	std::fclose(file_ptr);
+
+	return buf;
+}
 
 #endif

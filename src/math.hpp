@@ -1,6 +1,6 @@
 
-#ifndef NAMESPACE_MATH_INCLUDED_HPP
-#define NAMESPACE_MATH_INCLUDED_HPP
+#ifndef MATH_HPP_INCLUDED
+#define MATH_HPP_INCLUDED
 
 //NOTE: Get rid of these?
 #include <cmath>

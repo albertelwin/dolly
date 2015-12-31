@@ -1,6 +1,6 @@
 
-#ifndef NAMESPACE_GL_INCLUDED
-#define NAMESPACE_GL_INCLUDED
+#ifndef GL_HPP_INCLUDED
+#define GL_HPP_INCLUDED
 
 #define STRINGIFY_GLSL_SHADER(version, shader) "#version " #version "\n" #shader
 

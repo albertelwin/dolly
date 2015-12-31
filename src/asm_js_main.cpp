@@ -17,16 +17,7 @@
 #include <font.vert>
 #include <font.frag>
 
-#include <debug.hpp>
-#include <math.hpp>
-#include <game.hpp>
-
-#include <math.cpp>
 #include <game.cpp>
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <assert.h>
 
 extern "C" {
 	extern b32 web_audio_init(u32 channels, u32 samples, u32 * samples_per_second, void * callback, void * user_ptr);
