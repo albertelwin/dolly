@@ -39,6 +39,15 @@ struct TextBuffer {
 	gl::VertexBuffer vertex_buffer;
 };
 
+struct Font {
+	u32 program;
+	gl::Texture tex;
+
+	u32 glyph_width;
+	u32 glyph_height;
+	u32 glyph_spacing;
+};
+
 struct GameMemory {
 	size_t size;
 	u8 * ptr;
@@ -70,14 +79,11 @@ struct GameState {
 	u32 entity_program;
 	gl::VertexBuffer entity_vertex_buffer;
 
-	u32 font_program;
-	gl::Texture font_tex;
-
+	Font font;
 	TextBuffer * text_buf;
 
 	math::Mat4 view_matrix;
 	math::Mat4 projection_matrix;
-
 
 	Entity entites[32];
 

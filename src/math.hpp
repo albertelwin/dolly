@@ -656,6 +656,17 @@ namespace math {
 		};
 	}
 
+	Mat4 orthographic_projection(f32 width, f32 height) {
+		//TODO: Resolution independence, adjust for aspect and use a size param)!!
+		//TODO: Arbritary plane projection??
+		return {
+			(1.0f / width) * 2.0f, 0.0f, 0.0f, 0.0f,
+			0.0f, (1.0f / height) * 2.0f, 0.0f, 0.0f,
+			0.0f, 0.0f, 0.0f, 0.0f,
+			0.0f, 0.0f, 0.0f, 1.0f,
+		};
+	}
+
 	struct Ray {
 		Vec3 o;
 		Vec3 d;

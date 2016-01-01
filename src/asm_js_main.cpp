@@ -152,7 +152,7 @@ void main_loop(void * user_ptr) {
 
 		web_audio_request_samples();
 
-		debug_game_tick(&args->game_memory);
+		debug_game_tick(&args->game_memory, &args->game_input);
 
 		SDL_GL_SwapBuffers();
 	}
@@ -165,10 +165,10 @@ int main() {
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 8);
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
-	u32 window_width = 960;
-	u32 window_height = 540;
 	// u32 window_width = 640;
 	// u32 window_height = 360;
+	u32 window_width = 1280; // 960;
+	u32 window_height = 720; // 540;
 
 	SDL_Surface * surface = SDL_SetVideoMode(window_width, window_height, 32, SDL_OPENGL);
 

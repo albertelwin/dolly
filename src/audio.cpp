@@ -254,6 +254,7 @@ void audio_output_samples(AudioState * audio_state, i16 * sample_memory_ptr, u32
 }
 
 void load_audio(AudioState * audio_state, MemoryPool * pool, b32 supported) {
+	//TODO: Allocate sub-pool!!
 	audio_state->memory_pool = pool;
 	audio_state->supported = supported;
 	audio_state->master_volume = 1.0f;

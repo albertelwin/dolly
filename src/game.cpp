@@ -85,38 +85,40 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		game_state->entity_vertex_buffer = gl::create_vertex_buffer(quad_verts, ARRAY_COUNT(quad_verts), 3, GL_STATIC_DRAW);
 
+		Font * font = &game_state->font;
 		u32 font_vert = gl::compile_shader_from_source(FONT_VERT_SRC, GL_VERTEX_SHADER);
 		u32 font_frag = gl::compile_shader_from_source(FONT_FRAG_SRC, GL_FRAGMENT_SHADER);
-		game_state->font_program = gl::link_shader_program(font_vert, font_frag);
-		game_state->font_tex = load_texture_from_file("font.png", GL_NEAREST);
+		font->program = gl::link_shader_program(font_vert, font_frag);
+		font->tex = load_texture_from_file("font.png", GL_NEAREST);
+		font->glyph_width = 3;
+		font->glyph_height = 5;
+		font->glyph_spacing = 1;
 
 		game_state->text_buf = allocate_text_buffer(&game_state->memory_pool, 1024, 5);
 
 		math::Vec3 camera_forward = math::VEC3_FORWARD;
-		math::Vec3 camera_pos = camera_forward * 0.62f;
+		math::Vec3 camera_pos = camera_forward * 1.0f;
 		game_state->view_matrix = math::look_at(camera_pos, camera_pos - camera_forward, math::VEC3_UP);
 
 		f32 aspect_ratio = (f32)game_input->back_buffer_width / (f32)game_input->back_buffer_height;
-		game_state->projection_matrix = math::perspective_projection(aspect_ratio, 60.0f, 0.03f, F32_MAX);
-
-		f32 tex_scale = 1.0f / 1000.0f;
+		game_state->projection_matrix = math::orthographic_projection((f32)game_input->back_buffer_width, (f32)game_input->back_buffer_height);
 
 		game_state->player = PUSH_STRUCT(&game_state->memory_pool, Entity);
-		game_state->player->pos = math::vec2(-0.5f, 0.0f);
+		game_state->player->pos = math::vec2(-426.67f, 0.0f);
 		game_state->player->tex = load_texture_from_file("dolly.png");
-		game_state->player->scale = math::vec2(game_state->player->tex.width, game_state->player->tex.height) * tex_scale;
+		game_state->player->scale = math::vec2(game_state->player->tex.width, game_state->player->tex.height);
 
 		game_state->background = PUSH_STRUCT(&game_state->memory_pool, Entity);
 		game_state->background->pos = math::vec2(0.0f);
 		game_state->background->tex = load_texture_from_file("background.png");
-		game_state->background->scale = math::vec2(game_state->background->tex.width, game_state->background->tex.height) * tex_scale;
+		game_state->background->scale = math::vec2(game_state->background->tex.width, game_state->background->tex.height);
 		game_state->background->scroll_velocity = 1.0f;
 
 		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	}
 
 	Entity * player = game_state->player;
-	f32 player_accel = 1.0f * game_input->delta_time;
+	f32 player_accel = 1000.0f * game_input->delta_time;
 
 	if(game_input->buttons[ButtonId_up] & KEY_DOWN) {
 		player->pos.y += player_accel;
@@ -152,30 +154,23 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	{
 		DEBUG_TIME_BLOCK();
 
+		Font * font = &game_state->font;
 		Str * str = &game_state->text_buf->str;
 
-		// str_clear(str);
-		// str_print(str, "DOLLY DOLLY DOLLY DAYS!\nDT: %f | PITCH: %f\n", game_input->delta_time, background->scroll_velocity);
+		f32 glyph_scale = 2.0f;
+		f32 glyph_width = font->glyph_width * glyph_scale;
+		f32 glyph_height = font->glyph_height * glyph_scale;
+		f32 glyph_spacing = font->glyph_spacing * glyph_scale;
 
-		f32 glyph_scale = 0.04f;
-		f32 glyph_width = 0.3f * glyph_scale;
-		f32 glyph_height = 0.5f * glyph_scale;
-		f32 glyph_spacing = 0.1f * glyph_scale;
-
-		u32 tex_size = 64;
-
-		u32 pixel_width = 3;
-		u32 pixel_height = 5;
-		u32 pixel_padding = 1;
+		u32 tex_size = font->tex.width;
 
 		f32 * verts = game_state->text_buf->vertex_array;
 		u32 vert_size = game_state->text_buf->vertex_buffer.vert_size;
 
 		zero_memory((u8 *)verts, game_state->text_buf->vertex_array_length * sizeof(f32));
 
-		//TOOD: Improve text alignment!!
-		f32 anchor_x = -0.626f;
-		f32 anchor_y = 0.3275f;
+		f32 anchor_x = -(f32)game_input->back_buffer_width * 0.5f + glyph_spacing;
+		f32 anchor_y = game_input->back_buffer_height * 0.5f - (glyph_height + glyph_spacing);
 
 		math::Vec2 pos = math::vec2(anchor_x, anchor_y);
 
@@ -191,11 +186,11 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 				pos.x += (glyph_width + glyph_spacing);
 
-				u32 u = ((char_ - 24) % 12) * (pixel_width + pixel_padding * 2) + pixel_padding;
-				u32 v = ((char_ - 24) / 12) * (pixel_height + pixel_padding * 2) + pixel_padding;
+				u32 u = ((char_ - 24) % 12) * (font->glyph_width + font->glyph_spacing * 2) + font->glyph_spacing;
+				u32 v = ((char_ - 24) / 12) * (font->glyph_height + font->glyph_spacing * 2) + font->glyph_spacing;
 
-				math::Vec2 uv0 = math::vec2(u, tex_size - (v + pixel_height)) / (f32)tex_size;
-				math::Vec2 uv1 = math::vec2(u + pixel_width, tex_size - v) / (f32)tex_size;
+				math::Vec2 uv0 = math::vec2(u, tex_size - (v + font->glyph_height)) / (f32)tex_size;
+				math::Vec2 uv1 = math::vec2(u + font->glyph_width, tex_size - v) / (f32)tex_size;
 
 				verts[e++] = pos0.x; verts[e++] = pos0.y; verts[e++] = 0.0f; verts[e++] = uv0.x; verts[e++] = uv0.y;
 				verts[e++] = pos1.x; verts[e++] = pos1.y; verts[e++] = 0.0f; verts[e++] = uv1.x; verts[e++] = uv1.y;
@@ -223,16 +218,17 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	{
 		DEBUG_TIME_BLOCK();
 
-		glUseProgram(game_state->font_program);
+		Font * font = &game_state->font;
+		glUseProgram(font->program);
 
 		math::Mat4 xform = view_projection_matrix;
 
-		u32 xform_id = glGetUniformLocation(game_state->font_program, "xform");
+		u32 xform_id = glGetUniformLocation(font->program, "xform");
 		glUniformMatrix4fv(xform_id, 1, GL_FALSE, xform.v);
 
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, game_state->font_tex.id);
-		glUniform1i(glGetUniformLocation(game_state->font_program, "tex0"), 0);
+		glBindTexture(GL_TEXTURE_2D, font->tex.id);
+		glUniform1i(glGetUniformLocation(font->program, "tex0"), 0);
 
 		glBindBuffer(GL_ARRAY_BUFFER, game_state->text_buf->vertex_buffer.id);
 		glBufferSubData(GL_ARRAY_BUFFER, 0, game_state->text_buf->vertex_buffer.size_in_bytes, game_state->text_buf->vertex_array);
@@ -285,13 +281,14 @@ void game_sample(GameMemory * game_memory, i16 * sample_memory_ptr, u32 samples_
 
 DebugBlockProfile debug_block_profiles[__COUNTER__];
 
-void debug_game_tick(GameMemory * game_memory) {
+void debug_game_tick(GameMemory * game_memory, GameInput * game_input) {
 	if(game_memory->initialized) {
 		GameState * game_state = (GameState *)game_memory->ptr;
 
 		Str * str = &game_state->text_buf->str;
 
 		str_clear(str);
+		str_print(str, "DOLLY DOLLY DOLLY DOLLY DAYS!\nDT: %f | PITCH: %f\n\n", game_input->delta_time, game_state->background->scroll_velocity);
 
 		for(u32 i = 0; i < ARRAY_COUNT(debug_block_profiles); i++) {
 			DebugBlockProfile * profile = debug_block_profiles + i;
