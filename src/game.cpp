@@ -33,11 +33,6 @@ Entity * push_entity(GameState * game_state, TextureId tex_id, math::Vec3 pos) {
 	return entity;
 }
 
-void spawn_teacup(Entity * entity, f32 x) {
-	f32 y = (math::rand_f32() * 2.0f - 1.0f) * 300.0f;
-	entity->pos = math::vec3(x, y, 0.0f);
-}
-
 void render_entity(GameState * game_state, Entity * entity, math::Mat4 const & view_projection_matrix) {
 	DEBUG_TIME_BLOCK();
 
@@ -134,8 +129,14 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		}
 
 		game_state->player = push_entity(game_state, TextureId_dolly, math::vec3(-426.67f, 0.0f, 0.0f));
-		game_state->teacup = push_entity(game_state, TextureId_teacup, math::vec3(0.0f));
-		spawn_teacup(game_state->teacup, 1280.0f);
+
+		TeacupEmitter * emitter = &game_state->teacup_emitter;
+		emitter->pos = math::vec3(1280.0f, 0.0f, 0.0f);
+		emitter->time_until_next_spawn = 0.0f;
+		emitter->entity_count = 0;
+		for(u32 i = 0; i < ARRAY_COUNT(emitter->entity_array); i++) {
+			emitter->entity_array[i] = push_entity(game_state, TextureId_teacup, emitter->pos);
+		}
 
 		game_state->d_time = 1.0f;
 		game_state->score = 0;
@@ -170,28 +171,58 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		game_state->audio_state.master_volume = game_state->audio_state.master_volume > 0.0f ? 0.0f : 1.0f;
 	}
 
+	f32 adjusted_dt = game_state->d_time * game_input->delta_time;
+
 	f32 screen_width = 1280.0f;
 	f32 half_screen_width = screen_width * 0.5f;
 
-	Entity * teacup = game_state->teacup;
-	f32 teacup_accel = -500.0f * game_state->d_time * game_input->delta_time;
-	teacup->pos.x += teacup_accel;
-	if(teacup->pos.x < -half_screen_width) {
-		spawn_teacup(teacup, half_screen_width);
+	TeacupEmitter * emitter = &game_state->teacup_emitter;
+	emitter->time_until_next_spawn -= adjusted_dt;
+	if(emitter->time_until_next_spawn <= 0.0f) {
+		if(emitter->entity_count < ARRAY_COUNT(emitter->entity_array)) {
+			Entity * teacup = emitter->entity_array[emitter->entity_count++];
+			f32 y = (math::rand_f32() * 2.0f - 1.0f) * 300.0f;
+			teacup->pos = math::vec3(emitter->pos.x, y, 0.0f);
+		}
+
+		emitter->time_until_next_spawn = 1.0f;
 	}
 
-	//TODO: What order this should be in??
 	math::Rec2 player_rec = math::rec2_pos_scale(player->pos.xy, player->scale);
-	math::Rec2 teacup_rec = math::rec2_pos_scale(teacup->pos.xy, teacup->scale);
-	if(rec_overlap(player_rec, teacup_rec)) {
-		spawn_teacup(teacup, teacup->pos.x + screen_width);
-		game_state->score++;
+
+	for(u32 i = 0; i < emitter->entity_count; i++) {
+		Entity * teacup = emitter->entity_array[i];
+		b32 destroy = false;
+
+		f32 dd_pos = -500.0f * adjusted_dt;
+		teacup->pos.x += dd_pos;
+		if(teacup->pos.x < -half_screen_width) {
+			destroy = true;
+		}
+
+		//TODO: When should this check happen??
+		math::Rec2 rec = math::rec2_pos_scale(teacup->pos.xy, teacup->scale);
+		if(rec_overlap(player_rec, rec)) {
+			destroy = true;
+			game_state->score++;
+		}
+
+		if(destroy) {
+			teacup->pos = emitter->pos;
+
+			u32 swap_index = emitter->entity_count - 1;
+			emitter->entity_array[i] = emitter->entity_array[swap_index];
+			emitter->entity_array[swap_index] = teacup;
+			emitter->entity_count--;
+			i--;
+		}
 	}
 
-	f32 bg_accel = -200.0f * game_state->d_time * game_input->delta_time;
 	for(u32 i = 0; i < ARRAY_COUNT(game_state->background); i++) {
 		Entity * background = game_state->background[i];
-		background->pos.x += bg_accel;
+
+		f32 dd_pos = -200.0f * adjusted_dt;
+		background->pos.x += dd_pos;
 		if(background->pos.x < -(half_screen_width + background->scale.x * 0.5f)) {
 			background->pos.x += background->scale.x * ARRAY_COUNT(game_state->background);
 		}

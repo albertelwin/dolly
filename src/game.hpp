@@ -24,6 +24,14 @@ struct Entity {
 	TextureId tex_id;
 };
 
+struct TeacupEmitter {
+	math::Vec3 pos;
+	f32 time_until_next_spawn;
+	
+	u32 entity_count;
+	Entity * entity_array[4];
+};
+
 enum ButtonId {
 	ButtonId_left,
 	ButtonId_right,
@@ -96,9 +104,10 @@ struct GameState {
 	u32 entity_count;
 	Entity entity_array[32];
 
-	Entity * player;
-	Entity * teacup;
 	Entity * background[2];
+	Entity * player;
+
+	TeacupEmitter teacup_emitter;
 
 	f32 d_time;
 	u32 score;
