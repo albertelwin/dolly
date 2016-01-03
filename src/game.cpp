@@ -19,14 +19,16 @@ gl::Texture load_texture_from_file(char const * file_name, i32 filter_mode = GL_
 	return tex;
 }
 
-Entity * push_entity(GameState * game_state, char const * tex_name, math::Vec3 pos) {
+Entity * push_entity(GameState * game_state, TextureId tex_id, math::Vec3 pos) {
 	ASSERT(game_state->entity_count < ARRAY_COUNT(game_state->entity_array));
+
+	gl::Texture * tex = &game_state->textures[tex_id];
 
 	Entity * entity = game_state->entity_array + game_state->entity_count++;
 	//TODO: Should this be here??
 	entity->pos = pos;
-	entity->tex = load_texture_from_file(tex_name, GL_NEAREST);
-	entity->scale = math::vec2(entity->tex.width, entity->tex.height);
+	entity->tex_id = tex_id;
+	entity->scale = math::vec2(tex->width, tex->height);
 	entity->rot = 0.0f;
 	return entity;
 }
@@ -46,10 +48,10 @@ void render_entity(GameState * game_state, Entity * entity, math::Mat4 const & v
 	u32 xform_id = glGetUniformLocation(game_state->entity_program, "xform");
 	glUniformMatrix4fv(xform_id, 1, GL_FALSE, xform.v);
 
-	glUniform1f(glGetUniformLocation(game_state->entity_program, "tex_offset"), entity->tex_offset);
+	gl::Texture * tex = &game_state->textures[entity->tex_id];
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, entity->tex.id);
+	glBindTexture(GL_TEXTURE_2D, tex->id);
 	glUniform1i(glGetUniformLocation(game_state->entity_program, "tex0"), 0);
 
 	glBindBuffer(GL_ARRAY_BUFFER, game_state->entity_vertex_buffer.id);
@@ -122,10 +124,17 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		f32 aspect_ratio = (f32)game_input->back_buffer_width / (f32)game_input->back_buffer_height;
 		game_state->projection_matrix = math::orthographic_projection((f32)game_input->back_buffer_width, (f32)game_input->back_buffer_height);
 
-		game_state->background = push_entity(game_state, "background.png", math::vec3(0.0f));
+		game_state->textures[TextureId_background] = load_texture_from_file("background.png", GL_NEAREST);
+		game_state->textures[TextureId_dolly] = load_texture_from_file("dolly.png", GL_NEAREST);
+		game_state->textures[TextureId_teacup] = load_texture_from_file("teacup.png", GL_NEAREST);
 
-		game_state->player = push_entity(game_state, "dolly.png", math::vec3(-426.67f, 0.0f, 0.0f));
-		game_state->teacup = push_entity(game_state, "teacup.png", math::vec3(0.0f));
+		for(u32 i = 0; i < ARRAY_COUNT(game_state->background); i++) {
+			f32 x = (f32)game_state->textures[TextureId_background].width * i;
+			game_state->background[i] = push_entity(game_state, TextureId_background, math::vec3(x, 0.0f, 0.0f));
+		}
+
+		game_state->player = push_entity(game_state, TextureId_dolly, math::vec3(-426.67f, 0.0f, 0.0f));
+		game_state->teacup = push_entity(game_state, TextureId_teacup, math::vec3(0.0f));
 		spawn_teacup(game_state->teacup, 1280.0f);
 
 		game_state->d_time = 1.0f;
@@ -161,24 +170,32 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		game_state->audio_state.master_volume = game_state->audio_state.master_volume > 0.0f ? 0.0f : 1.0f;
 	}
 
+	f32 screen_width = 1280.0f;
+	f32 half_screen_width = screen_width * 0.5f;
+
 	Entity * teacup = game_state->teacup;
 	f32 teacup_accel = -500.0f * game_state->d_time * game_input->delta_time;
 	teacup->pos.x += teacup_accel;
-	if(teacup->pos.x < -640.0f) {
-		spawn_teacup(teacup, 640.0f);
+	if(teacup->pos.x < -half_screen_width) {
+		spawn_teacup(teacup, half_screen_width);
 	}
 
 	//TODO: What order this should be in??
 	math::Rec2 player_rec = math::rec2_pos_scale(player->pos.xy, player->scale);
 	math::Rec2 teacup_rec = math::rec2_pos_scale(teacup->pos.xy, teacup->scale);
 	if(rec_overlap(player_rec, teacup_rec)) {
-		spawn_teacup(teacup, teacup->pos.x + 1280.0f);
+		spawn_teacup(teacup, teacup->pos.x + screen_width);
 		game_state->score++;
 	}
 
-	Entity * background = game_state->background;
-	background->tex_offset += 0.2f * game_state->d_time * game_input->delta_time;
-	background->tex_offset = math::frac(background->tex_offset);
+	f32 bg_accel = -200.0f * game_state->d_time * game_input->delta_time;
+	for(u32 i = 0; i < ARRAY_COUNT(game_state->background); i++) {
+		Entity * background = game_state->background[i];
+		background->pos.x += bg_accel;
+		if(background->pos.x < -(half_screen_width + background->scale.x * 0.5f)) {
+			background->pos.x += background->scale.x * ARRAY_COUNT(game_state->background);
+		}
+	}
 
 	change_pitch(game_state->music, game_state->d_time);
 
@@ -246,9 +263,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	glUseProgram(game_state->entity_program);
 	for(u32 i = 0; i < game_state->entity_count; i++) {
 		Entity * entity = game_state->entity_array + i;
-		render_entity(game_state, entity, view_projection_matrix);
+ 		render_entity(game_state, entity, view_projection_matrix);
 	}
 
+#if 1
 	{
 		DEBUG_TIME_BLOCK();
 
@@ -277,6 +295,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		glDrawArrays(GL_TRIANGLES, 0, game_state->text_buf->vertex_buffer.vert_count);		
 	}
+#endif
 
 	glDisable(GL_BLEND);
 }
