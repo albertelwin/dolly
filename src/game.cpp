@@ -19,10 +19,29 @@ gl::Texture load_texture_from_file(char const * file_name, i32 filter_mode = GL_
 	return tex;
 }
 
+Entity * push_entity(GameState * game_state, char const * tex_name, math::Vec3 pos) {
+	ASSERT(game_state->entity_count < ARRAY_COUNT(game_state->entity_array));
+
+	Entity * entity = game_state->entity_array + game_state->entity_count++;
+	//TODO: Should this be here??
+	entity->pos = pos;
+	entity->tex = load_texture_from_file(tex_name, GL_NEAREST);
+	entity->scale = math::vec2(entity->tex.width, entity->tex.height);
+	entity->rot = 0.0f;
+	return entity;
+}
+
+void spawn_teacup(Entity * entity, f32 x) {
+	f32 y = (math::rand_f32() * 2.0f - 1.0f) * 300.0f;
+	entity->pos = math::vec3(x, y, 0.0f);
+}
+
 void render_entity(GameState * game_state, Entity * entity, math::Mat4 const & view_projection_matrix) {
+	DEBUG_TIME_BLOCK();
+
 	glUseProgram(game_state->entity_program);
 
-	math::Mat4 xform = view_projection_matrix * math::translate(entity->pos.x, entity->pos.y, 0.0f) * math::scale(entity->scale.x, entity->scale.y, 1.0f);
+	math::Mat4 xform = view_projection_matrix * math::translate(entity->pos.x, entity->pos.y, entity->pos.z) * math::scale(entity->scale.x, entity->scale.y, 1.0f) * math::rotate_around_z(entity->rot);
 
 	u32 xform_id = glGetUniformLocation(game_state->entity_program, "xform");
 	glUniformMatrix4fv(xform_id, 1, GL_FALSE, xform.v);
@@ -103,22 +122,20 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		f32 aspect_ratio = (f32)game_input->back_buffer_width / (f32)game_input->back_buffer_height;
 		game_state->projection_matrix = math::orthographic_projection((f32)game_input->back_buffer_width, (f32)game_input->back_buffer_height);
 
-		game_state->player = PUSH_STRUCT(&game_state->memory_pool, Entity);
-		game_state->player->pos = math::vec2(-426.67f, 0.0f);
-		game_state->player->tex = load_texture_from_file("dolly.png");
-		game_state->player->scale = math::vec2(game_state->player->tex.width, game_state->player->tex.height);
+		game_state->background = push_entity(game_state, "background.png", math::vec3(0.0f));
 
-		game_state->background = PUSH_STRUCT(&game_state->memory_pool, Entity);
-		game_state->background->pos = math::vec2(0.0f);
-		game_state->background->tex = load_texture_from_file("background.png");
-		game_state->background->scale = math::vec2(game_state->background->tex.width, game_state->background->tex.height);
-		game_state->background->scroll_velocity = 1.0f;
+		game_state->player = push_entity(game_state, "dolly.png", math::vec3(-426.67f, 0.0f, 0.0f));
+		game_state->teacup = push_entity(game_state, "teacup.png", math::vec3(0.0f));
+		spawn_teacup(game_state->teacup, 1280.0f);
+
+		game_state->d_time = 1.0f;
+		game_state->score = 0;
 
 		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	}
 
 	Entity * player = game_state->player;
-	f32 player_accel = 1000.0f * game_input->delta_time;
+	f32 player_accel = 500.0f * game_input->delta_time;
 
 	if(game_input->buttons[ButtonId_up] & KEY_DOWN) {
 		player->pos.y += player_accel;
@@ -128,29 +145,44 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		player->pos.y -= player_accel;
 	}
 
-	Entity * background = game_state->background;
-	f32 scroll_accel = 0.5f * game_input->delta_time;
-
+	f32 dd_time = 0.5f * game_input->delta_time;
 	if(game_input->buttons[ButtonId_left] & KEY_DOWN) {
-		background->scroll_velocity -= scroll_accel;
-		if(background->scroll_velocity < 0.0f) {
-			background->scroll_velocity = 0.0f;
+		game_state->d_time -= dd_time;
+		if(game_state->d_time < 0.0f) {
+			game_state->d_time = 0.0f;
 		}
 	}
 
 	if(game_input->buttons[ButtonId_right] & KEY_DOWN) {
-		background->scroll_velocity += scroll_accel;
+		game_state->d_time += dd_time;
 	}
 
 	if(game_input->buttons[ButtonId_mute] & KEY_PRESSED) {
 		game_state->audio_state.master_volume = game_state->audio_state.master_volume > 0.0f ? 0.0f : 1.0f;
 	}
 
-	background->tex_offset += background->scroll_velocity * game_input->delta_time;
+	Entity * teacup = game_state->teacup;
+	f32 teacup_accel = -500.0f * game_state->d_time * game_input->delta_time;
+	teacup->pos.x += teacup_accel;
+	if(teacup->pos.x < -640.0f) {
+		spawn_teacup(teacup, 640.0f);
+	}
+
+	//TODO: What order this should be in??
+	math::Rec2 player_rec = math::rec2_pos_scale(player->pos.xy, player->scale);
+	math::Rec2 teacup_rec = math::rec2_pos_scale(teacup->pos.xy, teacup->scale);
+	if(rec_overlap(player_rec, teacup_rec)) {
+		spawn_teacup(teacup, teacup->pos.x + 1280.0f);
+		game_state->score++;
+	}
+
+	Entity * background = game_state->background;
+	background->tex_offset += 0.2f * game_state->d_time * game_input->delta_time;
 	background->tex_offset = math::frac(background->tex_offset);
 
-	change_pitch(game_state->music, background->scroll_velocity);
+	change_pitch(game_state->music, game_state->d_time);
 
+	//TODO: Pull this out into seperate func!!
 	{
 		DEBUG_TIME_BLOCK();
 
@@ -210,10 +242,12 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+	//TODO: Sorting!!
 	glUseProgram(game_state->entity_program);
-
-	render_entity(game_state, game_state->background, view_projection_matrix);
-	render_entity(game_state, game_state->player, view_projection_matrix);
+	for(u32 i = 0; i < game_state->entity_count; i++) {
+		Entity * entity = game_state->entity_array + i;
+		render_entity(game_state, entity, view_projection_matrix);
+	}
 
 	{
 		DEBUG_TIME_BLOCK();
@@ -288,7 +322,7 @@ void debug_game_tick(GameMemory * game_memory, GameInput * game_input) {
 		Str * str = &game_state->text_buf->str;
 
 		str_clear(str);
-		str_print(str, "DOLLY DOLLY DOLLY DOLLY DAYS!\nDT: %f | PITCH: %f\n\n", game_input->delta_time, game_state->background->scroll_velocity);
+		str_print(str, "DOLLY DOLLY DOLLY DOLLY DAYS!\nDT: %f | D_TIME: %f | SCORE: %u\n\n", game_input->delta_time, game_state->d_time, game_state->score);
 
 		for(u32 i = 0; i < ARRAY_COUNT(debug_block_profiles); i++) {
 			DebugBlockProfile * profile = debug_block_profiles + i;

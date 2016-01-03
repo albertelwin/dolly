@@ -657,14 +657,32 @@ namespace math {
 	}
 
 	Mat4 orthographic_projection(f32 width, f32 height) {
-		//TODO: Resolution independence, adjust for aspect and use a size param)!!
-		//TODO: Arbritary plane projection??
 		return {
-			(1.0f / width) * 2.0f, 0.0f, 0.0f, 0.0f,
-			0.0f, (1.0f / height) * 2.0f, 0.0f, 0.0f,
+			2.0f / width, 0.0f, 0.0f, 0.0f,
+			0.0f, 2.0f / height, 0.0f, 0.0f,
 			0.0f, 0.0f, 0.0f, 0.0f,
 			0.0f, 0.0f, 0.0f, 1.0f,
 		};
+	}
+
+	struct Rec2 {
+		Vec2 min;
+		Vec2 max;
+	};
+
+	Rec2 rec(Vec2 const & min, Vec2 const & max) {
+		return { min, max };
+	}
+
+	Rec2 rec2_pos_scale(Vec2 const & pos, Vec2 const & scale) {
+		Rec2 r;
+		r.min = pos - scale * 0.5f;
+		r.max = pos + scale * 0.5f;
+		return r;
+	}
+
+	b32 rec_overlap(Rec2 const & x, Rec2 const & y) {
+		return ((x.min.x < y.min.x && x.max.x > y.min.x) || (x.min.x >= y.min.x && x.min.x < y.max.x)) && ((x.min.y < y.min.y && x.max.y > y.min.y) || (x.min.y >= y.min.y && x.min.y < y.max.y));
 	}
 
 	struct Ray {

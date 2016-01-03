@@ -9,13 +9,14 @@
 #define TEXTURE_CHANNELS 4
 
 struct Entity {
-	math::Vec2 pos;
+	math::Vec3 pos;
 	math::Vec2 scale;
+	f32 rot;
 
+	//TODO: Stop storing the tex directly in here!!
 	gl::Texture tex;
+	//TOOD: Union for entity types??
 	f32 tex_offset;
-
-	f32 scroll_velocity;
 };
 
 enum ButtonId {
@@ -85,10 +86,15 @@ struct GameState {
 	math::Mat4 view_matrix;
 	math::Mat4 projection_matrix;
 
-	Entity entites[32];
+	u32 entity_count;
+	Entity entity_array[32];
 
 	Entity * player;
+	Entity * teacup;
 	Entity * background;
+
+	f32 d_time;
+	u32 score;
 };
 
 #endif
