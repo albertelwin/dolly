@@ -133,6 +133,18 @@ namespace math {
 		return tmp;
 	}
 
+	Vec2 & operator-=(Vec2 & x, Vec2 const & y) {
+		x.x -= y.x;
+		x.y -= y.y;
+		return x;
+	}
+
+	Vec2 & operator-=(Vec2 & v, f32 x) {
+		v.x -= x;
+		v.y -= x;
+		return v;
+	}
+
 	Vec2 operator*(Vec2 const & x, Vec2 const & y) {
 		Vec2 tmp = x;
 		tmp.x *= y.x;
@@ -378,6 +390,8 @@ namespace math {
 		struct { f32 x, y, z, w; };
 		struct { Vec3 xyz; f32 w_; };
 		struct { Vec2 xy, zw; };
+		struct { f32 r, g, b, a; };
+		struct { Vec3 rgb; f32 a_; };
 		f32 v[4];
 	};
 

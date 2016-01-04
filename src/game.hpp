@@ -21,13 +21,18 @@ struct Entity {
 	math::Vec2 scale;
 	f32 rot;
 
+	math::Vec4 color;
 	TextureId tex_id;
+
+	//TODO: Union??
+	b32 hit;
 };
 
 struct TeacupEmitter {
 	math::Vec3 pos;
+	math::Vec2 scale;
 	f32 time_until_next_spawn;
-	
+
 	u32 entity_count;
 	Entity * entity_array[4];
 };
@@ -56,6 +61,8 @@ struct TextBuffer {
 struct Font {
 	u32 program;
 	gl::Texture tex;
+
+	math::Mat4 projection_matrix;
 
 	u32 glyph_width;
 	u32 glyph_height;
@@ -95,6 +102,9 @@ struct GameState {
 
 	Font font;
 	TextBuffer * text_buf;
+
+	u32 ideal_window_width;
+	u32 ideal_window_height;
 
 	math::Mat4 view_matrix;
 	math::Mat4 projection_matrix;

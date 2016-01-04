@@ -25,7 +25,7 @@ struct DebugTimedBlock {
 	u32 hits;
 	f64 ms;
 
-	DebugTimedBlock(u32 id, char * func, char * file, u32 line, u32 hits = 1) {
+	DebugTimedBlock(u32 id, char * func, char * file, u32 line) {
 		profile = debug_block_profiles + id;
 		profile->id = id;
 
@@ -33,12 +33,11 @@ struct DebugTimedBlock {
 		profile->file = file;
 		profile->line = line;
 
-		this->hits = hits;
 		this->ms = emscripten_get_now();
 	}
 
 	~DebugTimedBlock() {
-		profile->hits += this->hits;
+		profile->hits++;
 		profile->ms += emscripten_get_now() - this->ms;
 	}
 };

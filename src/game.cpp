@@ -27,6 +27,7 @@ Entity * push_entity(GameState * game_state, TextureId tex_id, math::Vec3 pos) {
 	Entity * entity = game_state->entity_array + game_state->entity_count++;
 	//TODO: Should this be here??
 	entity->pos = pos;
+	entity->color = math::vec4(1.0f);
 	entity->tex_id = tex_id;
 	entity->scale = math::vec2(tex->width, tex->height);
 	entity->rot = 0.0f;
@@ -36,18 +37,21 @@ Entity * push_entity(GameState * game_state, TextureId tex_id, math::Vec3 pos) {
 void render_entity(GameState * game_state, Entity * entity, math::Mat4 const & view_projection_matrix) {
 	DEBUG_TIME_BLOCK();
 
-	glUseProgram(game_state->entity_program);
+	u32 program = game_state->entity_program;
+	glUseProgram(program);
 
 	math::Mat4 xform = view_projection_matrix * math::translate(entity->pos.x, entity->pos.y, entity->pos.z) * math::scale(entity->scale.x, entity->scale.y, 1.0f) * math::rotate_around_z(entity->rot);
 
-	u32 xform_id = glGetUniformLocation(game_state->entity_program, "xform");
+	u32 xform_id = glGetUniformLocation(program, "xform");
 	glUniformMatrix4fv(xform_id, 1, GL_FALSE, xform.v);
+
+	glUniform4f(glGetUniformLocation(program, "color"), entity->color.r, entity->color.g, entity->color.b, entity->color.a);
 
 	gl::Texture * tex = &game_state->textures[entity->tex_id];
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, tex->id);
-	glUniform1i(glGetUniformLocation(game_state->entity_program, "tex0"), 0);
+	glUniform1i(glGetUniformLocation(program, "tex0"), 0);
 
 	glBindBuffer(GL_ARRAY_BUFFER, game_state->entity_vertex_buffer.id);
 	glVertexAttribPointer(0, 3, GL_FLOAT, 0, 0, 0);
@@ -106,6 +110,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		u32 font_frag = gl::compile_shader_from_source(FONT_FRAG_SRC, GL_FRAGMENT_SHADER);
 		font->program = gl::link_shader_program(font_vert, font_frag);
 		font->tex = load_texture_from_file("font.png", GL_NEAREST);
+		font->projection_matrix = math::orthographic_projection((f32)game_input->back_buffer_width, (f32)game_input->back_buffer_height);
 		font->glyph_width = 3;
 		font->glyph_height = 5;
 		font->glyph_spacing = 1;
@@ -116,8 +121,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		math::Vec3 camera_pos = camera_forward * 1.0f;
 		game_state->view_matrix = math::look_at(camera_pos, camera_pos - camera_forward, math::VEC3_UP);
 
-		f32 aspect_ratio = (f32)game_input->back_buffer_width / (f32)game_input->back_buffer_height;
-		game_state->projection_matrix = math::orthographic_projection((f32)game_input->back_buffer_width, (f32)game_input->back_buffer_height);
+		game_state->ideal_window_width = 1280;
+		game_state->ideal_window_height = 720;
+
+		game_state->projection_matrix = math::orthographic_projection((f32)game_state->ideal_window_width, (f32)game_state->ideal_window_height);
 
 		game_state->textures[TextureId_background] = load_texture_from_file("background.png", GL_NEAREST);
 		game_state->textures[TextureId_dolly] = load_texture_from_file("dolly.png", GL_NEAREST);
@@ -128,11 +135,13 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			game_state->background[i] = push_entity(game_state, TextureId_background, math::vec3(x, 0.0f, 0.0f));
 		}
 
-		game_state->player = push_entity(game_state, TextureId_dolly, math::vec3(-426.67f, 0.0f, 0.0f));
+		game_state->player = push_entity(game_state, TextureId_dolly, math::vec3((f32)game_state->ideal_window_width * -0.5f * (2.0f / 3.0f), 0.0f, 0.0f));
 
 		TeacupEmitter * emitter = &game_state->teacup_emitter;
-		emitter->pos = math::vec3(1280.0f, 0.0f, 0.0f);
+		gl::Texture * emitter_tex = &game_state->textures[TextureId_teacup];
+		emitter->pos = math::vec3(game_state->ideal_window_width, 0.0f, 0.0f);
 		emitter->time_until_next_spawn = 0.0f;
+		emitter->scale = math::vec2((f32)emitter_tex->width, (f32)emitter_tex->height);
 		emitter->entity_count = 0;
 		for(u32 i = 0; i < ARRAY_COUNT(emitter->entity_array); i++) {
 			emitter->entity_array[i] = push_entity(game_state, TextureId_teacup, emitter->pos);
@@ -145,6 +154,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	}
 
 	Entity * player = game_state->player;
+	//TODO: World units!!
 	f32 player_accel = 500.0f * game_input->delta_time;
 
 	if(game_input->buttons[ButtonId_up] & KEY_DOWN) {
@@ -173,16 +183,21 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 	f32 adjusted_dt = game_state->d_time * game_input->delta_time;
 
-	f32 screen_width = 1280.0f;
-	f32 half_screen_width = screen_width * 0.5f;
+	f32 half_screen_width = (f32)game_state->ideal_window_width * 0.5f;
+	f32 half_screen_height = (f32)game_state->ideal_window_height * 0.5f;
 
 	TeacupEmitter * emitter = &game_state->teacup_emitter;
 	emitter->time_until_next_spawn -= adjusted_dt;
 	if(emitter->time_until_next_spawn <= 0.0f) {
 		if(emitter->entity_count < ARRAY_COUNT(emitter->entity_array)) {
 			Entity * teacup = emitter->entity_array[emitter->entity_count++];
+			
 			f32 y = (math::rand_f32() * 2.0f - 1.0f) * 300.0f;
+
 			teacup->pos = math::vec3(emitter->pos.x, y, 0.0f);
+			teacup->scale = emitter->scale;
+			teacup->color = math::vec4(1.0f);
+			teacup->hit = false;
 		}
 
 		emitter->time_until_next_spawn = 1.0f;
@@ -194,21 +209,35 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		Entity * teacup = emitter->entity_array[i];
 		b32 destroy = false;
 
-		f32 dd_pos = -500.0f * adjusted_dt;
-		teacup->pos.x += dd_pos;
-		if(teacup->pos.x < -half_screen_width) {
-			destroy = true;
+		if(!teacup->hit) {
+			f32 dd_pos = -500.0f * adjusted_dt;
+			teacup->pos.x += dd_pos;
+			if(teacup->pos.x < -half_screen_width) {
+				destroy = true;
+			}
+		}
+		else {
+			f32 dd_pos = 500.0f * adjusted_dt;
+			teacup->pos.y += dd_pos;
+
+			teacup->scale -= emitter->scale * 4.0f * adjusted_dt;
+
+			if(teacup->pos.y > half_screen_height || teacup->scale.x < 0.0f || teacup->scale.y < 0.0f) {
+				destroy = true;
+			}
 		}
 
 		//TODO: When should this check happen??
 		math::Rec2 rec = math::rec2_pos_scale(teacup->pos.xy, teacup->scale);
-		if(rec_overlap(player_rec, rec)) {
-			destroy = true;
+		if(rec_overlap(player_rec, rec) && !teacup->hit) {
+			teacup->hit = true;
+			teacup->scale = emitter->scale * 2.0f;
 			game_state->score++;
 		}
 
 		if(destroy) {
 			teacup->pos = emitter->pos;
+			teacup->scale = emitter->scale;
 
 			u32 swap_index = emitter->entity_count - 1;
 			emitter->entity_array[i] = emitter->entity_array[swap_index];
@@ -304,10 +333,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		Font * font = &game_state->font;
 		glUseProgram(font->program);
 
-		math::Mat4 xform = view_projection_matrix;
-
 		u32 xform_id = glGetUniformLocation(font->program, "xform");
-		glUniformMatrix4fv(xform_id, 1, GL_FALSE, xform.v);
+		glUniformMatrix4fv(xform_id, 1, GL_FALSE, font->projection_matrix.v);
 
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, font->tex.id);

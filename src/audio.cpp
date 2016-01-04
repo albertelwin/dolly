@@ -257,7 +257,8 @@ void load_audio(AudioState * audio_state, MemoryPool * pool, b32 supported) {
 	//TODO: Allocate sub-pool!!
 	audio_state->memory_pool = pool;
 	audio_state->supported = supported;
-	audio_state->master_volume = 1.0f;
+	// audio_state->master_volume = 1.0f;
+	audio_state->master_volume = 0.0f;
 
 	if(audio_state->supported) {
 		//TODO: Temp until asset pack!!
