@@ -27,10 +27,11 @@ Entity * push_entity(GameState * game_state, TextureId tex_id, math::Vec3 pos) {
 	Entity * entity = game_state->entity_array + game_state->entity_count++;
 	//TODO: Should this be here??
 	entity->pos = pos;
-	entity->color = math::vec4(1.0f);
-	entity->tex_id = tex_id;
 	entity->scale = math::vec2(tex->width, tex->height);
 	entity->rot = 0.0f;
+	entity->color = math::vec4(1.0f);
+	entity->tex_id = tex_id;
+	entity->v_buf = &game_state->entity_v_buf;
 	return entity;
 }
 
@@ -53,26 +54,33 @@ void render_entity(GameState * game_state, Entity * entity, math::Mat4 const & v
 	glBindTexture(GL_TEXTURE_2D, tex->id);
 	glUniform1i(glGetUniformLocation(program, "tex0"), 0);
 
-	glBindBuffer(GL_ARRAY_BUFFER, game_state->entity_vertex_buffer.id);
-	glVertexAttribPointer(0, 3, GL_FLOAT, 0, 0, 0);
+	glBindBuffer(GL_ARRAY_BUFFER, entity->v_buf->id);
+
+	u32 stride = game_state->text_buf->vertex_buffer.vert_size * sizeof(f32);
+
+	glVertexAttribPointer(0, 3, GL_FLOAT, 0, stride, 0);
 	glEnableVertexAttribArray(0);
 
-	glDrawArrays(GL_TRIANGLES, 0, game_state->entity_vertex_buffer.vert_count);
+	glVertexAttribPointer(1, 2, GL_FLOAT, 0, stride, (void *)(3 * sizeof(f32)));
+	glEnableVertexAttribArray(1);
+
+	glDrawArrays(GL_TRIANGLES, 0, entity->v_buf->vert_count);
 }
 
-TextBuffer * allocate_text_buffer(MemoryPool * pool, u32 max_len, u32 vert_size) {
+TextBuffer * allocate_text_buffer(MemoryPool * pool, u32 max_len) {
 	TextBuffer * buf = PUSH_STRUCT(pool, TextBuffer);
 
 	buf->str.max_len = max_len;
 	buf->str.len = 0;
 	buf->str.ptr = PUSH_ARRAY(pool, char, max_len);
 
+	u32 vert_size = 5;
 	u32 verts_per_char = 6;
 	buf->vertex_array_length = max_len * verts_per_char * vert_size;
 	buf->vertex_array = PUSH_ARRAY(pool, f32, buf->vertex_array_length);
 	zero_memory((u8 *)buf->vertex_array, buf->vertex_array_length * sizeof(f32));
 
-	buf->vertex_buffer = gl::create_vertex_buffer(buf->vertex_array, buf->vertex_array_length, vert_size, GL_STATIC_DRAW);
+	buf->vertex_buffer = gl::create_vertex_buffer(buf->vertex_array, buf->vertex_array_length, vert_size, GL_DYNAMIC_DRAW);
 
 	return buf;
 }
@@ -88,6 +96,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		AudioState * audio_state = &game_state->audio_state;
 		load_audio(audio_state, &game_state->memory_pool, game_input->audio_supported);
+		audio_state->master_volume = 0.0f;
+
 		game_state->music = play_audio_clip(audio_state, AudioClipId_music, true);
 
 		u32 basic_vert = gl::compile_shader_from_source(BASIC_VERT_SRC, GL_VERTEX_SHADER);
@@ -95,15 +105,40 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		game_state->entity_program = gl::link_shader_program(basic_vert, basic_frag);
 
 		f32 quad_verts[] = {
-			-0.5f,-0.5f, 0.0f,
-			 0.5f, 0.5f, 0.0f,
-			-0.5f, 0.5f, 0.0f,
-			-0.5f,-0.5f, 0.0f,
-			 0.5f, 0.5f, 0.0f,
-			 0.5f,-0.5f, 0.0f,
+			-0.5f,-0.5f, 0.0f, 0.0f, 0.0f,
+			 0.5f, 0.5f, 0.0f, 1.0f, 1.0f,
+			-0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
+			-0.5f,-0.5f, 0.0f, 0.0f, 0.0f,
+			 0.5f, 0.5f, 0.0f, 1.0f, 1.0f,
+			 0.5f,-0.5f, 0.0f, 1.0f, 0.0f,
 		};
 
-		game_state->entity_vertex_buffer = gl::create_vertex_buffer(quad_verts, ARRAY_COUNT(quad_verts), 3, GL_STATIC_DRAW);
+		game_state->entity_v_buf = gl::create_vertex_buffer(quad_verts, ARRAY_COUNT(quad_verts), 5, GL_STATIC_DRAW);
+
+		f32 bg_verts[] = {
+			-1.5f,-0.5f, 0.0f, 0.0f, 0.0f,
+			-0.5f, 0.5f, 0.0f, 1.0f, 1.0f,
+			-1.5f, 0.5f, 0.0f, 0.0f, 1.0f,
+			-1.5f,-0.5f, 0.0f, 0.0f, 0.0f,
+			-0.5f, 0.5f, 0.0f, 1.0f, 1.0f,
+			-0.5f,-0.5f, 0.0f, 1.0f, 0.0f,
+
+			-0.5f,-0.5f, 0.0f, 0.0f, 0.0f,
+			 0.5f, 0.5f, 0.0f, 1.0f, 1.0f,
+			-0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
+			-0.5f,-0.5f, 0.0f, 0.0f, 0.0f,
+			 0.5f, 0.5f, 0.0f, 1.0f, 1.0f,
+			 0.5f,-0.5f, 0.0f, 1.0f, 0.0f,
+
+			 0.5f,-0.5f, 0.0f, 0.0f, 0.0f,
+			 1.5f, 0.5f, 0.0f, 1.0f, 1.0f,
+			 0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
+			 0.5f,-0.5f, 0.0f, 0.0f, 0.0f,
+			 1.5f, 0.5f, 0.0f, 1.0f, 1.0f,
+			 1.5f,-0.5f, 0.0f, 1.0f, 0.0f,
+		};
+
+		game_state->bg_v_buf = gl::create_vertex_buffer(bg_verts, ARRAY_COUNT(bg_verts), 5, GL_STATIC_DRAW);
 
 		Font * font = &game_state->font;
 		u32 font_vert = gl::compile_shader_from_source(FONT_VERT_SRC, GL_VERTEX_SHADER);
@@ -115,25 +150,24 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		font->glyph_height = 5;
 		font->glyph_spacing = 1;
 
-		game_state->text_buf = allocate_text_buffer(&game_state->memory_pool, 1024, 5);
+		game_state->text_buf = allocate_text_buffer(&game_state->memory_pool, 1024);
 
 		math::Vec3 camera_forward = math::VEC3_FORWARD;
 		math::Vec3 camera_pos = camera_forward * 1.0f;
 		game_state->view_matrix = math::look_at(camera_pos, camera_pos - camera_forward, math::VEC3_UP);
 
+		//TODO: Adjust these to actual aspect ratio?
 		game_state->ideal_window_width = 1280;
 		game_state->ideal_window_height = 720;
 
 		game_state->projection_matrix = math::orthographic_projection((f32)game_state->ideal_window_width, (f32)game_state->ideal_window_height);
 
-		game_state->textures[TextureId_background] = load_texture_from_file("background.png", GL_NEAREST);
+		game_state->textures[TextureId_background] = load_texture_from_file("background.png", GL_LINEAR);
 		game_state->textures[TextureId_dolly] = load_texture_from_file("dolly.png", GL_NEAREST);
 		game_state->textures[TextureId_teacup] = load_texture_from_file("teacup.png", GL_NEAREST);
 
-		for(u32 i = 0; i < ARRAY_COUNT(game_state->background); i++) {
-			f32 x = (f32)game_state->textures[TextureId_background].width * i;
-			game_state->background[i] = push_entity(game_state, TextureId_background, math::vec3(x, 0.0f, 0.0f));
-		}
+		game_state->background = push_entity(game_state, TextureId_background, math::vec3(0.0f));
+		game_state->background->v_buf = &game_state->bg_v_buf;
 
 		game_state->player = push_entity(game_state, TextureId_dolly, math::vec3((f32)game_state->ideal_window_width * -0.5f * (2.0f / 3.0f), 0.0f, 0.0f));
 
@@ -141,7 +175,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		gl::Texture * emitter_tex = &game_state->textures[TextureId_teacup];
 		emitter->pos = math::vec3(game_state->ideal_window_width, 0.0f, 0.0f);
 		emitter->time_until_next_spawn = 0.0f;
-		emitter->scale = math::vec2((f32)emitter_tex->width, (f32)emitter_tex->height);
+		emitter->scale = math::vec2(emitter_tex->width, emitter_tex->height);
 		emitter->entity_count = 0;
 		for(u32 i = 0; i < ARRAY_COUNT(emitter->entity_array); i++) {
 			emitter->entity_array[i] = push_entity(game_state, TextureId_teacup, emitter->pos);
@@ -203,7 +237,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		emitter->time_until_next_spawn = 1.0f;
 	}
 
-	math::Rec2 player_rec = math::rec2_pos_scale(player->pos.xy, player->scale);
+	math::Rec2 player_rec = math::rec2_centre_size(player->pos.xy, player->scale);
 
 	for(u32 i = 0; i < emitter->entity_count; i++) {
 		Entity * teacup = emitter->entity_array[i];
@@ -228,10 +262,16 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		}
 
 		//TODO: When should this check happen??
-		math::Rec2 rec = math::rec2_pos_scale(teacup->pos.xy, teacup->scale);
+		math::Rec2 rec = math::rec2_centre_size(teacup->pos.xy, teacup->scale);
 		if(rec_overlap(player_rec, rec) && !teacup->hit) {
 			teacup->hit = true;
 			teacup->scale = emitter->scale * 2.0f;
+
+			u32 clip_count = 3;
+			AudioClipId clip_id = (AudioClipId)(AudioClipId_pickup0 + math::rand_i32() % clip_count);
+			AudioSource * source = play_audio_clip(&game_state->audio_state, clip_id);
+			change_pitch(source, math::lerp(0.9f, 1.1f, math::rand_f32()));
+
 			game_state->score++;
 		}
 
@@ -247,14 +287,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		}
 	}
 
-	for(u32 i = 0; i < ARRAY_COUNT(game_state->background); i++) {
-		Entity * background = game_state->background[i];
-
-		f32 dd_pos = -200.0f * adjusted_dt;
-		background->pos.x += dd_pos;
-		if(background->pos.x < -(half_screen_width + background->scale.x * 0.5f)) {
-			background->pos.x += background->scale.x * ARRAY_COUNT(game_state->background);
-		}
+	Entity * background = game_state->background;
+	background->pos.x += -200.0f * adjusted_dt;
+	if(background->pos.x < -(half_screen_width + background->scale.x * 0.5f)) {
+		background->pos.x += background->scale.x * 2.0f;
 	}
 
 	change_pitch(game_state->music, game_state->d_time);

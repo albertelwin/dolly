@@ -257,14 +257,17 @@ void load_audio(AudioState * audio_state, MemoryPool * pool, b32 supported) {
 	//TODO: Allocate sub-pool!!
 	audio_state->memory_pool = pool;
 	audio_state->supported = supported;
-	// audio_state->master_volume = 1.0f;
-	audio_state->master_volume = 0.0f;
+	audio_state->master_volume = 1.0f;
 
 	if(audio_state->supported) {
 		//TODO: Temp until asset pack!!
 		load_audio_clip_from_file(audio_state, &audio_state->audio_clips[AudioClipId_sin_440], "sin_440.wav");
 		load_audio_clip_from_file(audio_state, &audio_state->audio_clips[AudioClipId_beep], "beep.wav");
 		load_audio_clip_from_file(audio_state, &audio_state->audio_clips[AudioClipId_woosh], "woosh.wav");
+		//TODO: Support clip variations!!
+		load_audio_clip_from_file(audio_state, &audio_state->audio_clips[AudioClipId_pickup0], "pickup0.wav");
+		load_audio_clip_from_file(audio_state, &audio_state->audio_clips[AudioClipId_pickup1], "pickup1.wav");
+		load_audio_clip_from_file(audio_state, &audio_state->audio_clips[AudioClipId_pickup2], "pickup2.wav");
 		load_audio_clip_from_file(audio_state, &audio_state->audio_clips[AudioClipId_music], "music.wav");
 	}
 }

@@ -23,6 +23,7 @@ struct Entity {
 
 	math::Vec4 color;
 	TextureId tex_id;
+	gl::VertexBuffer * v_buf;
 
 	//TODO: Union??
 	b32 hit;
@@ -98,7 +99,8 @@ struct GameState {
 	AudioSource * music;
 
 	u32 entity_program;
-	gl::VertexBuffer entity_vertex_buffer;
+	gl::VertexBuffer entity_v_buf;
+	gl::VertexBuffer bg_v_buf;
 
 	Font font;
 	TextBuffer * text_buf;
@@ -114,7 +116,7 @@ struct GameState {
 	u32 entity_count;
 	Entity entity_array[32];
 
-	Entity * background[2];
+	Entity * background;
 	Entity * player;
 
 	TeacupEmitter teacup_emitter;

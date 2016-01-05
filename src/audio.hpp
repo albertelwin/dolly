@@ -12,6 +12,9 @@ enum AudioClipId {
 	AudioClipId_sin_440,
 	AudioClipId_beep,
 	AudioClipId_woosh,
+	AudioClipId_pickup0,
+	AudioClipId_pickup1,
+	AudioClipId_pickup2,
 	AudioClipId_music,
 
 	AudioClipId_count,

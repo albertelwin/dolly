@@ -69,6 +69,10 @@ namespace math {
 		return 3.0f * t * u_sqr * x + 3.0f * t_sqr * u * y + (t_sqr * t);
 	}
 
+	i32 rand_i32() {
+		return rand();
+	}
+
 	f32 rand_f32() {
 		return (f32)rand() / (f32)RAND_MAX;
 	}
@@ -688,7 +692,7 @@ namespace math {
 		return { min, max };
 	}
 
-	Rec2 rec2_pos_scale(Vec2 const & pos, Vec2 const & scale) {
+	Rec2 rec2_centre_size(Vec2 const & pos, Vec2 const & scale) {
 		Rec2 r;
 		r.min = pos - scale * 0.5f;
 		r.max = pos + scale * 0.5f;
