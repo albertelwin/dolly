@@ -75,6 +75,16 @@ b32 f32_is_neg(f32 val) {
 	return (bits & F32_SIGN_MASK) == F32_SIGN_MASK;
 }
 
+u32 c_str_len(char const * str) {
+	u32 len = 0;
+	while(*str) {
+		str++;
+		len++;
+	}
+
+	return len;
+}
+
 struct Str {
 	char * ptr;
 	u32 len;

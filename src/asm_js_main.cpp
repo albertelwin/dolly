@@ -37,11 +37,10 @@ struct MainLoopArgs {
 	u32 bytes_per_sample;
 	u32 channels;
 
-	//TODO: Use f64 for more precise timings??
-	f32 frame_time;
+	f64 frame_time;
 	b32 page_hidden;
-	f32 time_when_hidden;
-	f32 time_when_shown;
+	f64 time_when_hidden;
+	f64 time_when_shown;
 };
 
 EM_BOOL visibility_callback(int event_type, EmscriptenVisibilityChangeEvent const * event, void * user_ptr) {
@@ -49,12 +48,12 @@ EM_BOOL visibility_callback(int event_type, EmscriptenVisibilityChangeEvent cons
 
 	if(event->hidden) {
 		args->page_hidden = true;
-		args->time_when_hidden = (f32)(emscripten_get_now() / 1000.0);
+		args->time_when_hidden = emscripten_get_now();
 		web_audio_suspend();
 	}
 	else {
 		args->page_hidden = false;
-		args->time_when_shown = (f32)(emscripten_get_now() / 1000.0);
+		args->time_when_shown = emscripten_get_now();
 		web_audio_resume();
 	}
 
@@ -75,18 +74,23 @@ void audio_callback(void * user_ptr, u8 * buffer_ptr, i32 buffer_size) {
 void main_loop(void * user_ptr) {
 	MainLoopArgs * args = (MainLoopArgs *)user_ptr;
 	if(!args->page_hidden) {
-		f32 last_frame_time = args->frame_time;
-		args->frame_time = (f32)(emscripten_get_now() / 1000.0);
+		f64 last_frame_time = args->frame_time;
+		args->frame_time = emscripten_get_now();
 
-		args->game_input.delta_time = args->frame_time - last_frame_time;
+		f64 delta_time = args->frame_time - last_frame_time;
 		if(args->time_when_hidden > 0.0f) {
 			ASSERT(args->time_when_hidden < args->time_when_shown);
 
-			args->game_input.delta_time -= (args->time_when_shown - args->time_when_hidden);
-			args->time_when_hidden = 0.0f;
-			args->time_when_shown = 0.0f;
+			delta_time -= (args->time_when_shown - args->time_when_hidden);
+			args->time_when_hidden = 0.0;
+			args->time_when_shown = 0.0;
 		}
 
+		// if(delta_time > 33.333333333333333333333333333333f) {
+		// 	std::printf("LOG: dt: %f\n", delta_time);
+		// }
+
+		args->game_input.delta_time = (f32)(delta_time / 1000.0);
 		args->game_input.total_time += args->game_input.delta_time;
 
 		for(u32 i = 0; i < ButtonId_count; i++) {
@@ -163,7 +167,6 @@ int main() {
 
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 8);
-	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
 	// u32 window_width = 640;
 	// u32 window_height = 360;
@@ -207,7 +210,7 @@ int main() {
 		args.game_input.audio_supported = false;
 	}
 
-	args.frame_time = (f32)(emscripten_get_now() / 1000.0);
+	args.frame_time = emscripten_get_now();
 	args.page_hidden = false;
 	args.time_when_hidden = 0.0f;
 	args.time_when_shown = 0.0f;

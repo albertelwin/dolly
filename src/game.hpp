@@ -50,24 +50,26 @@ enum ButtonId {
 	ButtonId_count,
 };
 
-struct TextBuffer {
-	Str str;
-
-	u32 vertex_array_length;
-	f32 * vertex_array;
-
-	gl::VertexBuffer vertex_buffer;
-};
-
 struct Font {
 	u32 program;
 	gl::Texture tex;
+
+	u32 v_len;
+	f32 * v_arr;
+
+	u32 e;
+
+	gl::VertexBuffer v_buf;
 
 	math::Mat4 projection_matrix;
 
 	u32 glyph_width;
 	u32 glyph_height;
 	u32 glyph_spacing;
+
+	f32 scale;
+	math::Vec2 anchor;
+	math::Vec2 pos;
 };
 
 struct GameMemory {
@@ -102,8 +104,9 @@ struct GameState {
 	gl::VertexBuffer entity_v_buf;
 	gl::VertexBuffer bg_v_buf;
 
-	Font font;
-	TextBuffer * text_buf;
+	Font * font;
+	Str * debug_str;
+	Str * title_str;
 
 	u32 ideal_window_width;
 	u32 ideal_window_height;
