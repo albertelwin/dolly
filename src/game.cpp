@@ -163,7 +163,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		AudioState * audio_state = &game_state->audio_state;
 		load_audio(audio_state, &game_state->memory_pool, game_input->audio_supported);
-		audio_state->master_volume = 0.0f;
+		// audio_state->master_volume = 0.0f;
 
 		game_state->music = play_audio_clip(audio_state, AudioClipId_music, true);
 
@@ -326,9 +326,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			teacup->hit = true;
 			teacup->scale = emitter->scale * 2.0f;
 
-			u32 clip_count = 3;
-			AudioClipId clip_id = (AudioClipId)(AudioClipId_pickup0 + math::rand_i32() % clip_count);
-			AudioSource * source = play_audio_clip(&game_state->audio_state, clip_id);
+			//TODO: Should there be a helper function for this??
+			AudioClipId clip_id = AudioClipId_pickup;
+			AudioClip * clip = get_audio_clip(&game_state->audio_state, clip_id, math::rand_i32() % get_audio_clip_count(&game_state->audio_state, clip_id));
+			AudioSource * source = play_audio_clip(&game_state->audio_state, clip);
 			change_pitch(source, math::lerp(0.9f, 1.1f, math::rand_f32()));
 
 			game_state->score++;
@@ -456,7 +457,7 @@ void debug_game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		for(u32 i = 0; i < ARRAY_COUNT(debug_block_profiles); i++) {
 			DebugBlockProfile * profile = debug_block_profiles + i;
-			
+
 			if(profile->func) {
 				str_print(str, "%s[%u]: time: %fms | hits: %u\n", profile->func, profile->id, profile->ms, profile->hits);
 			}

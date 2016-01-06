@@ -92,10 +92,25 @@ void load_audio_clip_from_file(AudioState * audio_state, AudioClip * clip, char 
 	delete[] file_buffer.ptr;
 }
 
-AudioSource * play_audio_clip(AudioState * audio_state, AudioClipId clip_id, b32 loop = false) {
+AudioClip * get_audio_clip(AudioState * audio_state, AudioClipId clip_id, u32 index) {
+	AudioClip * clip = 0;
+
+	AudioClipGroup * clip_group = audio_state->clip_groups + clip_id;
+	if(clip_group->index) {
+		u32 clip_index = clip_group->index + index;
+		clip = audio_state->clips + clip_index;
+	}
+
+	return clip;
+}
+
+u32 get_audio_clip_count(AudioState * audio_state, AudioClipId clip_id) {
+	AudioClipGroup * clip_group = audio_state->clip_groups + clip_id;
+	return clip_group->count;
+}
+
+AudioSource * play_audio_clip(AudioState * audio_state, AudioClip * clip, b32 loop = false) {
 	AudioSource * source = 0;
-	//TODO: If the clip isn't loaded don't play it??
-	AudioClip * clip = audio_state->audio_clips + clip_id;
 	if(clip) {
 		if(!audio_state->audio_source_free_list) {
 			audio_state->audio_source_free_list = PUSH_STRUCT(audio_state->memory_pool, AudioSource);
@@ -108,7 +123,7 @@ AudioSource * play_audio_clip(AudioState * audio_state, AudioClipId clip_id, b32
 		source->next = audio_state->audio_sources;
 		audio_state->audio_sources = source;
 
-		source->clip_id = clip_id;
+		source->clip = clip;
 		source->sample_pos = audio_val64(0.0f);
 		source->loop = loop;
 		source->pitch = 1.0f;
@@ -118,6 +133,11 @@ AudioSource * play_audio_clip(AudioState * audio_state, AudioClipId clip_id, b32
 	}
 
 	return source;
+}
+
+AudioSource * play_audio_clip(AudioState * audio_state, AudioClipId clip_id, b32 loop = false) {
+	AudioClip * clip = get_audio_clip(audio_state, clip_id, 0);
+	return play_audio_clip(audio_state, clip, loop);
 }
 
 void change_volume(AudioSource * source, math::Vec2 volume, f32 time_) {
@@ -148,7 +168,7 @@ void audio_output_samples(AudioState * audio_state, i16 * sample_memory_ptr, u32
 	AudioSource ** source_ptr = &audio_state->audio_sources;
 	while(*source_ptr) {
 		AudioSource * source = *source_ptr;
-		AudioClip * clip = audio_state->audio_clips + source->clip_id;
+		AudioClip * clip = source->clip;
 
 		f32 pitch = source->pitch * playback_rate;
 		AudioVal64 pitch64 = audio_val64(pitch);
@@ -253,6 +273,25 @@ void audio_output_samples(AudioState * audio_state, i16 * sample_memory_ptr, u32
 	}
 }
 
+void push_audio_clip(AudioState * audio_state, AudioClipId id, char const * file_name) {
+	AudioClipGroup * clip_group = audio_state->clip_groups + id;
+
+	u32 clip_index = audio_state->clip_count++;
+	if(!clip_group->index) {
+		ASSERT(clip_group->count == 0);
+		clip_group->index = clip_index;
+	}
+	else {
+		//NOTE: Clip variations must be added sequentially!!
+		ASSERT((clip_index - clip_group->index) == clip_group->count);
+	}
+
+	AudioClip * clip = audio_state->clips + clip_index;
+	load_audio_clip_from_file(audio_state, clip, file_name);
+
+	clip_group->count++;
+}
+
 void load_audio(AudioState * audio_state, MemoryPool * pool, b32 supported) {
 	//TODO: Allocate sub-pool!!
 	audio_state->memory_pool = pool;
@@ -260,14 +299,16 @@ void load_audio(AudioState * audio_state, MemoryPool * pool, b32 supported) {
 	audio_state->master_volume = 1.0f;
 
 	if(audio_state->supported) {
+		audio_state->clip_count = 0;
+		audio_state->clips = PUSH_ARRAY(audio_state->memory_pool, AudioClip, 64);
+
 		//TODO: Temp until asset pack!!
-		load_audio_clip_from_file(audio_state, &audio_state->audio_clips[AudioClipId_sin_440], "sin_440.wav");
-		load_audio_clip_from_file(audio_state, &audio_state->audio_clips[AudioClipId_beep], "beep.wav");
-		load_audio_clip_from_file(audio_state, &audio_state->audio_clips[AudioClipId_woosh], "woosh.wav");
-		//TODO: Support clip variations!!
-		load_audio_clip_from_file(audio_state, &audio_state->audio_clips[AudioClipId_pickup0], "pickup0.wav");
-		load_audio_clip_from_file(audio_state, &audio_state->audio_clips[AudioClipId_pickup1], "pickup1.wav");
-		load_audio_clip_from_file(audio_state, &audio_state->audio_clips[AudioClipId_pickup2], "pickup2.wav");
-		load_audio_clip_from_file(audio_state, &audio_state->audio_clips[AudioClipId_music], "music.wav");
+		push_audio_clip(audio_state, AudioClipId_sin_440, "sin_440.wav");
+		push_audio_clip(audio_state, AudioClipId_beep, "beep.wav");
+		push_audio_clip(audio_state, AudioClipId_woosh, "woosh.wav");
+		push_audio_clip(audio_state, AudioClipId_pickup, "pickup0.wav");
+		push_audio_clip(audio_state, AudioClipId_pickup, "pickup1.wav");
+		push_audio_clip(audio_state, AudioClipId_pickup, "pickup2.wav");
+		push_audio_clip(audio_state, AudioClipId_music, "music.wav");
 	}
 }

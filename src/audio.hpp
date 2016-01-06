@@ -12,9 +12,7 @@ enum AudioClipId {
 	AudioClipId_sin_440,
 	AudioClipId_beep,
 	AudioClipId_woosh,
-	AudioClipId_pickup0,
-	AudioClipId_pickup1,
-	AudioClipId_pickup2,
+	AudioClipId_pickup,
 	AudioClipId_music,
 
 	AudioClipId_count,
@@ -27,13 +25,18 @@ struct AudioClip {
 	f32 length;
 };
 
+struct AudioClipGroup {
+	u32 index;
+	u32 count;
+};
+
 struct AudioVal64 {
 	u32 int_part;
 	f32 frc_part;
 };
 
 struct AudioSource {
-	AudioClipId clip_id;
+	AudioClip * clip;
 	AudioVal64 sample_pos;
 
 	b32 loop;
@@ -50,7 +53,10 @@ struct AudioSource {
 struct AudioState {
 	MemoryPool * memory_pool;
 
-	AudioClip audio_clips[AudioClipId_count];
+	u32 clip_count;
+	AudioClip * clips;
+	AudioClipGroup clip_groups[AudioClipId_count];
+
 	AudioSource * audio_sources;
 	AudioSource * audio_source_free_list;
 
