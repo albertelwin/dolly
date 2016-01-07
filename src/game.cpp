@@ -35,28 +35,21 @@ Entity * push_entity(GameState * game_state, TextureId tex_id, math::Vec3 pos) {
 	return entity;
 }
 
-void render_entity(GameState * game_state, Entity * entity, math::Mat4 const & view_projection_matrix) {
+void render_v_buf(gl::VertexBuffer * v_buf, Shader * shader, math::Mat4 * xform, gl::Texture * tex0, math::Vec4 color = math::vec4(1.0f)) {
 	DEBUG_TIME_BLOCK();
 
-	u32 program = game_state->entity_program;
-	glUseProgram(program);
+	glUseProgram(shader->id);
 
-	math::Mat4 xform = view_projection_matrix * math::translate(entity->pos.x, entity->pos.y, entity->pos.z) * math::scale(entity->scale.x, entity->scale.y, 1.0f) * math::rotate_around_z(entity->rot);
-
-	u32 xform_id = glGetUniformLocation(program, "xform");
-	glUniformMatrix4fv(xform_id, 1, GL_FALSE, xform.v);
-
-	glUniform4f(glGetUniformLocation(program, "color"), entity->color.r, entity->color.g, entity->color.b, entity->color.a);
-
-	gl::Texture * tex = &game_state->textures[entity->tex_id];
+	glUniformMatrix4fv(shader->xform, 1, GL_FALSE, xform->v);
+	glUniform4f(shader->color, color.r, color.g, color.b, color.a);
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, tex->id);
-	glUniform1i(glGetUniformLocation(program, "tex0"), 0);
+	glBindTexture(GL_TEXTURE_2D, tex0->id);
+	glUniform1i(shader->tex0, 0);
 
-	glBindBuffer(GL_ARRAY_BUFFER, entity->v_buf->id);
+	glBindBuffer(GL_ARRAY_BUFFER, v_buf->id);
 
-	u32 stride = entity->v_buf->vert_size * sizeof(f32);
+	u32 stride = v_buf->vert_size * sizeof(f32);
 
 	glVertexAttribPointer(0, 3, GL_FLOAT, 0, stride, 0);
 	glEnableVertexAttribArray(0);
@@ -64,17 +57,13 @@ void render_entity(GameState * game_state, Entity * entity, math::Mat4 const & v
 	glVertexAttribPointer(1, 2, GL_FLOAT, 0, stride, (void *)(3 * sizeof(f32)));
 	glEnableVertexAttribArray(1);
 
-	glDrawArrays(GL_TRIANGLES, 0, entity->v_buf->vert_count);
+	glDrawArrays(GL_TRIANGLES, 0, v_buf->vert_count);
 }
 
 Font * allocate_font(MemoryPool * pool, u32 v_len, u32 back_buffer_width, u32 back_buffer_height) {
 	Font * font = PUSH_STRUCT(pool, Font);
 
-	u32 vert = gl::compile_shader_from_source(FONT_VERT_SRC, GL_VERTEX_SHADER);
-	u32 frag = gl::compile_shader_from_source(FONT_FRAG_SRC, GL_FRAGMENT_SHADER);
-	font->program = gl::link_shader_program(vert, frag);
-
-	font->tex = load_texture_from_file("font.png", GL_NEAREST);
+	font->tex = load_texture_from_file("font_transparent.png", GL_NEAREST);
 
 	font->v_len = v_len;
 	font->v_arr = PUSH_ARRAY(pool, f32, font->v_len);
@@ -167,9 +156,13 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		game_state->music = play_audio_clip(audio_state, AudioClipId_music, true);
 
+		Shader * basic_shader = &game_state->basic_shader;
 		u32 basic_vert = gl::compile_shader_from_source(BASIC_VERT_SRC, GL_VERTEX_SHADER);
 		u32 basic_frag = gl::compile_shader_from_source(BASIC_FRAG_SRC, GL_FRAGMENT_SHADER);
-		game_state->entity_program = gl::link_shader_program(basic_vert, basic_frag);
+		basic_shader->id = gl::link_shader_program(basic_vert, basic_frag);
+		basic_shader->xform = glGetUniformLocation(basic_shader->id, "xform");
+		basic_shader->color = glGetUniformLocation(basic_shader->id, "color");
+		basic_shader->tex0 = glGetUniformLocation(basic_shader->id, "tex0");
 
 		f32 quad_verts[] = {
 			-0.5f,-0.5f, 0.0f, 0.0f, 0.0f,
@@ -225,8 +218,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		game_state->textures[TextureId_dolly] = load_texture_from_file("dolly.png", GL_NEAREST);
 		game_state->textures[TextureId_teacup] = load_texture_from_file("teacup.png", GL_NEAREST);
 
-		game_state->textures[TextureId_sprite_sheet] = load_texture_from_file("sprite_sheet.png", GL_NEAREST);
-
 		game_state->background = push_entity(game_state, TextureId_background, math::vec3(0.0f));
 		game_state->background->v_buf = &game_state->bg_v_buf;
 
@@ -243,39 +234,28 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		}
 
 		{
-			u32 sprite_width = 32;
-			u32 sprite_height = 32;
+			SpriteBatch * batch = &game_state->sprite_batch;
 
-			u32 tex_size = 128;
-			f32 r_tex_size = 1.0f / (f32)tex_size;
+			batch->tex = load_texture_from_file("sprite_sheet.png", GL_NEAREST);
 
-			Sprite * sprite = &game_state->sprite;
-			sprite->index = 0;
+			batch->v_len = VERTS_PER_QUAD * 256;
+			batch->v_arr = PUSH_ARRAY(&game_state->memory_pool, f32, batch->v_len);
+			batch->v_buf = gl::create_vertex_buffer(batch->v_arr, batch->v_len, 5, GL_DYNAMIC_DRAW);
+			batch->e = 0;
 
-			u32 u = (sprite->index % 4) * sprite_width;
-			u32 v = (sprite->index / 4) * sprite_height;
+			batch->tex_size = batch->tex.width;
+			batch->sprite_width = 64;
+			batch->sprite_height = 64;
 
-			math::Vec2 uv0 = math::vec2(u, tex_size - (v + sprite_height)) * r_tex_size;
-			math::Vec2 uv1 = math::vec2(u + sprite_width, tex_size - v) * r_tex_size;
+			for(u32 i = 0; i < ARRAY_COUNT(game_state->sprites); i++) {
+				Sprite * sprite = game_state->sprites + i;
 
-			sprite->v_len = 30;
-			sprite->v_arr = PUSH_ARRAY(&game_state->memory_pool, f32, sprite->v_len);
+				sprite->pos = math::vec3(0.0f);
+				sprite->frame = 0;
+				sprite->frame_time = 10000.0f;
+			}
 
-			u32 i = 0;
-			f32 * v_arr = sprite->v_arr;
-			v_arr[i++] = -0.5f; v_arr[i++] = -0.5f; v_arr[i++] =  0.0f; v_arr[i++] = uv0.x; v_arr[i++] = uv0.y; 
-			v_arr[i++] =  0.5f; v_arr[i++] =  0.5f; v_arr[i++] =  0.0f; v_arr[i++] = uv1.x; v_arr[i++] = uv1.y; 
-			v_arr[i++] = -0.5f; v_arr[i++] =  0.5f; v_arr[i++] =  0.0f; v_arr[i++] = uv0.x; v_arr[i++] = uv1.y; 
-			v_arr[i++] = -0.5f; v_arr[i++] = -0.5f; v_arr[i++] =  0.0f; v_arr[i++] = uv0.x; v_arr[i++] = uv0.y; 
-			v_arr[i++] =  0.5f; v_arr[i++] =  0.5f; v_arr[i++] =  0.0f; v_arr[i++] = uv1.x; v_arr[i++] = uv1.y; 
-			v_arr[i++] =  0.5f; v_arr[i++] = -0.5f; v_arr[i++] =  0.0f; v_arr[i++] = uv1.x; v_arr[i++] = uv0.y; 
-
-			sprite->v_buf = gl::create_vertex_buffer(sprite->v_arr, sprite->v_len, 5, GL_DYNAMIC_DRAW);
-
-			gl::Texture * tex = game_state->textures + TextureId_sprite_sheet;
-			sprite->entity = push_entity(game_state, TextureId_sprite_sheet, math::vec3(0.0f));
-			sprite->entity->scale = math::vec2(tex->width, tex->height);
-			sprite->entity->v_buf = &sprite->v_buf;
+			game_state->sprite = &game_state->sprites[0];
 		}
 
 		game_state->d_time = 1.0f;
@@ -295,6 +275,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	if(game_input->buttons[ButtonId_down] & KEY_DOWN) {
 		player->pos.y -= player_accel;
 	}
+
+	game_state->sprite->pos = player->pos;
 
 	f32 dd_time = 0.5f * game_input->delta_time;
 	if(game_input->buttons[ButtonId_left] & KEY_DOWN) {
@@ -364,6 +346,11 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			teacup->hit = true;
 			teacup->scale = emitter->scale * 2.0f;
 
+			Sprite * sprite = &game_state->sprites[i + 1];
+			sprite->pos = teacup->pos;
+			sprite->frame = 0;
+			sprite->frame_time = 0.0f;
+
 			//TODO: Should there be a helper function for this??
 			AudioClipId clip_id = AudioClipId_pickup;
 			AudioClip * clip = get_audio_clip(&game_state->audio_state, clip_id, math::rand_i32() % get_audio_clip_count(&game_state->audio_state, clip_id));
@@ -392,35 +379,49 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	}
 
 	{
-		Sprite * sprite = &game_state->sprite;
+		DEBUG_TIME_BLOCK();
 
-		u32 frames_per_sec = 30;
-		sprite->frame_time += game_input->delta_time * (f32)frames_per_sec;
-		sprite->index = ((u32)sprite->frame_time) % 4;
+		SpriteBatch * batch = &game_state->sprite_batch;
 
-		u32 sprite_width = 32;
-		u32 sprite_height = 32;
+		zero_memory((u8 *)batch->v_arr, batch->v_len * sizeof(f32));
+		batch->e = 0;
 
-		u32 tex_size = 128;
+		u32 frames = 25;
+
+		u32 tex_size = batch->tex_size;
 		f32 r_tex_size = 1.0f / (f32)tex_size;
 
-		u32 u = (sprite->index % 4) * sprite_width;
-		u32 v = (sprite->index / 4) * sprite_height;
+		u32 sprite_width = batch->sprite_width;
+		u32 sprite_height = batch->sprite_height;
 
-		math::Vec2 uv0 = math::vec2(u, tex_size - (v + sprite_height)) * r_tex_size;
-		math::Vec2 uv1 = math::vec2(u + sprite_width, tex_size - v) * r_tex_size;
+		u32 sprites_per_row = tex_size / sprite_width;
 
-		u32 i = 0;
-		f32 * v_arr = sprite->v_arr;
-		v_arr[i++] = -0.5f; v_arr[i++] = -0.5f; v_arr[i++] =  0.0f; v_arr[i++] = uv0.x; v_arr[i++] = uv0.y;
-		v_arr[i++] =  0.5f; v_arr[i++] =  0.5f; v_arr[i++] =  0.0f; v_arr[i++] = uv1.x; v_arr[i++] = uv1.y;
-		v_arr[i++] = -0.5f; v_arr[i++] =  0.5f; v_arr[i++] =  0.0f; v_arr[i++] = uv0.x; v_arr[i++] = uv1.y;
-		v_arr[i++] = -0.5f; v_arr[i++] = -0.5f; v_arr[i++] =  0.0f; v_arr[i++] = uv0.x; v_arr[i++] = uv0.y;
-		v_arr[i++] =  0.5f; v_arr[i++] =  0.5f; v_arr[i++] =  0.0f; v_arr[i++] = uv1.x; v_arr[i++] = uv1.y;
-		v_arr[i++] =  0.5f; v_arr[i++] = -0.5f; v_arr[i++] =  0.0f; v_arr[i++] = uv1.x; v_arr[i++] = uv0.y;
+		for(u32 i = 0; i < ARRAY_COUNT(game_state->sprites); i++) {
+			Sprite * sprite = game_state->sprites + i;
 
-		glBindBuffer(GL_ARRAY_BUFFER, sprite->v_buf.id);
-		glBufferSubData(GL_ARRAY_BUFFER, 0, sprite->v_buf.size_in_bytes, sprite->v_arr);
+			sprite->frame_time += game_input->delta_time * ANIMATION_FRAMES_PER_SEC;
+			sprite->frame = (u32)sprite->frame_time;
+
+			if(sprite->frame <= frames) {
+				math::Vec2 pos0 = sprite->pos.xy - math::vec2(sprite_width, sprite_height) * 0.5f;
+				math::Vec2 pos1 = sprite->pos.xy + math::vec2(sprite_width, sprite_height) * 0.5f;
+				f32 z = sprite->pos.z;
+				
+				u32 u = (sprite->frame % sprites_per_row) * sprite_width;
+				u32 v = (sprite->frame / sprites_per_row) * sprite_height;
+
+				math::Vec2 uv0 = math::vec2(u, tex_size - (v + sprite_height)) * r_tex_size;
+				math::Vec2 uv1 = math::vec2(u + sprite_width, tex_size - v) * r_tex_size;
+
+				f32 * v_arr = batch->v_arr;
+				v_arr[batch->e++] = pos0.x; v_arr[batch->e++] = pos0.y; v_arr[batch->e++] = z; v_arr[batch->e++] = uv0.x; v_arr[batch->e++] = uv0.y;
+				v_arr[batch->e++] = pos1.x; v_arr[batch->e++] = pos1.y; v_arr[batch->e++] = z; v_arr[batch->e++] = uv1.x; v_arr[batch->e++] = uv1.y;
+				v_arr[batch->e++] = pos0.x; v_arr[batch->e++] = pos1.y; v_arr[batch->e++] = z; v_arr[batch->e++] = uv0.x; v_arr[batch->e++] = uv1.y;
+				v_arr[batch->e++] = pos0.x; v_arr[batch->e++] = pos0.y; v_arr[batch->e++] = z; v_arr[batch->e++] = uv0.x; v_arr[batch->e++] = uv0.y;
+				v_arr[batch->e++] = pos1.x; v_arr[batch->e++] = pos1.y; v_arr[batch->e++] = z; v_arr[batch->e++] = uv1.x; v_arr[batch->e++] = uv1.y;
+				v_arr[batch->e++] = pos1.x; v_arr[batch->e++] = pos0.y; v_arr[batch->e++] = z; v_arr[batch->e++] = uv1.x; v_arr[batch->e++] = uv0.y;
+			}
+		}		
 	}
 
 	change_pitch(game_state->music, game_state->d_time);
@@ -437,14 +438,30 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	glUseProgram(game_state->entity_program);
 	for(u32 i = 0; i < game_state->entity_count; i++) {
 		Entity * entity = game_state->entity_array + i;
-		render_entity(game_state, entity, view_projection_matrix);
+		gl::Texture * tex = game_state->textures + entity->tex_id;
+
+		math::Mat4 xform = view_projection_matrix * math::translate(entity->pos.x, entity->pos.y, entity->pos.z) * math::scale(entity->scale.x, entity->scale.y, 1.0f) * math::rotate_around_z(entity->rot);
+
+		render_v_buf(entity->v_buf, &game_state->basic_shader, &xform, tex, entity->color);
 	}
 
 	{
+		DEBUG_TIME_BLOCK();
+
+		SpriteBatch * batch = &game_state->sprite_batch;
+
+		glBindBuffer(GL_ARRAY_BUFFER, batch->v_buf.id);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, batch->v_buf.size_in_bytes, batch->v_arr);
+
+		render_v_buf(&batch->v_buf, &game_state->basic_shader, &view_projection_matrix, &batch->tex);
+	}
+
+	{
+		DEBUG_TIME_BLOCK();
+
 		Font * font = game_state->font;
 
-		f32 * v_arr = font->v_arr;
-		zero_memory((u8 *)v_arr, font->v_len * sizeof(f32));
+		zero_memory((u8 *)font->v_arr, font->v_len * sizeof(f32));
 		font->e = 0;
 
 		font->pos = font->anchor;
@@ -457,29 +474,9 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		render_str(font, game_state->debug_str);
 
-		glUseProgram(font->program);
-
-		u32 xform_id = glGetUniformLocation(font->program, "xform");
-		glUniformMatrix4fv(xform_id, 1, GL_FALSE, font->projection_matrix.v);
-
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, font->tex.id);
-		glUniform1i(glGetUniformLocation(font->program, "tex0"), 0);
-
 		glBindBuffer(GL_ARRAY_BUFFER, font->v_buf.id);
 		glBufferSubData(GL_ARRAY_BUFFER, 0, font->v_buf.size_in_bytes, font->v_arr);
-
-		u32 stride = font->v_buf.vert_size * sizeof(f32);
-
-		glVertexAttribPointer(0, 3, GL_FLOAT, 0, stride, 0);
-		glEnableVertexAttribArray(0);
-
-		glVertexAttribPointer(1, 2, GL_FLOAT, 0, stride, (void *)(3 * sizeof(f32)));
-		glEnableVertexAttribArray(1);
-
-		glDrawArrays(GL_TRIANGLES, 0, font->v_buf.vert_count);
-
-		glDisable(GL_BLEND);
+		render_v_buf(&font->v_buf, &game_state->basic_shader, &font->projection_matrix, &font->tex);
 	}
 }
 

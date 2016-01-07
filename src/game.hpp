@@ -6,6 +6,9 @@
 #include <debug.hpp>
 #include <math.hpp>
 
+#define ANIMATION_FRAMES_PER_SEC 60
+
+#define VERTS_PER_QUAD 30
 #define TEXTURE_CHANNELS 4
 
 enum TextureId {
@@ -13,9 +16,14 @@ enum TextureId {
 	TextureId_teacup,
 	TextureId_background,
 
-	TextureId_sprite_sheet,
-
 	TextureId_count,
+};
+
+struct Shader {
+	u32 id;
+	u32 xform;
+	u32 color;
+	u32 tex0;
 };
 
 struct Entity {
@@ -53,15 +61,13 @@ enum ButtonId {
 };
 
 struct Font {
-	u32 program;
 	gl::Texture tex;
 
 	u32 v_len;
 	f32 * v_arr;
+	gl::VertexBuffer v_buf;
 
 	u32 e;
-
-	gl::VertexBuffer v_buf;
 
 	math::Mat4 projection_matrix;
 
@@ -75,14 +81,24 @@ struct Font {
 };
 
 struct Sprite {
-	u32 index;
+	math::Vec3 pos;
+
+	u32 frame;
 	f32 frame_time;
+};
+
+struct SpriteBatch {
+	gl::Texture tex;
 
 	u32 v_len;
 	f32 * v_arr;
 	gl::VertexBuffer v_buf;
+	u32 e;
 
-	Entity * entity;
+	u32 tex_size;
+
+	u32 sprite_width;
+	u32 sprite_height;
 };
 
 struct GameMemory {
@@ -113,6 +129,8 @@ struct GameState {
 	AudioState audio_state;
 	AudioSource * music;
 
+	Shader basic_shader;
+
 	u32 entity_program;
 	gl::VertexBuffer entity_v_buf;
 	gl::VertexBuffer bg_v_buf;
@@ -130,14 +148,16 @@ struct GameState {
 	gl::Texture textures[TextureId_count];
 
 	u32 entity_count;
-	Entity entity_array[32];
+	Entity entity_array[64];
 
 	Entity * background;
 	Entity * player;
 
 	TeacupEmitter teacup_emitter;
 
-	Sprite sprite;
+	SpriteBatch sprite_batch;
+	Sprite sprites[32];
+	Sprite * sprite;
 
 	f32 d_time;
 	u32 score;
