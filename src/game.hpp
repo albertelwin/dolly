@@ -173,6 +173,8 @@ struct GameState {
 	Sprite sprites[8];
 	Sprite * sprite;
 
+	Entity * pixel_art;
+
 	f32 d_time;
 	u32 score;
 };

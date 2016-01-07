@@ -4,12 +4,28 @@
 #include <audio.cpp>
 #include <math.cpp>
 
-gl::Texture load_texture_from_file(char const * file_name, i32 filter_mode = GL_NEAREST) {
+gl::Texture load_texture_from_file(char const * file_name, i32 filter_mode = GL_LINEAR) {
 	stbi_set_flip_vertically_on_load(true);
 
 	i32 width, height, channels;
 	u8 * img_data = stbi_load(file_name, &width, &height, &channels, 0);
 	ASSERT(channels == TEXTURE_CHANNELS);
+
+	//NOTE: Premultiplied alpha!!
+	f32 r_255 = 1.0f / 255.0f;
+	for(u32 y = 0, i = 0; y < height; y++) {
+		for(u32 x = 0; x < width; x++, i += 4) {
+			f32 a = (f32)img_data[i + 3] * r_255;
+
+			f32 r = (f32)img_data[i + 0] * r_255 * a;
+			f32 g = (f32)img_data[i + 1] * r_255 * a;
+			f32 b = (f32)img_data[i + 2] * r_255 * a;
+
+			img_data[i + 0] = (u8)(r * 255.0f);
+			img_data[i + 1] = (u8)(g * 255.0f);
+			img_data[i + 2] = (u8)(b * 255.0f);
+		}	
+	}
 
 	gl::Texture tex = gl::create_texture(img_data, width, height, GL_RGBA, filter_mode, GL_CLAMP_TO_EDGE);
 	ASSERT(tex.id);
@@ -63,7 +79,7 @@ void render_v_buf(gl::VertexBuffer * v_buf, Shader * shader, math::Mat4 * xform,
 Font * allocate_font(MemoryPool * pool, u32 v_len, u32 back_buffer_width, u32 back_buffer_height) {
 	Font * font = PUSH_STRUCT(pool, Font);
 
-	font->tex = load_texture_from_file("font.png");
+	font->tex = load_texture_from_file("font.png", GL_NEAREST);
 
 	font->v_len = v_len;
 	font->v_arr = PUSH_ARRAY(pool, f32, font->v_len);
@@ -410,7 +426,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	for(u32 i = 0; i < ARRAY_COUNT(game_state->bg_layers); i++) {
 		Entity * bg_layer = game_state->bg_layers[i];
 
-		bg_layer->pos.x += -(50.0f * i) * adjusted_dt;
+		bg_layer->pos.x += -(64.0f * i) * adjusted_dt;
 		if(bg_layer->pos.x < -(half_screen_width + bg_layer->scale.x * 0.5f)) {
 			bg_layer->pos.x += bg_layer->scale.x * 2.0f;
 		}
@@ -470,7 +486,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 	//TODO: Sorting!!
 	glUseProgram(game_state->entity_program);
@@ -516,6 +532,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		glBufferSubData(GL_ARRAY_BUFFER, 0, font->v_buf.size_in_bytes, font->v_arr);
 		render_v_buf(&font->v_buf, &game_state->basic_shader, &font->projection_matrix, &font->tex);
 	}
+
+	glDisable(GL_BLEND);
 }
 
 #if 0
