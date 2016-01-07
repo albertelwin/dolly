@@ -14,7 +14,11 @@
 enum TextureId {
 	TextureId_dolly,
 	TextureId_teacup,
-	TextureId_background,
+
+	TextureId_bg_layer0,
+	TextureId_bg_layer1,
+	TextureId_bg_layer2,
+	TextureId_bg_layer3,
 
 	TextureId_count,
 };
@@ -34,8 +38,17 @@ struct Entity {
 	math::Vec4 color;
 	TextureId tex_id;
 	gl::VertexBuffer * v_buf;
+};
 
-	//TODO: Union??
+struct Player {
+	Entity * e;
+
+	f32 initial_x;
+};
+
+struct Teacup {
+	Entity * e;
+
 	b32 hit;
 };
 
@@ -45,7 +58,7 @@ struct TeacupEmitter {
 	f32 time_until_next_spawn;
 
 	u32 entity_count;
-	Entity * entity_array[4];
+	Teacup * entity_array[4];
 };
 
 enum ButtonId {
@@ -150,13 +163,14 @@ struct GameState {
 	u32 entity_count;
 	Entity entity_array[64];
 
-	Entity * background;
-	Entity * player;
+	Entity * bg_layers[4];
+
+	Player player;
 
 	TeacupEmitter teacup_emitter;
 
 	SpriteBatch sprite_batch;
-	Sprite sprites[32];
+	Sprite sprites[8];
 	Sprite * sprite;
 
 	f32 d_time;

@@ -4,7 +4,7 @@
 #include <audio.cpp>
 #include <math.cpp>
 
-gl::Texture load_texture_from_file(char const * file_name, i32 filter_mode = GL_LINEAR) {
+gl::Texture load_texture_from_file(char const * file_name, i32 filter_mode = GL_NEAREST) {
 	stbi_set_flip_vertically_on_load(true);
 
 	i32 width, height, channels;
@@ -63,7 +63,7 @@ void render_v_buf(gl::VertexBuffer * v_buf, Shader * shader, math::Mat4 * xform,
 Font * allocate_font(MemoryPool * pool, u32 v_len, u32 back_buffer_width, u32 back_buffer_height) {
 	Font * font = PUSH_STRUCT(pool, Font);
 
-	font->tex = load_texture_from_file("font.png", GL_NEAREST);
+	font->tex = load_texture_from_file("font.png");
 
 	font->v_len = v_len;
 	font->v_arr = PUSH_ARRAY(pool, f32, font->v_len);
@@ -152,7 +152,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		AudioState * audio_state = &game_state->audio_state;
 		load_audio(audio_state, &game_state->memory_pool, game_input->audio_supported);
-		// audio_state->master_volume = 0.0f;
+		audio_state->master_volume = 0.0f;
 
 		game_state->music = play_audio_clip(audio_state, AudioClipId_music, true);
 
@@ -214,14 +214,23 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		game_state->projection_matrix = math::orthographic_projection((f32)game_state->ideal_window_width, (f32)game_state->ideal_window_height);
 
-		game_state->textures[TextureId_background] = load_texture_from_file("background.png", GL_LINEAR);
-		game_state->textures[TextureId_dolly] = load_texture_from_file("dolly.png", GL_NEAREST);
-		game_state->textures[TextureId_teacup] = load_texture_from_file("teacup.png", GL_NEAREST);
+		game_state->textures[TextureId_dolly] = load_texture_from_file("dolly.png");
+		game_state->textures[TextureId_teacup] = load_texture_from_file("teacup.png");
 
-		game_state->background = push_entity(game_state, TextureId_background, math::vec3(0.0f));
-		game_state->background->v_buf = &game_state->bg_v_buf;
+		game_state->textures[TextureId_bg_layer0] = load_texture_from_file("bg_layer0.png");
+		game_state->textures[TextureId_bg_layer1] = load_texture_from_file("bg_layer1.png");
+		game_state->textures[TextureId_bg_layer2] = load_texture_from_file("bg_layer2.png");
+		game_state->textures[TextureId_bg_layer3] = load_texture_from_file("bg_layer3.png");
 
-		game_state->player = push_entity(game_state, TextureId_dolly, math::vec3((f32)game_state->ideal_window_width * -0.5f * (2.0f / 3.0f), 0.0f, 0.0f));
+		for(u32 i = 0; i < ARRAY_COUNT(game_state->bg_layers); i++) {
+			TextureId tex_id = (TextureId)(TextureId_bg_layer0 + i);
+			Entity * bg_layer = push_entity(game_state, tex_id, math::vec3(0.0f));
+			bg_layer->v_buf = &game_state->bg_v_buf;
+			game_state->bg_layers[i] = bg_layer;
+		}
+
+		game_state->player.e = push_entity(game_state, TextureId_dolly, math::vec3((f32)game_state->ideal_window_width * -0.5f * (2.0f / 3.0f), 0.0f, 0.0f));
+		game_state->player.initial_x = game_state->player.e->pos.x;
 
 		TeacupEmitter * emitter = &game_state->teacup_emitter;
 		gl::Texture * emitter_tex = &game_state->textures[TextureId_teacup];
@@ -230,13 +239,17 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		emitter->scale = math::vec2(emitter_tex->width, emitter_tex->height);
 		emitter->entity_count = 0;
 		for(u32 i = 0; i < ARRAY_COUNT(emitter->entity_array); i++) {
-			emitter->entity_array[i] = push_entity(game_state, TextureId_teacup, emitter->pos);
+			Teacup * teacup = PUSH_STRUCT(&game_state->memory_pool, Teacup);
+			teacup->e = push_entity(game_state, TextureId_teacup, emitter->pos);
+			teacup->hit = false;
+
+			emitter->entity_array[i] = teacup;
 		}
 
 		{
 			SpriteBatch * batch = &game_state->sprite_batch;
 
-			batch->tex = load_texture_from_file("sprite_sheet.png", GL_NEAREST);
+			batch->tex = load_texture_from_file("sprite_sheet.png");
 
 			batch->v_len = VERTS_PER_QUAD * 256;
 			batch->v_arr = PUSH_ARRAY(&game_state->memory_pool, f32, batch->v_len);
@@ -264,19 +277,19 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	}
 
-	Entity * player = game_state->player;
-	//TODO: World units!!
-	f32 player_accel = 500.0f * game_input->delta_time;
+
+	Player * player = &game_state->player;
+	math::Vec2 player_speed = math::vec2(10.0f, 500.0f) * game_input->delta_time;
+	math::Vec2 player_dd_pos = math::vec2(0.0f);
+	b32 moved_horizontally = false;
 
 	if(game_input->buttons[ButtonId_up] & KEY_DOWN) {
-		player->pos.y += player_accel;
+		player_dd_pos.y += player_speed.y;
 	}
 
 	if(game_input->buttons[ButtonId_down] & KEY_DOWN) {
-		player->pos.y -= player_accel;
+		player_dd_pos.y -= player_speed.y;
 	}
-
-	game_state->sprite->pos = player->pos;
 
 	f32 dd_time = 0.5f * game_input->delta_time;
 	if(game_input->buttons[ButtonId_left] & KEY_DOWN) {
@@ -284,11 +297,32 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		if(game_state->d_time < 0.0f) {
 			game_state->d_time = 0.0f;
 		}
+
+		player_dd_pos.x -= player_speed.x;
+		moved_horizontally = true;
 	}
 
 	if(game_input->buttons[ButtonId_right] & KEY_DOWN) {
 		game_state->d_time += dd_time;
+
+		player_dd_pos.x += player_speed.x;
+		moved_horizontally = true;
 	}
+
+	if(!moved_horizontally && player->e->pos.x != player->initial_x) {
+		f32 dir = (player->e->pos.x > player->initial_x) ? -1.0f : 1.0f;
+		f32 dist = (player->initial_x - player->e->pos.x) * dir;
+
+		f32 drift_speed = 5.0f * game_input->delta_time;
+		if(dist < drift_speed) {
+			drift_speed = dist;
+		}
+
+		player_dd_pos.x += drift_speed * dir;
+	}
+
+	player->e->pos.xy += player_dd_pos;
+	player->e->pos.x = math::clamp(player->e->pos.x, player->initial_x - 20.0f, player->initial_x + 20.0f);
 
 	if(game_input->buttons[ButtonId_mute] & KEY_PRESSED) {
 		game_state->audio_state.master_volume = game_state->audio_state.master_volume > 0.0f ? 0.0f : 1.0f;
@@ -303,51 +337,52 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	emitter->time_until_next_spawn -= adjusted_dt;
 	if(emitter->time_until_next_spawn <= 0.0f) {
 		if(emitter->entity_count < ARRAY_COUNT(emitter->entity_array)) {
-			Entity * teacup = emitter->entity_array[emitter->entity_count++];
-			
-			f32 y = (math::rand_f32() * 2.0f - 1.0f) * 300.0f;
-
-			teacup->pos = math::vec3(emitter->pos.x, y, 0.0f);
-			teacup->scale = emitter->scale;
-			teacup->color = math::vec4(1.0f);
+			Teacup * teacup = emitter->entity_array[emitter->entity_count++];
 			teacup->hit = false;
+
+			Entity * entity = teacup->e;			
+			entity->pos = math::vec3(emitter->pos.x, (math::rand_f32() * 2.0f - 1.0f) * 300.0f, 0.0f);
+			entity->scale = emitter->scale;
+			entity->color = math::vec4(1.0f);
 		}
 
 		emitter->time_until_next_spawn = 1.0f;
 	}
 
-	math::Rec2 player_rec = math::rec2_centre_size(player->pos.xy, player->scale);
+	math::Rec2 player_rec = math::rec2_centre_size(player->e->pos.xy, player->e->scale);
 
 	for(u32 i = 0; i < emitter->entity_count; i++) {
-		Entity * teacup = emitter->entity_array[i];
+		Teacup * teacup = emitter->entity_array[i];
+		Entity * entity = teacup->e;
 		b32 destroy = false;
 
 		if(!teacup->hit) {
 			f32 dd_pos = -500.0f * adjusted_dt;
-			teacup->pos.x += dd_pos;
-			if(teacup->pos.x < -half_screen_width) {
+			entity->pos.x += dd_pos;
+			if(entity->pos.x < -half_screen_width) {
 				destroy = true;
 			}
 		}
 		else {
 			f32 dd_pos = 500.0f * adjusted_dt;
-			teacup->pos.y += dd_pos;
+			entity->pos.y += dd_pos;
 
-			teacup->scale -= emitter->scale * 4.0f * adjusted_dt;
+			entity->scale -= emitter->scale * 4.0f * adjusted_dt;
 
-			if(teacup->pos.y > half_screen_height || teacup->scale.x < 0.0f || teacup->scale.y < 0.0f) {
+			if(entity->pos.y > half_screen_height || entity->scale.x < 0.0f || entity->scale.y < 0.0f) {
 				destroy = true;
 			}
 		}
 
 		//TODO: When should this check happen??
-		math::Rec2 rec = math::rec2_centre_size(teacup->pos.xy, teacup->scale);
+		math::Rec2 rec = math::rec2_centre_size(entity->pos.xy, entity->scale);
 		if(rec_overlap(player_rec, rec) && !teacup->hit) {
 			teacup->hit = true;
-			teacup->scale = emitter->scale * 2.0f;
+			entity->scale = emitter->scale * 2.0f;
 
-			Sprite * sprite = &game_state->sprites[i + 1];
-			sprite->pos = teacup->pos;
+			ASSERT(i < ARRAY_COUNT(game_state->sprites));
+			Sprite * sprite = &game_state->sprites[i];
+			sprite->pos = entity->pos;
 			sprite->frame = 0;
 			sprite->frame_time = 0.0f;
 
@@ -361,8 +396,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		}
 
 		if(destroy) {
-			teacup->pos = emitter->pos;
-			teacup->scale = emitter->scale;
+			entity->pos = emitter->pos;
+			entity->scale = emitter->scale;
 
 			u32 swap_index = emitter->entity_count - 1;
 			emitter->entity_array[i] = emitter->entity_array[swap_index];
@@ -372,10 +407,13 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		}
 	}
 
-	Entity * background = game_state->background;
-	background->pos.x += -200.0f * adjusted_dt;
-	if(background->pos.x < -(half_screen_width + background->scale.x * 0.5f)) {
-		background->pos.x += background->scale.x * 2.0f;
+	for(u32 i = 0; i < ARRAY_COUNT(game_state->bg_layers); i++) {
+		Entity * bg_layer = game_state->bg_layers[i];
+
+		bg_layer->pos.x += -(50.0f * i) * adjusted_dt;
+		if(bg_layer->pos.x < -(half_screen_width + bg_layer->scale.x * 0.5f)) {
+			bg_layer->pos.x += bg_layer->scale.x * 2.0f;
+		}
 	}
 
 	{
@@ -399,7 +437,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		for(u32 i = 0; i < ARRAY_COUNT(game_state->sprites); i++) {
 			Sprite * sprite = game_state->sprites + i;
 
-			sprite->frame_time += game_input->delta_time * ANIMATION_FRAMES_PER_SEC;
+			sprite->frame_time += adjusted_dt * ANIMATION_FRAMES_PER_SEC;
 			sprite->frame = (u32)sprite->frame_time;
 
 			if(sprite->frame <= frames) {
