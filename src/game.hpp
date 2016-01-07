@@ -13,6 +13,8 @@ enum TextureId {
 	TextureId_teacup,
 	TextureId_background,
 
+	TextureId_sprite_sheet,
+
 	TextureId_count,
 };
 
@@ -72,6 +74,17 @@ struct Font {
 	math::Vec2 pos;
 };
 
+struct Sprite {
+	u32 index;
+	f32 frame_time;
+
+	u32 v_len;
+	f32 * v_arr;
+	gl::VertexBuffer v_buf;
+
+	Entity * entity;
+};
+
 struct GameMemory {
 	size_t size;
 	u8 * ptr;
@@ -123,6 +136,8 @@ struct GameState {
 	Entity * player;
 
 	TeacupEmitter teacup_emitter;
+
+	Sprite sprite;
 
 	f32 d_time;
 	u32 score;

@@ -163,7 +163,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		AudioState * audio_state = &game_state->audio_state;
 		load_audio(audio_state, &game_state->memory_pool, game_input->audio_supported);
-		// audio_state->master_volume = 0.0f;
+		audio_state->master_volume = 0.0f;
 
 		game_state->music = play_audio_clip(audio_state, AudioClipId_music, true);
 
@@ -225,6 +225,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		game_state->textures[TextureId_dolly] = load_texture_from_file("dolly.png", GL_NEAREST);
 		game_state->textures[TextureId_teacup] = load_texture_from_file("teacup.png", GL_NEAREST);
 
+		game_state->textures[TextureId_sprite_sheet] = load_texture_from_file("sprite_sheet.png", GL_NEAREST);
+
 		game_state->background = push_entity(game_state, TextureId_background, math::vec3(0.0f));
 		game_state->background->v_buf = &game_state->bg_v_buf;
 
@@ -238,6 +240,42 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		emitter->entity_count = 0;
 		for(u32 i = 0; i < ARRAY_COUNT(emitter->entity_array); i++) {
 			emitter->entity_array[i] = push_entity(game_state, TextureId_teacup, emitter->pos);
+		}
+
+		{
+			u32 sprite_width = 32;
+			u32 sprite_height = 32;
+
+			u32 tex_size = 128;
+			f32 r_tex_size = 1.0f / (f32)tex_size;
+
+			Sprite * sprite = &game_state->sprite;
+			sprite->index = 0;
+
+			u32 u = (sprite->index % 4) * sprite_width;
+			u32 v = (sprite->index / 4) * sprite_height;
+
+			math::Vec2 uv0 = math::vec2(u, tex_size - (v + sprite_height)) * r_tex_size;
+			math::Vec2 uv1 = math::vec2(u + sprite_width, tex_size - v) * r_tex_size;
+
+			sprite->v_len = 30;
+			sprite->v_arr = PUSH_ARRAY(&game_state->memory_pool, f32, sprite->v_len);
+
+			u32 i = 0;
+			f32 * v_arr = sprite->v_arr;
+			v_arr[i++] = -0.5f; v_arr[i++] = -0.5f; v_arr[i++] =  0.0f; v_arr[i++] = uv0.x; v_arr[i++] = uv0.y; 
+			v_arr[i++] =  0.5f; v_arr[i++] =  0.5f; v_arr[i++] =  0.0f; v_arr[i++] = uv1.x; v_arr[i++] = uv1.y; 
+			v_arr[i++] = -0.5f; v_arr[i++] =  0.5f; v_arr[i++] =  0.0f; v_arr[i++] = uv0.x; v_arr[i++] = uv1.y; 
+			v_arr[i++] = -0.5f; v_arr[i++] = -0.5f; v_arr[i++] =  0.0f; v_arr[i++] = uv0.x; v_arr[i++] = uv0.y; 
+			v_arr[i++] =  0.5f; v_arr[i++] =  0.5f; v_arr[i++] =  0.0f; v_arr[i++] = uv1.x; v_arr[i++] = uv1.y; 
+			v_arr[i++] =  0.5f; v_arr[i++] = -0.5f; v_arr[i++] =  0.0f; v_arr[i++] = uv1.x; v_arr[i++] = uv0.y; 
+
+			sprite->v_buf = gl::create_vertex_buffer(sprite->v_arr, sprite->v_len, 5, GL_DYNAMIC_DRAW);
+
+			gl::Texture * tex = game_state->textures + TextureId_sprite_sheet;
+			sprite->entity = push_entity(game_state, TextureId_sprite_sheet, math::vec3(0.0f));
+			sprite->entity->scale = math::vec2(tex->width, tex->height);
+			sprite->entity->v_buf = &sprite->v_buf;
 		}
 
 		game_state->d_time = 1.0f;
@@ -353,8 +391,39 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		background->pos.x += background->scale.x * 2.0f;
 	}
 
-	change_pitch(game_state->music, game_state->d_time);
+	{
+		Sprite * sprite = &game_state->sprite;
 
+		u32 frames_per_sec = 30;
+		sprite->frame_time += game_input->delta_time * (f32)frames_per_sec;
+		sprite->index = ((u32)sprite->frame_time) % 4;
+
+		u32 sprite_width = 32;
+		u32 sprite_height = 32;
+
+		u32 tex_size = 128;
+		f32 r_tex_size = 1.0f / (f32)tex_size;
+
+		u32 u = (sprite->index % 4) * sprite_width;
+		u32 v = (sprite->index / 4) * sprite_height;
+
+		math::Vec2 uv0 = math::vec2(u, tex_size - (v + sprite_height)) * r_tex_size;
+		math::Vec2 uv1 = math::vec2(u + sprite_width, tex_size - v) * r_tex_size;
+
+		u32 i = 0;
+		f32 * v_arr = sprite->v_arr;
+		v_arr[i++] = -0.5f; v_arr[i++] = -0.5f; v_arr[i++] =  0.0f; v_arr[i++] = uv0.x; v_arr[i++] = uv0.y;
+		v_arr[i++] =  0.5f; v_arr[i++] =  0.5f; v_arr[i++] =  0.0f; v_arr[i++] = uv1.x; v_arr[i++] = uv1.y;
+		v_arr[i++] = -0.5f; v_arr[i++] =  0.5f; v_arr[i++] =  0.0f; v_arr[i++] = uv0.x; v_arr[i++] = uv1.y;
+		v_arr[i++] = -0.5f; v_arr[i++] = -0.5f; v_arr[i++] =  0.0f; v_arr[i++] = uv0.x; v_arr[i++] = uv0.y;
+		v_arr[i++] =  0.5f; v_arr[i++] =  0.5f; v_arr[i++] =  0.0f; v_arr[i++] = uv1.x; v_arr[i++] = uv1.y;
+		v_arr[i++] =  0.5f; v_arr[i++] = -0.5f; v_arr[i++] =  0.0f; v_arr[i++] = uv1.x; v_arr[i++] = uv0.y;
+
+		glBindBuffer(GL_ARRAY_BUFFER, sprite->v_buf.id);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, sprite->v_buf.size_in_bytes, sprite->v_arr);
+	}
+
+	change_pitch(game_state->music, game_state->d_time);
 
 	math::Mat4 view_projection_matrix = game_state->projection_matrix * game_state->view_matrix;
 	

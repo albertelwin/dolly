@@ -57,8 +57,8 @@ struct AudioState {
 	AudioClip * clips;
 	AudioClipGroup clip_groups[AudioClipId_count];
 
-	AudioSource * audio_sources;
-	AudioSource * audio_source_free_list;
+	AudioSource * sources;
+	AudioSource * source_free_list;
 
 	b32 supported;
 	f32 master_volume;

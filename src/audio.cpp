@@ -112,16 +112,16 @@ u32 get_audio_clip_count(AudioState * audio_state, AudioClipId clip_id) {
 AudioSource * play_audio_clip(AudioState * audio_state, AudioClip * clip, b32 loop = false) {
 	AudioSource * source = 0;
 	if(clip) {
-		if(!audio_state->audio_source_free_list) {
-			audio_state->audio_source_free_list = PUSH_STRUCT(audio_state->memory_pool, AudioSource);
-			audio_state->audio_source_free_list->next = 0;
+		if(!audio_state->source_free_list) {
+			audio_state->source_free_list = PUSH_STRUCT(audio_state->memory_pool, AudioSource);
+			audio_state->source_free_list->next = 0;
 		}
 
-		source = audio_state->audio_source_free_list;
-		audio_state->audio_source_free_list = source->next;
+		source = audio_state->source_free_list;
+		audio_state->source_free_list = source->next;
 
-		source->next = audio_state->audio_sources;
-		audio_state->audio_sources = source;
+		source->next = audio_state->sources;
+		audio_state->sources = source;
 
 		source->clip = clip;
 		source->sample_pos = audio_val64(0.0f);
@@ -165,7 +165,7 @@ void audio_output_samples(AudioState * audio_state, i16 * sample_memory_ptr, u32
 	f32 playback_rate = samples_per_second != AUDIO_CLIP_SAMPLES_PER_SECOND ? (f32)AUDIO_CLIP_SAMPLES_PER_SECOND / (f32)samples_per_second : 1.0f;
 	f32 seconds_per_sample = 1.0f / samples_per_second;
 
-	AudioSource ** source_ptr = &audio_state->audio_sources;
+	AudioSource ** source_ptr = &audio_state->sources;
 	while(*source_ptr) {
 		AudioSource * source = *source_ptr;
 		AudioClip * clip = source->clip;
@@ -264,8 +264,8 @@ void audio_output_samples(AudioState * audio_state, i16 * sample_memory_ptr, u32
 
 		if(source->sample_pos.int_part >= clip->samples && !source->loop) {
 			*source_ptr = source->next;
-			source->next = audio_state->audio_source_free_list;
-			audio_state->audio_source_free_list = source;
+			source->next = audio_state->source_free_list;
+			audio_state->source_free_list = source;
 		}
 		else {
 			source_ptr = &source->next;
