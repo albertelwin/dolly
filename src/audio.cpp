@@ -309,6 +309,8 @@ void load_audio(AudioState * audio_state, MemoryPool * pool, b32 supported) {
 		push_audio_clip(audio_state, AudioClipId_pickup, "pickup0.wav");
 		push_audio_clip(audio_state, AudioClipId_pickup, "pickup1.wav");
 		push_audio_clip(audio_state, AudioClipId_pickup, "pickup2.wav");
+		push_audio_clip(audio_state, AudioClipId_explosion, "explosion0.wav");
+		push_audio_clip(audio_state, AudioClipId_explosion, "explosion1.wav");
 		push_audio_clip(audio_state, AudioClipId_music, "music.wav");
 	}
 }

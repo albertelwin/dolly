@@ -63,7 +63,7 @@ void render_v_buf(gl::VertexBuffer * v_buf, Shader * shader, math::Mat4 * xform,
 Font * allocate_font(MemoryPool * pool, u32 v_len, u32 back_buffer_width, u32 back_buffer_height) {
 	Font * font = PUSH_STRUCT(pool, Font);
 
-	font->tex = load_texture_from_file("font_transparent.png", GL_NEAREST);
+	font->tex = load_texture_from_file("font.png", GL_NEAREST);
 
 	font->v_len = v_len;
 	font->v_arr = PUSH_ARRAY(pool, f32, font->v_len);
@@ -152,7 +152,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		AudioState * audio_state = &game_state->audio_state;
 		load_audio(audio_state, &game_state->memory_pool, game_input->audio_supported);
-		audio_state->master_volume = 0.0f;
+		// audio_state->master_volume = 0.0f;
 
 		game_state->music = play_audio_clip(audio_state, AudioClipId_music, true);
 
@@ -352,7 +352,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			sprite->frame_time = 0.0f;
 
 			//TODO: Should there be a helper function for this??
-			AudioClipId clip_id = AudioClipId_pickup;
+			AudioClipId clip_id = AudioClipId_explosion;
 			AudioClip * clip = get_audio_clip(&game_state->audio_state, clip_id, math::rand_i32() % get_audio_clip_count(&game_state->audio_state, clip_id));
 			AudioSource * source = play_audio_clip(&game_state->audio_state, clip);
 			change_pitch(source, math::lerp(0.9f, 1.1f, math::rand_f32()));
