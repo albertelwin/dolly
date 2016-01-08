@@ -9,7 +9,7 @@ uniform mat4 xform;
 varying vec2 tex_coord;
 
 void main() {
-	gl_Position = xform * vec4(i_position, 1.0);
+	gl_Position = xform * vec4(i_position.xy, 0.0, 1.0);
 	tex_coord = i_tex_coord;
 }
 

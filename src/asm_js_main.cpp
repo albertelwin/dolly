@@ -172,7 +172,7 @@ int main() {
 	u32 window_height = 540;
 	// u32 window_width = 1280;
 	// u32 window_height = 720;
-	
+
 	SDL_Surface * surface = SDL_SetVideoMode(window_width, window_height, 32, SDL_OPENGL);
 
 	MainLoopArgs args = {};

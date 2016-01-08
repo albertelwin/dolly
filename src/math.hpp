@@ -6,8 +6,6 @@
 #include <cmath>
 #include <cstdlib>
 
-#include <intrin.hpp>
-
 namespace math {
 	f32 const PI = 3.14159265359f;
 	f32 const TAU = 6.28318530718f;
@@ -18,6 +16,22 @@ namespace math {
 
 	f32 to_degrees(f32 x) {
 		return (180.0f / PI) * x;
+	}
+
+	f32 abs(f32 x) {
+		return std::fabsf(x);
+	}
+
+	f32 sin(f32 x) {
+		return std::sinf(x);
+	}
+
+	f32 cos(f32 x) {
+		return std::cosf(x);
+	}
+
+	f32 tan(f32 x) {
+		return std::tanf(x);
 	}
 
 	f32 acos(f32 x) {
@@ -77,6 +91,14 @@ namespace math {
 		return (f32)rand() / (f32)RAND_MAX;
 	}
 
+	i32 round_to_i32(f32 x) {
+		return (i32)(x + 0.5f);
+	}
+
+	i32 ceil_to_i32(f32 x) {
+		return (i32)std::ceil(x);
+	}
+
 	union Vec2 {
 		struct { f32 x, y; };
 		f32 v[2];
@@ -84,6 +106,13 @@ namespace math {
 
 	Vec2 vec2(f32 x, f32 y) {
 		return { x, y };
+	}
+
+	Vec2 vec2(u32 x, u32 y) {
+		Vec2 vec;
+		vec.x = (f32)x;
+		vec.y = (f32)y;
+		return vec;
 	}
 
 	Vec2 vec2(f32 x) {
@@ -383,9 +412,9 @@ namespace math {
 		f32 p = std::acosf(rand_f32() * 2.0f - 1.0f);
 		f32 r = std::pow(rand_f32(), (1.0f / 3.0f) * d);
 
-		f32 x = r * intrin::cos(t) * intrin::sin(p);
-		f32 y = r * intrin::sin(t) * intrin::sin(p);
-		f32 z = r * intrin::cos(p);
+		f32 x = r * math::cos(t) * math::sin(p);
+		f32 y = r * math::sin(t) * math::sin(p);
+		f32 z = r * math::cos(p);
 
 		return vec3(x, y, z);
 	}
@@ -539,7 +568,7 @@ namespace math {
 
 		Vec4 row_0 = vec4(inv_0.x, inv_1.x, inv_2.x, inv_3.x);
 		f32 det = dot(vec4(x.v[ 0], x.v[ 1], x.v[ 2], x.v[ 3]), row_0);
-		ASSERT(intrin::abs(det) > 0.0f);
+		ASSERT(math::abs(det) > 0.0f);
 
 		return {
 			inv_0.x / det, inv_0.y / det, inv_0.z / det, inv_0.w / det,
@@ -568,8 +597,8 @@ namespace math {
 	}
 
 	Mat4 rotate_around_axis(Vec3 const & a, f32 t) {
-		f32 sin_t = intrin::sin(t);
-		f32 cos_t = intrin::cos(t);
+		f32 sin_t = math::sin(t);
+		f32 cos_t = math::cos(t);
 		f32 i_cos_t = (1.0f - cos_t);
 
 		Vec3 v = normalize(a);
@@ -590,8 +619,8 @@ namespace math {
 	}
 
 	Mat4 rotate_around_x(f32 t) {
-		f32 sin_t = intrin::sin(t);
-		f32 cos_t = intrin::cos(t);
+		f32 sin_t = math::sin(t);
+		f32 cos_t = math::cos(t);
 
 		return {
 			1.0f,  0.0f,  0.0f, 0.0f,
@@ -602,8 +631,8 @@ namespace math {
 	}
 
 	Mat4 rotate_around_y(f32 t) {
-		f32 sin_t = intrin::sin(t);
-		f32 cos_t = intrin::cos(t);
+		f32 sin_t = math::sin(t);
+		f32 cos_t = math::cos(t);
 
 		return {
 			cos_t, 0.0f,-sin_t, 0.0f,
@@ -614,8 +643,8 @@ namespace math {
 	}
 
 	Mat4 rotate_around_z(f32 t) {
-		f32 sin_t = intrin::sin(t);
-		f32 cos_t = intrin::cos(t);
+		f32 sin_t = math::sin(t);
+		f32 cos_t = math::cos(t);
 
 		return {
 			 cos_t, sin_t, 0.0f, 0.0f,
@@ -665,7 +694,7 @@ namespace math {
 	}
 
 	Mat4 perspective_projection(f32 aspect_ratio, f32 field_of_view, f32 near_plane, f32 far_plane) {
-		f32 tan_fov_over_2 = intrin::tan(math::to_radians(field_of_view) / 2.0f);
+		f32 tan_fov_over_2 = math::tan(math::to_radians(field_of_view) / 2.0f);
 		return {
 			1.0f / (aspect_ratio * tan_fov_over_2), 0.0f, 0.0f, 0.0f,
 			0.0f, 1.0f / tan_fov_over_2, 0.0f, 0.0f,
@@ -716,7 +745,7 @@ namespace math {
 		f32 t = -1.0f;
 
 		f32 denom = dot(p_n, r.d);
-		if(intrin::abs(denom) > 0.0f) {
+		if(math::abs(denom) > 0.0f) {
 			t = -(dot(p_n, r.o) + p_d) / denom;
 		}
 

@@ -3,13 +3,13 @@
 #define GAME_HPP_INCLUDED
 
 #include <audio.hpp>
+#include <asset.hpp>
 #include <debug.hpp>
 #include <math.hpp>
 
-#define ANIMATION_FRAMES_PER_SEC 60
+#define ANIMATION_FRAMES_PER_SEC 1
 
 #define VERTS_PER_QUAD 30
-#define TEXTURE_CHANNELS 4
 
 enum TextureId {
 	TextureId_dolly,
@@ -20,6 +20,8 @@ enum TextureId {
 	TextureId_bg_layer2,
 	TextureId_bg_layer3,
 
+	TextureId_debug,
+
 	TextureId_count,
 };
 
@@ -29,6 +31,22 @@ struct Shader {
 	u32 color;
 	u32 tex0;
 };
+
+struct RenderBatch {
+	//TODO: Batch should probably store texture directly!
+	gl::Texture * tex;
+
+	u32 v_len;
+	f32 * v_arr;
+	gl::VertexBuffer v_buf;
+	u32 e;
+};
+
+//TODO: Formalise sprite animation!!
+// struct SpriteAnimation {
+// 	Sprite * sprites;
+// 	f32 anim_time;
+// };
 
 struct Entity {
 	math::Vec3 pos;
@@ -43,6 +61,7 @@ struct Entity {
 struct Player {
 	Entity * e;
 
+	Sprite * sprite;
 	f32 initial_x;
 };
 
@@ -76,10 +95,10 @@ enum ButtonId {
 struct Font {
 	gl::Texture tex;
 
+	//TODO: This is just a RenderBatch!!
 	u32 v_len;
 	f32 * v_arr;
 	gl::VertexBuffer v_buf;
-
 	u32 e;
 
 	math::Mat4 projection_matrix;
@@ -91,27 +110,6 @@ struct Font {
 	f32 scale;
 	math::Vec2 anchor;
 	math::Vec2 pos;
-};
-
-struct Sprite {
-	math::Vec3 pos;
-
-	u32 frame;
-	f32 frame_time;
-};
-
-struct SpriteBatch {
-	gl::Texture tex;
-
-	u32 v_len;
-	f32 * v_arr;
-	gl::VertexBuffer v_buf;
-	u32 e;
-
-	u32 tex_size;
-
-	u32 sprite_width;
-	u32 sprite_height;
 };
 
 struct GameMemory {
@@ -139,6 +137,8 @@ struct GameInput {
 struct GameState {
 	MemoryPool memory_pool;
 
+	AssetState asset_state;
+
 	AudioState audio_state;
 	AudioSource * music;
 
@@ -160,18 +160,15 @@ struct GameState {
 
 	gl::Texture textures[TextureId_count];
 
+	RenderBatch * sprite_batch;
+
 	u32 entity_count;
 	Entity entity_array[64];
 
 	Entity * bg_layers[4];
 
 	Player player;
-
 	TeacupEmitter teacup_emitter;
-
-	SpriteBatch sprite_batch;
-	Sprite sprites[8];
-	Sprite * sprite;
 
 	Entity * pixel_art;
 

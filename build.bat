@@ -2,6 +2,10 @@
 IF NOT EXIST bin mkdir bin
 cd bin
 
+REM -MT -O2
+REM cl -MTd -Od -Z7 -nologo -Feasset_packer -EHa- -Gm- -GR- -fp:fast -Oi -WX -W4 -wd4996 -wd4100 -wd4189 -wd4127 -wd4201 -DWIN32=1 -I../lib -I../src ../src/asset_packer.cpp shell32.lib user32.lib gdi32.lib
+REM asset_packer.exe
+
 set COMMON_COMPILER_FLAGS=-s TOTAL_MEMORY=67108864 -std=c++11 -Werror -Wall -Wno-missing-braces -Wno-unused-variable
 
 set COMPILER_FLAGS=%COMMON_COMPILER_FLAGS%

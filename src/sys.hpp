@@ -7,6 +7,12 @@
 #include <cstdio>
 #include <cstdlib>
 
+#ifdef WIN32
+	#define WIN32_LEAN_AND_MEAN
+	#define NOMINMAX
+	#include <windows.h>
+#endif
+
 #define __TOKEN_STRINGIFY(x) #x
 #define TOKEN_STRINGIFY(x) __TOKEN_STRINGIFY(x)
 
