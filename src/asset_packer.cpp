@@ -9,22 +9,21 @@
 
 #include <asset_format.hpp>
 
-struct TextureAtlas {
+struct Texture {
+	u32 size;
+	u8 * ptr;
+
 	u32 width;
 	u32 height;
-
-	u32 size;
-	u8 * mem;
 
 	u32 x;
 	u32 y;
 	u32 safe_y;
 };
 
-struct Texture {
-	u32 width;
-	u32 height;
-	u8 * mem;
+struct TexCoord {
+	u32 u;
+	u32 v;
 };
 
 Texture load_texture(char const * file_name) {
@@ -48,37 +47,75 @@ Texture load_texture(char const * file_name) {
 		}	
 	}
 
-	Texture tex;
+	Texture tex = {};
 	tex.width = (u32)width;
 	tex.height = (u32)height;
-	tex.mem = img_data;
+	tex.size = tex.width * tex.height * TEXTURE_CHANNELS;
+	tex.ptr = img_data;
 	return tex;
 }
 
-void copy_sub_tex_into_tex(TextureAtlas * atlas, Texture * tex) {
-	//TODO: Make sure there's enough width remaining on this row!!
-	for(u32 y = 0; y < tex->height; y++) {
-		for(u32 x = 0; x < tex->width; x++) {
-			u32 i = (((atlas->height - 1) - (y + atlas->y)) * atlas->width + x + atlas->x) * TEXTURE_CHANNELS;
-			u32 k = (y * tex->width + x) * TEXTURE_CHANNELS;
+Texture allocate_texture(u32 width, u32 height) {
+	Texture tex = {};
+	tex.size = width * height * TEXTURE_CHANNELS;
+	tex.ptr = (u8 *)malloc(tex.size);
+	tex.width = width;
+	tex.height = height;
 
-			atlas->mem[i + 0] = tex->mem[k + 0];
-			atlas->mem[i + 1] = tex->mem[k + 1];
-			atlas->mem[i + 2] = tex->mem[k + 2];
-			atlas->mem[i + 3] = tex->mem[k + 3];
+	for(u32 y = 0, i = 0; y < height; y++) {
+		for(u32 x = 0; x < width; x++, i += 4) {
+			tex.ptr[i + 0] = 0;
+			tex.ptr[i + 1] = 0;
+			tex.ptr[i + 2] = 0;
+			tex.ptr[i + 3] = 255;
 		}
 	}
 
-	u32 y = atlas->y + tex->height;
-	if(y > atlas->safe_y) {
-		atlas->safe_y = y;
+	return tex;
+}
+
+TexCoord blit_texture(Texture * dst, Texture * src) {
+	if((dst->x + src->width) > dst->width) {
+		dst->x = 0;
+		dst->y = dst->safe_y;
 	}
 
-	atlas->x += tex->width;
-	if(atlas->x >= atlas->width) {
-		atlas->x = 0;
-		atlas->y = atlas->safe_y;
+	ASSERT((dst->y + src->height <= dst->height));
+
+	//TODO: Remove empty space from src texture!!
+
+	for(u32 y = 0; y < src->height; y++) {
+		for(u32 x = 0; x < src->width; x++) {
+			u32 i = (((dst->height - 1) - (y + dst->y)) * dst->width + x + dst->x) * TEXTURE_CHANNELS;
+			u32 k = (y * src->width + x) * TEXTURE_CHANNELS;
+
+			dst->ptr[i + 0] = src->ptr[k + 0];
+			dst->ptr[i + 1] = src->ptr[k + 1];
+			dst->ptr[i + 2] = src->ptr[k + 2];
+			dst->ptr[i + 3] = src->ptr[k + 3];
+		}
 	}
+
+	TexCoord tex_coord;
+	tex_coord.u = dst->x;
+	tex_coord.v = dst->y;
+
+	//NOTE: 1px padding for bilinear filter!!
+	u32 pad = 1;
+
+	u32 y = dst->y + src->height + pad;
+	if(y > dst->safe_y) {
+		dst->safe_y = y;
+	}
+
+	dst->x += src->width + pad;
+	ASSERT(dst->x <= dst->width);
+	if(dst->x >= dst->width) {
+		dst->x = 0;
+		dst->y = dst->safe_y;
+	}
+
+	return tex_coord;
 }
 
 int main() {
@@ -91,55 +128,38 @@ int main() {
 		load_texture("../dat/dolly5.png"),
 		load_texture("../dat/dolly6.png"),
 		load_texture("../dat/dolly7.png"),
+
+		load_texture("../dat/dolly.png"),
+		load_texture("../dat/teacup.png"),
 	};
 
 	AssetPackHeader asset_pack = {};
 	asset_pack.tex_count = 1;
 
 	TextureAsset tex_asset = {};
-	tex_asset.width = 1024;
-	tex_asset.height = 1024;
+	tex_asset.width = 512;
+	tex_asset.height = 512;
 	tex_asset.sub_tex_count = ARRAY_COUNT(tex_arr);
 
-	//TODO: Generate sub tex from actual blit!!
+	Texture atlas = allocate_texture(tex_asset.width, tex_asset.height);
+
 	SubTextureAsset sub_tex_assets[ARRAY_COUNT(tex_arr)];
 	for(u32 i = 0; i < ARRAY_COUNT(tex_arr); i++) {
-		SubTextureAsset * sub_tex = sub_tex_assets + i;
 		Texture * tex = tex_arr + i;
+		TexCoord tex_coord = blit_texture(&atlas, tex);
 
+		SubTextureAsset * sub_tex = sub_tex_assets + i;
 		sub_tex->size = math::vec2(tex->width, tex->height);
 
 		u32 tex_size = tex_asset.width;
 		f32 r_tex_size = 1.0f / (f32)tex_size;
 		u32 sub_tex_per_row = tex_size / tex->width;
 
-		u32 u = (i % sub_tex_per_row) * tex->width;
-		u32 v = (i / sub_tex_per_row) * tex->height;
+		u32 u = tex_coord.u;
+		u32 v = tex_coord.v;
 
 		sub_tex->tex_coords[0] = math::vec2(u, tex_size - (v + tex->height)) * r_tex_size;
 		sub_tex->tex_coords[1] = math::vec2(u + tex->width, tex_size - v) * r_tex_size;
-	}
-
-	TextureAtlas atlas = {};
-	atlas.width = tex_asset.width;
-	atlas.height = tex_asset.height;
-	atlas.size = atlas.width * atlas.height * TEXTURE_CHANNELS;
-	atlas.mem = (u8 *)malloc(atlas.size);
-	for(u32 y = 0, i = 0; y < atlas.height; y++) {
-		for(u32 x = 0; x < atlas.width; x++, i += 4) {
-			// u8 v = 255;
-			u8 v = 0;
-
-			atlas.mem[i + 0] = v;
-			atlas.mem[i + 1] = 0;
-			atlas.mem[i + 2] = 0;
-			atlas.mem[i + 3] = v;
-		}
-	}
-
-	for(u32 i = 0; i < ARRAY_COUNT(tex_arr); i++) {
-		Texture * tex = tex_arr + i;
-		copy_sub_tex_into_tex(&atlas, tex);
 	}
 
 	std::FILE * file_ptr = std::fopen("../dat/asset.pak", "wb");
@@ -148,7 +168,7 @@ int main() {
 	std::fwrite(&asset_pack, sizeof(AssetPackHeader), 1, file_ptr);
 	std::fwrite(&tex_asset, sizeof(TextureAsset), 1, file_ptr);
 	std::fwrite(&sub_tex_assets, sizeof(SubTextureAsset), ARRAY_COUNT(sub_tex_assets), file_ptr);
-	std::fwrite(atlas.mem, atlas.size, 1, file_ptr);
+	std::fwrite(atlas.ptr, atlas.size, 1, file_ptr);
 	std::fclose(file_ptr);
 
 	return 0;

@@ -308,7 +308,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			emitter->entity_array[i] = teacup;
 		}
 
-		push_entity(game_state, TextureId_debug, math::vec3(0.0f));
+		Entity * debug_entity = push_entity(game_state, TextureId_debug, math::vec3(0.0f));
+		// debug_entity->scale *= 0.5f;
 
 		game_state->d_time = 1.0f;
 		game_state->score = 0;
