@@ -8,22 +8,7 @@
 #include <math.hpp>
 
 #define ANIMATION_FRAMES_PER_SEC 1
-
 #define VERTS_PER_QUAD 30
-
-enum TextureId {
-	TextureId_dolly,
-	TextureId_teacup,
-
-	TextureId_bg_layer0,
-	TextureId_bg_layer1,
-	TextureId_bg_layer2,
-	TextureId_bg_layer3,
-
-	TextureId_debug,
-
-	TextureId_count,
-};
 
 struct Shader {
 	u32 id;
@@ -48,17 +33,35 @@ struct RenderBatch {
 // 	f32 anim_time;
 // };
 
+enum EntityRenderTypeId {
+	EntityRenderTypeId_texture,
+	EntityRenderTypeId_sprite,
+
+	EntityRenderTypeId_count,
+};
+
+struct EntityTextureBasedRenderer {
+	TextureId id;
+	gl::VertexBuffer * v_buf;
+};
+
+struct EntitySpriteBasedRenderer {
+	SpriteId id;
+};
+
 struct Entity {
 	math::Vec3 pos;
 	math::Vec2 scale;
 	f32 rot;
 
 	math::Vec4 color;
-	TextureId tex_id;
-	gl::VertexBuffer * v_buf;
 
-	//TODO: Temp!!
-	b32 should_render;
+	//TODO: Should these just be separate entity types??
+	EntityRenderTypeId render_type;
+	union {
+		EntityTextureBasedRenderer tex;
+		EntitySpriteBasedRenderer sprite;
+	};
 };
 
 struct Player {

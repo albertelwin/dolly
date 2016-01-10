@@ -85,7 +85,7 @@ Texture allocate_texture(u32 width, u32 height) {
 			tex.ptr[i + 0] = 0;
 			tex.ptr[i + 1] = 0;
 			tex.ptr[i + 2] = 0;
-			tex.ptr[i + 3] = 0; //255;
+			tex.ptr[i + 3] = 255;
 		}
 	}
 
@@ -178,7 +178,7 @@ int main() {
 
 		SpriteAsset * sprite = sprites + i;
 		sprite->id = req->id;
-		sprite->size = math::vec2(tex->width, tex->height);
+		sprite->dim = math::vec2(tex->width, tex->height);
 		sprite->tex_coords[0] = math::vec2(u, tex_size - (v + tex->height)) * r_tex_size;
 		sprite->tex_coords[1] = math::vec2(u + tex->width, tex_size - v) * r_tex_size;
 	}

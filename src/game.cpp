@@ -36,20 +36,35 @@ gl::Texture load_texture_from_file(char const * file_name, i32 filter_mode = GL_
 	return tex;
 }
 
-Entity * push_entity(GameState * game_state, TextureId tex_id, math::Vec3 pos) {
+Entity * push_entity_(GameState * game_state, EntityRenderTypeId render_type, math::Vec3 pos, math::Vec2 scale) {
 	ASSERT(game_state->entity_count < ARRAY_COUNT(game_state->entity_array));
-
-	gl::Texture * tex = &game_state->textures[tex_id];
 
 	Entity * entity = game_state->entity_array + game_state->entity_count++;
 	//TODO: Should this be here??
 	entity->pos = pos;
-	entity->scale = math::vec2(tex->width, tex->height);
+	entity->scale = scale;
 	entity->rot = 0.0f;
 	entity->color = math::vec4(1.0f);
-	entity->tex_id = tex_id;
-	entity->v_buf = &game_state->entity_v_buf;
-	entity->should_render = true;
+	entity->render_type = render_type;
+	return entity;
+}
+
+Entity * push_texture_based_entity(GameState * game_state, TextureId tex_id, math::Vec3 pos) {
+	gl::Texture * tex = game_state->textures + tex_id;
+
+	Entity * entity = push_entity_(game_state, EntityRenderTypeId_texture, pos, math::vec2(tex->width, tex->height));
+	EntityTextureBasedRenderer * renderer = &entity->tex;
+	renderer->id = tex_id;
+	renderer->v_buf = &game_state->entity_v_buf;
+	return entity;
+}
+
+Entity * push_sprite_based_entity(GameState * game_state, SpriteId sprite_id, math::Vec3 pos) {
+	Sprite * sprite = game_state->asset_state.sprites + sprite_id;
+
+	Entity * entity = push_entity_(game_state, EntityRenderTypeId_sprite, pos, sprite->dim);
+	EntitySpriteBasedRenderer * renderer = &entity->sprite;
+	renderer->id = sprite_id;
 	return entity;
 }
 
@@ -271,9 +286,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		game_state->projection_matrix = math::orthographic_projection((f32)game_state->ideal_window_width, (f32)game_state->ideal_window_height);
 
-		game_state->textures[TextureId_dolly] = load_texture_from_file("dolly.png");
-		game_state->textures[TextureId_teacup] = load_texture_from_file("teacup.png");
-
 		game_state->textures[TextureId_bg_layer0] = load_texture_from_file("bg_layer0.png");
 		game_state->textures[TextureId_bg_layer1] = load_texture_from_file("bg_layer1.png");
 		game_state->textures[TextureId_bg_layer2] = load_texture_from_file("bg_layer2.png");
@@ -283,36 +295,32 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		for(u32 i = 0; i < ARRAY_COUNT(game_state->bg_layers); i++) {
 			TextureId tex_id = (TextureId)(TextureId_bg_layer0 + i);
-			Entity * bg_layer = push_entity(game_state, tex_id, math::vec3(0.0f));
-			bg_layer->v_buf = &game_state->bg_v_buf;
+			Entity * bg_layer = push_texture_based_entity(game_state, tex_id, math::vec3(0.0f));
+			bg_layer->tex.v_buf = &game_state->bg_v_buf;
 			game_state->bg_layers[i] = bg_layer;
 		}
 
 		game_state->sprite_batch = allocate_render_batch(&game_state->memory_pool, &game_state->asset_state.tex_atlas.tex, VERTS_PER_QUAD * 8);
 
-		game_state->player.e = push_entity(game_state, TextureId_dolly, math::vec3((f32)game_state->ideal_window_width * -0.5f * (2.0f / 3.0f), 0.0f, 0.0f));
-		game_state->player.e->should_render = false;
-		game_state->player.sprite = &game_state->asset_state.sprites[SpriteId_dolly];
+		game_state->player.e = push_sprite_based_entity(game_state, SpriteId_dolly, math::vec3((f32)game_state->ideal_window_width * -0.5f * (2.0f / 3.0f), 0.0f, 0.0f));
 		game_state->player.initial_x = game_state->player.e->pos.x;
 
 		TeacupEmitter * emitter = &game_state->teacup_emitter;
-		gl::Texture * emitter_tex = &game_state->textures[TextureId_teacup];
+		Sprite * emitter_sprite = game_state->asset_state.sprites + SpriteId_teacup;
 		emitter->pos = math::vec3(game_state->ideal_window_width, 0.0f, 0.0f);
 		emitter->time_until_next_spawn = 0.0f;
-		emitter->scale = math::vec2(emitter_tex->width, emitter_tex->height);
+		emitter->scale = emitter_sprite->dim;
 		emitter->entity_count = 0;
 		for(u32 i = 0; i < ARRAY_COUNT(emitter->entity_array); i++) {
 			Teacup * teacup = PUSH_STRUCT(&game_state->memory_pool, Teacup);
 
-			teacup->e = push_entity(game_state, TextureId_teacup, emitter->pos);
-			teacup->e->should_render = false;
+			teacup->e = push_sprite_based_entity(game_state, SpriteId_teacup, emitter->pos);
 			teacup->hit = false;
 
 			emitter->entity_array[i] = teacup;
 		}
 
-		// Entity * debug_entity = push_entity(game_state, TextureId_debug, math::vec3(0.0f));
-		// debug_entity->scale *= 0.5f;
+		push_texture_based_entity(game_state, TextureId_debug, math::vec3(0.0f));
 
 		game_state->d_time = 1.0f;
 		game_state->score = 0;
@@ -467,12 +475,12 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	glUseProgram(game_state->entity_program);
 	for(u32 i = 0; i < game_state->entity_count; i++) {
 		Entity * entity = game_state->entity_array + i;
-		if(entity->should_render) {
-			gl::Texture * tex = game_state->textures + entity->tex_id;
+		if(entity->render_type == EntityRenderTypeId_texture) {
+			EntityTextureBasedRenderer * renderer = &entity->tex;
 
+			gl::Texture * tex = game_state->textures + renderer->id;
 			math::Mat4 xform = view_projection_matrix * math::translate(entity->pos.x, entity->pos.y, entity->pos.z) * math::scale(entity->scale.x, entity->scale.y, 1.0f) * math::rotate_around_z(entity->rot);
-
-			render_v_buf(entity->v_buf, &game_state->basic_shader, &xform, tex, entity->color);			
+			render_v_buf(renderer->v_buf, &game_state->basic_shader, &xform, tex, entity->color);						
 		}
 	}
 
@@ -482,11 +490,13 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		RenderBatch * batch = game_state->sprite_batch;
 		clear_render_batch(batch);
 
-		render_sprite(batch, player->sprite, player->e->pos, player->e->scale);
-
-		for(u32 i = 0; i < emitter->entity_count; i++) {
-			Teacup * teacup = emitter->entity_array[i];
-			render_sprite(batch, &game_state->asset_state.sprites[SpriteId_teacup], teacup->e->pos, teacup->e->scale);
+		//TODO: Only loop over entities once!!
+		for(u32 i = 0; i < game_state->entity_count; i++) {
+			Entity * entity = game_state->entity_array + i;
+			if(entity->render_type == EntityRenderTypeId_sprite) {
+				Sprite * sprite = game_state->asset_state.sprites + entity->sprite.id;
+				render_sprite(batch, sprite, entity->pos, entity->scale);
+			}
 		}
 
 		//TODO: Should we pull this out into a begin/end type thing??

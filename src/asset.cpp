@@ -26,11 +26,12 @@ void load_assets(AssetState * asset_state, MemoryPool * pool) {
 	atlas->sub_tex_count = tex_asset->sub_tex_count;
 	ASSERT(atlas->tex.id);
 
+	//TODO: Flat load these!!
 	for(u32 i = 0; i < tex_asset->sub_tex_count; i++) {
 		SpriteAsset * asset = sprite_assets + i;
 
 		Sprite * sprite = asset_state->sprites + asset->id;
-		sprite->size = asset->size;
+		sprite->dim = asset->dim;
 		sprite->tex_coords[0] = asset->tex_coords[0];
 		sprite->tex_coords[1] = asset->tex_coords[1];
 	}

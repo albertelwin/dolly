@@ -10,7 +10,7 @@ struct TextureAtlas {
 };
 
 struct Sprite {
-	math::Vec2 size;
+	math::Vec2 dim;
 	//TODO: Just store one tex coord!!
 	math::Vec2 tex_coords[2];
 };

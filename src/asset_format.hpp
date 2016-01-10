@@ -6,6 +6,17 @@
 
 #define TEXTURE_CHANNELS 4
 
+enum TextureId {
+	TextureId_bg_layer0,
+	TextureId_bg_layer1,
+	TextureId_bg_layer2,
+	TextureId_bg_layer3,
+
+	TextureId_debug,
+
+	TextureId_count,
+};
+
 enum SpriteId {
 	//TODO: Temp!!
 	SpriteId_null,
@@ -29,7 +40,7 @@ struct TextureAsset {
 
 struct SpriteAsset {
 	SpriteId id;
-	math::Vec2 size;
+	math::Vec2 dim;
 	//TODO: Store just one texture coordinate??
 	math::Vec2 tex_coords[2];
 };
