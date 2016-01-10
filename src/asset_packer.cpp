@@ -10,6 +10,8 @@
 #include <asset_format.hpp>
 
 struct Texture {
+	TextureId id;
+
 	u32 size;
 	u8 * ptr;
 
@@ -44,15 +46,22 @@ void push_req(LoadReqArray * reqs, char * file_name, SpriteId id) {
 	req->id = id;
 }
 
-Texture load_texture(char const * file_name) {
+Texture load_texture(char const * file_name, TextureId id, TextureSampling filter = TextureSampling_bilinear) {
+	stbi_set_flip_vertically_on_load(true);
+
 	i32 width, height, channels;
 	u8 * img_data = stbi_load(file_name, &width, &height, &channels, 0);
 	ASSERT(channels == TEXTURE_CHANNELS);
 
+	Texture tex = {};
+	tex.id = id;
+	tex.width = (u32)width;
+	tex.height = (u32)height;	
+
 	//NOTE: Premultiplied alpha!!
 	f32 r_255 = 1.0f / 255.0f;
-	for(u32 y = 0, i = 0; y < (u32)height; y++) {
-		for(u32 x = 0; x < (u32)width; x++, i += 4) {
+	for(u32 y = 0, i = 0; y < tex.height; y++) {
+		for(u32 x = 0; x < tex.width; x++, i += 4) {
 			f32 a = (f32)img_data[i + 3] * r_255;
 
 			f32 r = (f32)img_data[i + 0] * r_255 * a;
@@ -65,11 +74,9 @@ Texture load_texture(char const * file_name) {
 		}	
 	}
 
-	Texture tex = {};
-	tex.width = (u32)width;
-	tex.height = (u32)height;
 	tex.size = tex.width * tex.height * TEXTURE_CHANNELS;
 	tex.ptr = img_data;
+
 	return tex;
 }
 
@@ -94,8 +101,8 @@ Texture allocate_texture(u32 width, u32 height) {
 
 struct Blit { u32 u; u32 v; u32 width; u32 height; };
 Blit blit_texture(Texture * dst, Texture * src) {
-	u32 min_x = 65536;
-	u32 min_y = 65536;
+	u32 min_x = U32_MAX;
+	u32 min_y = U32_MAX;
 
 	u32 max_x = 0;
 	u32 max_y = 0;
@@ -136,13 +143,13 @@ Blit blit_texture(Texture * dst, Texture * src) {
 
 	for(u32 y = 0; y < height; y++) {
 		for(u32 x = 0; x < width; x++) {
-			u32 i = (((dst->height - 1) - (y + dst->y)) * dst->width + x + dst->x) * TEXTURE_CHANNELS;
-			u32 k = ((y + min_y) * src->width + (x + min_x)) * TEXTURE_CHANNELS;
+			u32 d_i = ((y + dst->y) * dst->width + x + dst->x) * TEXTURE_CHANNELS;
+			u32 s_i = ((y + min_y) * src->width + (x + min_x)) * TEXTURE_CHANNELS;
 
-			dst->ptr[i + 0] = src->ptr[k + 0];
-			dst->ptr[i + 1] = src->ptr[k + 1];
-			dst->ptr[i + 2] = src->ptr[k + 2];
-			dst->ptr[i + 3] = src->ptr[k + 3];
+			dst->ptr[d_i + 0] = src->ptr[s_i + 0];
+			dst->ptr[d_i + 1] = src->ptr[s_i + 1];
+			dst->ptr[d_i + 2] = src->ptr[s_i + 2];
+			dst->ptr[d_i + 3] = src->ptr[s_i + 3];
 		}
 	}
 
@@ -176,30 +183,31 @@ int main() {
 
 	LoadReqArray reqs = {};
 
-	push_req(&reqs, "../dat/dolly0.png", SpriteId_null);
-	push_req(&reqs, "../dat/dolly1.png", SpriteId_null);
-	push_req(&reqs, "../dat/dolly2.png", SpriteId_null);
-	push_req(&reqs, "../dat/dolly3.png", SpriteId_null);
-	push_req(&reqs, "../dat/dolly4.png", SpriteId_null);
-	push_req(&reqs, "../dat/dolly5.png", SpriteId_null);
-	push_req(&reqs, "../dat/dolly6.png", SpriteId_null);
-	push_req(&reqs, "../dat/dolly7.png", SpriteId_null);
+	push_req(&reqs, "dolly0.png", SpriteId_null);
+	push_req(&reqs, "dolly1.png", SpriteId_null);
+	push_req(&reqs, "dolly2.png", SpriteId_null);
+	push_req(&reqs, "dolly3.png", SpriteId_null);
+	push_req(&reqs, "dolly4.png", SpriteId_null);
+	push_req(&reqs, "dolly5.png", SpriteId_null);
+	push_req(&reqs, "dolly6.png", SpriteId_null);
+	push_req(&reqs, "dolly7.png", SpriteId_null);
 
-	push_req(&reqs, "../dat/dolly.png", SpriteId_dolly);
-	push_req(&reqs, "../dat/teacup.png", SpriteId_teacup);
+	push_req(&reqs, "dolly.png", SpriteId_dolly);
+	push_req(&reqs, "teacup.png", SpriteId_teacup);
 
 	TextureAsset tex_asset = {};
+	tex_asset.id = TextureId_atlas;
 	tex_asset.width = 512;
 	tex_asset.height = 512;
 	tex_asset.sub_tex_count = reqs.count;
 
 	Texture atlas = allocate_texture(tex_asset.width, tex_asset.height);
 
-	SpriteAsset * sprites = (SpriteAsset *)malloc(reqs.count);
+	SpriteAsset * sprites = (SpriteAsset *)malloc(sizeof(SpriteAsset) * reqs.count);
 	for(u32 i = 0; i < reqs.count; i++) {
 		LoadReq * req = reqs.array + i;
 
-		Texture tex_ = load_texture(req->file_name);
+		Texture tex_ = load_texture(req->file_name, TextureId_null);
 		Texture * tex = &tex_;
 
 		Blit blit = blit_texture(&atlas, tex);
@@ -210,17 +218,42 @@ int main() {
 		SpriteAsset * sprite = sprites + i;
 		sprite->id = req->id;
 		sprite->dim = math::vec2(blit.width, blit.height);
-		sprite->tex_coords[0] = math::vec2(blit.u, tex_size - (blit.v + blit.height)) * r_tex_size;
-		sprite->tex_coords[1] = math::vec2(blit.u + blit.width, tex_size - blit.v) * r_tex_size;
+		sprite->tex_coords[0] = math::vec2(blit.u, blit.v) * r_tex_size;
+		sprite->tex_coords[1] = math::vec2(blit.u + blit.width, blit.v + blit.height) * r_tex_size;
 	}
 
-	std::FILE * file_ptr = std::fopen("../dat/asset.pak", "wb");
+	Texture reg_tex_array[] = {
+		load_texture("font.png", TextureId_font, TextureSampling_point),
+
+		load_texture("bg_layer0.png", TextureId_bg_layer0),
+		load_texture("bg_layer1.png", TextureId_bg_layer1),
+		load_texture("bg_layer2.png", TextureId_bg_layer2),
+		load_texture("bg_layer3.png", TextureId_bg_layer3),
+	};
+
+	asset_pack.tex_count += ARRAY_COUNT(reg_tex_array);
+
+	std::FILE * file_ptr = std::fopen("asset.pak", "wb");
 	ASSERT(file_ptr != 0);
 
 	std::fwrite(&asset_pack, sizeof(AssetPackHeader), 1, file_ptr);
 	std::fwrite(&tex_asset, sizeof(TextureAsset), 1, file_ptr);
 	std::fwrite(sprites, sizeof(SpriteAsset), reqs.count, file_ptr);
 	std::fwrite(atlas.ptr, atlas.size, 1, file_ptr);
+
+	for(u32 i = 0; i < ARRAY_COUNT(reg_tex_array); i++) {
+		Texture * tex = reg_tex_array + i;
+
+		TextureAsset header = {};
+		header.id = tex->id;
+		header.width = tex->width;
+		header.height = tex->height;
+		header.sub_tex_count = 0;
+
+		std::fwrite(&header, sizeof(TextureAsset), 1, file_ptr);
+		std::fwrite(tex->ptr, tex->size, 1, file_ptr);
+	}
+
 	std::fclose(file_ptr);
 
 	return 0;

@@ -4,38 +4,40 @@
 void load_assets(AssetState * asset_state, MemoryPool * pool) {
 	asset_state->memory_pool = pool;
 
-	std::FILE * file_ptr = std::fopen("asset.pak", "rb");
-	ASSERT(file_ptr != 0);
+	FileBuffer file_buf = read_file_to_memory("asset.pak");
+	u8 * file_ptr = file_buf.ptr;
 
-	std::fseek(file_ptr, 0, SEEK_END);
-	size_t file_size = (size_t)std::ftell(file_ptr);
-	std::rewind(file_ptr);
+	AssetPackHeader * pack = (AssetPackHeader *)file_ptr;
+	file_ptr += sizeof(AssetPackHeader);
 
-	u8 * file_buf = (u8 *)malloc(file_size);
-	size_t read_result = std::fread(file_buf, 1, file_size, file_ptr);
-	ASSERT(read_result == file_size);
+	for(u32 i = 0; i < pack->tex_count; i++) {
+		TextureAsset * tex_asset = (TextureAsset *)file_ptr;
 
-	AssetPackHeader * pack = (AssetPackHeader *)file_buf;
+		SpriteAsset * sprite_assets = (SpriteAsset *)(tex_asset + 1);
+		for(u32 i = 0; i < tex_asset->sub_tex_count; i++) {
+			SpriteAsset * asset = sprite_assets + i;
 
-	TextureAsset * tex_asset = (TextureAsset *)(pack + 1);
-	SpriteAsset * sprite_assets = (SpriteAsset *)(tex_asset + 1);
-	u8 * tex_mem = (u8 *)(sprite_assets + tex_asset->sub_tex_count);
+			Sprite * sprite = asset_state->sprites + asset->id;
+			sprite->dim = asset->dim;
+			sprite->tex_coords[0] = asset->tex_coords[0];
+			sprite->tex_coords[1] = asset->tex_coords[1];
+		}		
 
-	TextureAtlas * atlas = &asset_state->tex_atlas;
-	atlas->tex = gl::create_texture(tex_mem, tex_asset->width, tex_asset->height, GL_RGBA, GL_LINEAR, GL_CLAMP_TO_EDGE);
-	atlas->sub_tex_count = tex_asset->sub_tex_count;
-	ASSERT(atlas->tex.id);
+		u32 tex_size = tex_asset->width * tex_asset->height * TEXTURE_CHANNELS;
+		u8 * tex_ptr = (u8 *)(sprite_assets + tex_asset->sub_tex_count);
 
-	//TODO: Flat load these!!
-	for(u32 i = 0; i < tex_asset->sub_tex_count; i++) {
-		SpriteAsset * asset = sprite_assets + i;
+		i32 filter = GL_LINEAR;
+		if(tex_asset->sampling == TextureSampling_point) {
+			filter = GL_NEAREST;
+		}
+		else {
+			ASSERT(tex_asset->sampling == TextureSampling_bilinear);
+		}
 
-		Sprite * sprite = asset_state->sprites + asset->id;
-		sprite->dim = asset->dim;
-		sprite->tex_coords[0] = asset->tex_coords[0];
-		sprite->tex_coords[1] = asset->tex_coords[1];
+		asset_state->textures[tex_asset->id] = gl::create_texture(tex_ptr, tex_asset->width, tex_asset->height, GL_RGBA, filter, GL_CLAMP_TO_EDGE);
+
+		file_ptr = tex_ptr + tex_size;
 	}
 
-	std::fclose(file_ptr);
-	free(file_buf);
+	free(file_buf.ptr);
 }

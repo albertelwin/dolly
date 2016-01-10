@@ -98,7 +98,6 @@ enum ButtonId {
 };
 
 struct Font {
-	gl::Texture tex_;
 	RenderBatch * batch;
 
 	math::Mat4 projection_matrix;
@@ -157,8 +156,6 @@ struct GameState {
 
 	math::Mat4 view_matrix;
 	math::Mat4 projection_matrix;
-
-	gl::Texture textures[TextureId_count];
 
 	RenderBatch * sprite_batch;
 

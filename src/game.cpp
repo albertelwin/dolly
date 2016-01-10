@@ -5,37 +5,6 @@
 #include <asset.cpp>
 #include <math.cpp>
 
-gl::Texture load_texture_from_file(char const * file_name, i32 filter_mode = GL_LINEAR) {
-	stbi_set_flip_vertically_on_load(true);
-
-	i32 width, height, channels;
-	u8 * img_data = stbi_load(file_name, &width, &height, &channels, 0);
-	ASSERT(channels == TEXTURE_CHANNELS);
-
-	//NOTE: Premultiplied alpha!!
-	f32 r_255 = 1.0f / 255.0f;
-	for(u32 y = 0, i = 0; y < height; y++) {
-		for(u32 x = 0; x < width; x++, i += 4) {
-			f32 a = (f32)img_data[i + 3] * r_255;
-
-			f32 r = (f32)img_data[i + 0] * r_255 * a;
-			f32 g = (f32)img_data[i + 1] * r_255 * a;
-			f32 b = (f32)img_data[i + 2] * r_255 * a;
-
-			img_data[i + 0] = (u8)(r * 255.0f);
-			img_data[i + 1] = (u8)(g * 255.0f);
-			img_data[i + 2] = (u8)(b * 255.0f);
-		}	
-	}
-
-	gl::Texture tex = gl::create_texture(img_data, width, height, GL_RGBA, filter_mode, GL_CLAMP_TO_EDGE);
-	ASSERT(tex.id);
-
-	stbi_image_free(img_data);
-
-	return tex;
-}
-
 Entity * push_entity_(GameState * game_state, EntityRenderTypeId render_type, math::Vec3 pos, math::Vec2 scale) {
 	ASSERT(game_state->entity_count < ARRAY_COUNT(game_state->entity_array));
 
@@ -50,7 +19,7 @@ Entity * push_entity_(GameState * game_state, EntityRenderTypeId render_type, ma
 }
 
 Entity * push_texture_based_entity(GameState * game_state, TextureId tex_id, math::Vec3 pos) {
-	gl::Texture * tex = game_state->textures + tex_id;
+	gl::Texture * tex = game_state->asset_state.textures + tex_id;
 
 	Entity * entity = push_entity_(game_state, EntityRenderTypeId_texture, pos, math::vec2(tex->width, tex->height));
 	EntityTextureBasedRenderer * renderer = &entity->tex;
@@ -130,12 +99,10 @@ void render_v_buf(gl::VertexBuffer * v_buf, Shader * shader, math::Mat4 * xform,
 	glDrawArrays(GL_TRIANGLES, 0, v_buf->vert_count);
 }
 
-Font * allocate_font(MemoryPool * pool, u32 v_len, u32 back_buffer_width, u32 back_buffer_height) {
+Font * allocate_font(MemoryPool * pool, gl::Texture * tex, u32 v_len, u32 back_buffer_width, u32 back_buffer_height) {
 	Font * font = PUSH_STRUCT(pool, Font);
 
-	//TODO: This texture should be loaded by the asset system!!
-	font->tex_ = load_texture_from_file("font.png", GL_NEAREST);
-	font->batch = allocate_render_batch(pool, &font->tex_, v_len);
+	font->batch = allocate_render_batch(pool, tex, v_len);
 
 	font->projection_matrix = math::orthographic_projection((f32)back_buffer_width, (f32)back_buffer_height);
 	font->glyph_width = 3;
@@ -168,8 +135,12 @@ void render_str(Font * font, Str * str) {
 	f32 glyph_height = font->glyph_height * font->scale;
 	f32 glyph_spacing = font->glyph_spacing * font->scale;
 
-	u32 tex_size = font->tex_.width;
+	u32 tex_size = batch->tex->width;
 	f32 r_tex_size = 1.0f / (f32)tex_size;
+
+	//TODO: Put these in the font struct??
+	u32 glyph_first_char = 24;
+	u32 glyphs_per_row = 12;
 
 	for(u32 i = 0; i < str->len; i++) {
 		char char_ = str->ptr[i];
@@ -182,19 +153,20 @@ void render_str(Font * font, Str * str) {
 			math::Vec2 pos1 = math::vec2(pos0.x + glyph_width, pos0.y + glyph_height);
 
 			font->pos.x += (glyph_width + glyph_spacing);
+			if(char_ != ' ') {
+				u32 u = ((char_ - glyph_first_char) % glyphs_per_row) * (font->glyph_width + font->glyph_spacing * 2) + font->glyph_spacing;
+				u32 v = ((char_ - glyph_first_char) / glyphs_per_row) * (font->glyph_height + font->glyph_spacing * 2) + font->glyph_spacing;
 
-			u32 u = ((char_ - 24) % 12) * (font->glyph_width + font->glyph_spacing * 2) + font->glyph_spacing;
-			u32 v = ((char_ - 24) / 12) * (font->glyph_height + font->glyph_spacing * 2) + font->glyph_spacing;
+				math::Vec2 uv0 = math::vec2(u, tex_size - (v + font->glyph_height)) * r_tex_size;
+				math::Vec2 uv1 = math::vec2(u + font->glyph_width, tex_size - v) * r_tex_size;
 
-			math::Vec2 uv0 = math::vec2(u, tex_size - (v + font->glyph_height)) * r_tex_size;
-			math::Vec2 uv1 = math::vec2(u + font->glyph_width, tex_size - v) * r_tex_size;
-
-			v_arr[batch->e++] = pos0.x; v_arr[batch->e++] = pos0.y; v_arr[batch->e++] = 0.0f; v_arr[batch->e++] = uv0.x; v_arr[batch->e++] = uv0.y;
-			v_arr[batch->e++] = pos1.x; v_arr[batch->e++] = pos1.y; v_arr[batch->e++] = 0.0f; v_arr[batch->e++] = uv1.x; v_arr[batch->e++] = uv1.y;
-			v_arr[batch->e++] = pos0.x; v_arr[batch->e++] = pos1.y; v_arr[batch->e++] = 0.0f; v_arr[batch->e++] = uv0.x; v_arr[batch->e++] = uv1.y;
-			v_arr[batch->e++] = pos0.x; v_arr[batch->e++] = pos0.y; v_arr[batch->e++] = 0.0f; v_arr[batch->e++] = uv0.x; v_arr[batch->e++] = uv0.y;
-			v_arr[batch->e++] = pos1.x; v_arr[batch->e++] = pos1.y; v_arr[batch->e++] = 0.0f; v_arr[batch->e++] = uv1.x; v_arr[batch->e++] = uv1.y;
-			v_arr[batch->e++] = pos1.x; v_arr[batch->e++] = pos0.y; v_arr[batch->e++] = 0.0f; v_arr[batch->e++] = uv1.x; v_arr[batch->e++] = uv0.y;
+				v_arr[batch->e++] = pos0.x; v_arr[batch->e++] = pos0.y; v_arr[batch->e++] = 0.0f; v_arr[batch->e++] = uv0.x; v_arr[batch->e++] = uv0.y;
+				v_arr[batch->e++] = pos1.x; v_arr[batch->e++] = pos1.y; v_arr[batch->e++] = 0.0f; v_arr[batch->e++] = uv1.x; v_arr[batch->e++] = uv1.y;
+				v_arr[batch->e++] = pos0.x; v_arr[batch->e++] = pos1.y; v_arr[batch->e++] = 0.0f; v_arr[batch->e++] = uv0.x; v_arr[batch->e++] = uv1.y;
+				v_arr[batch->e++] = pos0.x; v_arr[batch->e++] = pos0.y; v_arr[batch->e++] = 0.0f; v_arr[batch->e++] = uv0.x; v_arr[batch->e++] = uv0.y;
+				v_arr[batch->e++] = pos1.x; v_arr[batch->e++] = pos1.y; v_arr[batch->e++] = 0.0f; v_arr[batch->e++] = uv1.x; v_arr[batch->e++] = uv1.y;
+				v_arr[batch->e++] = pos1.x; v_arr[batch->e++] = pos0.y; v_arr[batch->e++] = 0.0f; v_arr[batch->e++] = uv1.x; v_arr[batch->e++] = uv0.y;				
+			}
 		}
 	}
 }
@@ -267,7 +239,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		game_state->bg_v_buf = gl::create_vertex_buffer(bg_verts, ARRAY_COUNT(bg_verts), 5, GL_STATIC_DRAW);
 
-		game_state->font = allocate_font(&game_state->memory_pool, 65536, game_input->back_buffer_width, game_input->back_buffer_height);
+		gl::Texture * font_tex = game_state->asset_state.textures + TextureId_font;
+		game_state->font = allocate_font(&game_state->memory_pool, font_tex, 65536, game_input->back_buffer_width, game_input->back_buffer_height);
 		game_state->debug_str = allocate_str(&game_state->memory_pool, 1024);
 		game_state->title_str = allocate_str(&game_state->memory_pool, 128);
 
@@ -281,13 +254,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		game_state->projection_matrix = math::orthographic_projection((f32)game_state->ideal_window_width, (f32)game_state->ideal_window_height);
 
-		game_state->textures[TextureId_bg_layer0] = load_texture_from_file("bg_layer0.png");
-		game_state->textures[TextureId_bg_layer1] = load_texture_from_file("bg_layer1.png");
-		game_state->textures[TextureId_bg_layer2] = load_texture_from_file("bg_layer2.png");
-		game_state->textures[TextureId_bg_layer3] = load_texture_from_file("bg_layer3.png");
-
-		game_state->textures[TextureId_debug] = game_state->asset_state.tex_atlas.tex;
-
 		for(u32 i = 0; i < ARRAY_COUNT(game_state->bg_layers); i++) {
 			TextureId tex_id = (TextureId)(TextureId_bg_layer0 + i);
 			Entity * bg_layer = push_texture_based_entity(game_state, tex_id, math::vec3(0.0f));
@@ -295,7 +261,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			game_state->bg_layers[i] = bg_layer;
 		}
 
-		game_state->sprite_batch = allocate_render_batch(&game_state->memory_pool, &game_state->asset_state.tex_atlas.tex, VERTS_PER_QUAD * 8);
+		game_state->sprite_batch = allocate_render_batch(&game_state->memory_pool, &game_state->asset_state.textures[TextureId_atlas], VERTS_PER_QUAD * 8);
 
 		game_state->player.e = push_sprite_based_entity(game_state, SpriteId_dolly, math::vec3((f32)game_state->ideal_window_width * -0.5f * (2.0f / 3.0f), 0.0f, 0.0f));
 		game_state->player.initial_x = game_state->player.e->pos.x;
@@ -315,7 +281,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			emitter->entity_array[i] = teacup;
 		}
 
-		push_texture_based_entity(game_state, TextureId_debug, math::vec3(0.0f));
+		push_texture_based_entity(game_state, TextureId_atlas, math::vec3(0.0f));
 
 		game_state->d_time = 1.0f;
 		game_state->score = 0;
@@ -427,7 +393,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			entity->scale = emitter->scale * 2.0f;
 
 			//TODO: Should there be a helper function for this??
-			AudioClipId clip_id = AudioClipId_explosion;
+			AudioClipId clip_id = AudioClipId_pickup;
 			AudioClip * clip = get_audio_clip(&game_state->audio_state, clip_id, math::rand_i32() % get_audio_clip_count(&game_state->audio_state, clip_id));
 			AudioSource * source = play_audio_clip(&game_state->audio_state, clip);
 			change_pitch(source, math::lerp(0.9f, 1.1f, math::rand_f32()));
@@ -473,7 +439,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		if(entity->render_type == EntityRenderTypeId_texture) {
 			EntityTextureBasedRenderer * renderer = &entity->tex;
 
-			gl::Texture * tex = game_state->textures + renderer->id;
+			gl::Texture * tex = game_state->asset_state.textures + renderer->id;
 			math::Mat4 xform = view_projection_matrix * math::translate(entity->pos.x, entity->pos.y, entity->pos.z) * math::scale(entity->scale.x, entity->scale.y, 1.0f) * math::rotate_around_z(entity->rot);
 			render_v_buf(renderer->v_buf, &game_state->basic_shader, &xform, tex, entity->color);						
 		}
@@ -508,8 +474,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		RenderBatch * batch = font->batch;
 		clear_render_batch(font->batch);
-
-		render_c_str(font, "HELLO WORLD!\n\n");
 
 		str_clear(game_state->title_str);
 		str_print(game_state->title_str, "DOLLY DOLLY DOLLY DAYS!\nDT: %f | D_TIME: %f | SCORE: %u\n\n", game_input->delta_time, game_state->d_time, game_state->score);

@@ -160,8 +160,9 @@ namespace gl {
 		tex.height = height;
 
 		glGenTextures(1, &tex.id);
-		glBindTexture(GL_TEXTURE_2D, tex.id);
+		ASSERT(tex.id);
 
+		glBindTexture(GL_TEXTURE_2D, tex.id);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, format, GL_UNSIGNED_BYTE, texture_data);
 
 		//TODO: Anisotropic filtering!!

@@ -22,6 +22,7 @@ void __assert_func(bool expression, char const * message) {
 #ifdef WIN32
 		MessageBoxA(0, message, "ASSERT", MB_OK | MB_ICONERROR);
 #endif
+
 		std::fprintf(stderr, "ASSERT: %s\n", message);
 
 #ifdef __EMSCRIPTEN__
@@ -29,7 +30,6 @@ void __assert_func(bool expression, char const * message) {
 #else
 		std::exit(EXIT_FAILURE);
 #endif
-
 		// *((int *)(0)) = 0;
 	}
 }
@@ -59,6 +59,8 @@ typedef float f32;
 typedef double f64;
 
 typedef uint32_t b32;
+
+#define U32_MAX 4294967295
 
 #define F32_MAX 1e+37f
 

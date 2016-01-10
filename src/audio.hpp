@@ -2,22 +2,12 @@
 #ifndef AUDIO_HPP_INCLUDED
 #define AUDIO_HPP_INCLUDED
 
+#include <asset_format.hpp>
 #include <math.hpp>
 
 #define AUDIO_CHANNELS 2
 #define AUDIO_CLIP_SAMPLES_PER_SECOND 48000
 #define AUDIO_PADDING_SAMPLES 1
-
-enum AudioClipId {
-	AudioClipId_sin_440,
-	AudioClipId_beep,
-	AudioClipId_woosh,
-	AudioClipId_pickup,
-	AudioClipId_explosion,
-	AudioClipId_music,
-
-	AudioClipId_count,
-};
 
 struct AudioClip {
 	u32 samples;
