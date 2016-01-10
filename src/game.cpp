@@ -133,15 +133,9 @@ void render_v_buf(gl::VertexBuffer * v_buf, Shader * shader, math::Mat4 * xform,
 Font * allocate_font(MemoryPool * pool, u32 v_len, u32 back_buffer_width, u32 back_buffer_height) {
 	Font * font = PUSH_STRUCT(pool, Font);
 
-	font->tex = load_texture_from_file("font.png", GL_NEAREST);
-
-	font->v_len = v_len;
-	font->v_arr = PUSH_ARRAY(pool, f32, font->v_len);
-	zero_memory((u8 *)font->v_arr, font->v_len * sizeof(f32));
-
-	font->e = 0;
-
-	font->v_buf = gl::create_vertex_buffer(font->v_arr, font->v_len, 5, GL_DYNAMIC_DRAW);
+	//TODO: This texture should be loaded by the asset system!!
+	font->tex_ = load_texture_from_file("font.png", GL_NEAREST);
+	font->batch = allocate_render_batch(pool, &font->tex_, v_len);
 
 	font->projection_matrix = math::orthographic_projection((f32)back_buffer_width, (f32)back_buffer_height);
 	font->glyph_width = 3;
@@ -167,13 +161,14 @@ Str * allocate_str(MemoryPool * pool, u32 max_len) {
 void render_str(Font * font, Str * str) {
 	DEBUG_TIME_BLOCK();
 
-	f32 * v_arr = font->v_arr;
+	RenderBatch * batch = font->batch;
+	f32 * v_arr = batch->v_arr;
 
 	f32 glyph_width = font->glyph_width * font->scale;
 	f32 glyph_height = font->glyph_height * font->scale;
 	f32 glyph_spacing = font->glyph_spacing * font->scale;
 
-	u32 tex_size = font->tex.width;
+	u32 tex_size = font->tex_.width;
 	f32 r_tex_size = 1.0f / (f32)tex_size;
 
 	for(u32 i = 0; i < str->len; i++) {
@@ -194,12 +189,12 @@ void render_str(Font * font, Str * str) {
 			math::Vec2 uv0 = math::vec2(u, tex_size - (v + font->glyph_height)) * r_tex_size;
 			math::Vec2 uv1 = math::vec2(u + font->glyph_width, tex_size - v) * r_tex_size;
 
-			v_arr[font->e++] = pos0.x; v_arr[font->e++] = pos0.y; v_arr[font->e++] = 0.0f; v_arr[font->e++] = uv0.x; v_arr[font->e++] = uv0.y;
-			v_arr[font->e++] = pos1.x; v_arr[font->e++] = pos1.y; v_arr[font->e++] = 0.0f; v_arr[font->e++] = uv1.x; v_arr[font->e++] = uv1.y;
-			v_arr[font->e++] = pos0.x; v_arr[font->e++] = pos1.y; v_arr[font->e++] = 0.0f; v_arr[font->e++] = uv0.x; v_arr[font->e++] = uv1.y;
-			v_arr[font->e++] = pos0.x; v_arr[font->e++] = pos0.y; v_arr[font->e++] = 0.0f; v_arr[font->e++] = uv0.x; v_arr[font->e++] = uv0.y;
-			v_arr[font->e++] = pos1.x; v_arr[font->e++] = pos1.y; v_arr[font->e++] = 0.0f; v_arr[font->e++] = uv1.x; v_arr[font->e++] = uv1.y;
-			v_arr[font->e++] = pos1.x; v_arr[font->e++] = pos0.y; v_arr[font->e++] = 0.0f; v_arr[font->e++] = uv1.x; v_arr[font->e++] = uv0.y;
+			v_arr[batch->e++] = pos0.x; v_arr[batch->e++] = pos0.y; v_arr[batch->e++] = 0.0f; v_arr[batch->e++] = uv0.x; v_arr[batch->e++] = uv0.y;
+			v_arr[batch->e++] = pos1.x; v_arr[batch->e++] = pos1.y; v_arr[batch->e++] = 0.0f; v_arr[batch->e++] = uv1.x; v_arr[batch->e++] = uv1.y;
+			v_arr[batch->e++] = pos0.x; v_arr[batch->e++] = pos1.y; v_arr[batch->e++] = 0.0f; v_arr[batch->e++] = uv0.x; v_arr[batch->e++] = uv1.y;
+			v_arr[batch->e++] = pos0.x; v_arr[batch->e++] = pos0.y; v_arr[batch->e++] = 0.0f; v_arr[batch->e++] = uv0.x; v_arr[batch->e++] = uv0.y;
+			v_arr[batch->e++] = pos1.x; v_arr[batch->e++] = pos1.y; v_arr[batch->e++] = 0.0f; v_arr[batch->e++] = uv1.x; v_arr[batch->e++] = uv1.y;
+			v_arr[batch->e++] = pos1.x; v_arr[batch->e++] = pos0.y; v_arr[batch->e++] = 0.0f; v_arr[batch->e++] = uv1.x; v_arr[batch->e++] = uv0.y;
 		}
 	}
 }
@@ -509,11 +504,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		DEBUG_TIME_BLOCK();
 
 		Font * font = game_state->font;
-
-		zero_memory((u8 *)font->v_arr, font->v_len * sizeof(f32));
-		font->e = 0;
-
 		font->pos = font->anchor;
+
+		RenderBatch * batch = font->batch;
+		clear_render_batch(font->batch);
 
 		render_c_str(font, "HELLO WORLD!\n\n");
 
@@ -523,9 +517,9 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		render_str(font, game_state->debug_str);
 
-		glBindBuffer(GL_ARRAY_BUFFER, font->v_buf.id);
-		glBufferSubData(GL_ARRAY_BUFFER, 0, font->v_buf.size_in_bytes, font->v_arr);
-		render_v_buf(&font->v_buf, &game_state->basic_shader, &font->projection_matrix, &font->tex);
+		glBindBuffer(GL_ARRAY_BUFFER, batch->v_buf.id);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, batch->v_buf.size_in_bytes, batch->v_arr);
+		render_v_buf(&batch->v_buf, &game_state->basic_shader, &font->projection_matrix, batch->tex);
 	}
 
 	glDisable(GL_BLEND);

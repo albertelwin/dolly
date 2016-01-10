@@ -85,27 +85,59 @@ Texture allocate_texture(u32 width, u32 height) {
 			tex.ptr[i + 0] = 0;
 			tex.ptr[i + 1] = 0;
 			tex.ptr[i + 2] = 0;
-			tex.ptr[i + 3] = 255;
+			tex.ptr[i + 3] = 0;
 		}
 	}
 
 	return tex;
 }
 
-TexCoord blit_texture(Texture * dst, Texture * src) {
-	if((dst->x + src->width) > dst->width) {
+struct Blit { u32 u; u32 v; u32 width; u32 height; };
+Blit blit_texture(Texture * dst, Texture * src) {
+	u32 min_x = 65536;
+	u32 min_y = 65536;
+
+	u32 max_x = 0;
+	u32 max_y = 0;
+
+	for(u32 y = 0, i = 0; y < src->height; y++) {
+		for(u32 x = 0; x < src->width; x++, i += 4) {
+			u8 a = src->ptr[i + 3];
+			if(a) {
+				if(x < min_x) {
+					min_x = x;
+				}
+
+				if(y < min_y) {
+					min_y = y;
+				}
+
+				if(x > max_x) {
+					max_x = x;
+				}
+
+				if(y > max_y) {
+					max_y = y;
+				}
+			}
+		}
+	}
+
+	u32 width = max_x - min_x;
+	u32 height = max_y - min_y;
+	ASSERT(width > 0 && height > 0);
+
+	if((dst->x + width) > dst->width) {
 		dst->x = 0;
 		dst->y = dst->safe_y;
 	}
 
-	ASSERT((dst->y + src->height <= dst->height));
+	ASSERT((dst->y + height <= dst->height));
 
-	//TODO: Remove empty space from src texture!!
-
-	for(u32 y = 0; y < src->height; y++) {
-		for(u32 x = 0; x < src->width; x++) {
+	for(u32 y = 0; y < height; y++) {
+		for(u32 x = 0; x < width; x++) {
 			u32 i = (((dst->height - 1) - (y + dst->y)) * dst->width + x + dst->x) * TEXTURE_CHANNELS;
-			u32 k = (y * src->width + x) * TEXTURE_CHANNELS;
+			u32 k = ((y + min_y) * src->width + (x + min_x)) * TEXTURE_CHANNELS;
 
 			dst->ptr[i + 0] = src->ptr[k + 0];
 			dst->ptr[i + 1] = src->ptr[k + 1];
@@ -114,26 +146,28 @@ TexCoord blit_texture(Texture * dst, Texture * src) {
 		}
 	}
 
-	TexCoord tex_coord;
-	tex_coord.u = dst->x;
-	tex_coord.v = dst->y;
+	Blit result = {};
+	result.u = dst->x;
+	result.v = dst->y;
+	result.width = width;
+	result.height = height;
 
 	//NOTE: 1px padding for bilinear filter!!
 	u32 pad = 1;
 
-	u32 y = dst->y + src->height + pad;
+	u32 y = dst->y + height + pad;
 	if(y > dst->safe_y) {
 		dst->safe_y = y;
 	}
 
-	dst->x += src->width + pad;
+	dst->x += width + pad;
 	ASSERT(dst->x <= dst->width);
 	if(dst->x >= dst->width) {
 		dst->x = 0;
 		dst->y = dst->safe_y;
 	}
 
-	return tex_coord;
+	return result;
 }
 
 int main() {
@@ -168,19 +202,16 @@ int main() {
 		Texture tex_ = load_texture(req->file_name);
 		Texture * tex = &tex_;
 
-		TexCoord tex_coord = blit_texture(&atlas, tex);
+		Blit blit = blit_texture(&atlas, tex);
 
 		u32 tex_size = tex_asset.width;
 		f32 r_tex_size = 1.0f / (f32)tex_size;
 
-		u32 u = tex_coord.u;
-		u32 v = tex_coord.v;
-
 		SpriteAsset * sprite = sprites + i;
 		sprite->id = req->id;
-		sprite->dim = math::vec2(tex->width, tex->height);
-		sprite->tex_coords[0] = math::vec2(u, tex_size - (v + tex->height)) * r_tex_size;
-		sprite->tex_coords[1] = math::vec2(u + tex->width, tex_size - v) * r_tex_size;
+		sprite->dim = math::vec2(blit.width, blit.height);
+		sprite->tex_coords[0] = math::vec2(blit.u, tex_size - (blit.v + blit.height)) * r_tex_size;
+		sprite->tex_coords[1] = math::vec2(blit.u + blit.width, tex_size - blit.v) * r_tex_size;
 	}
 
 	std::FILE * file_ptr = std::fopen("../dat/asset.pak", "wb");

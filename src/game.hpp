@@ -18,7 +18,6 @@ struct Shader {
 };
 
 struct RenderBatch {
-	//TODO: Batch should probably store texture directly!
 	gl::Texture * tex;
 
 	u32 v_len;
@@ -99,13 +98,8 @@ enum ButtonId {
 };
 
 struct Font {
-	gl::Texture tex;
-
-	//TODO: This is just a RenderBatch!!
-	u32 v_len;
-	f32 * v_arr;
-	gl::VertexBuffer v_buf;
-	u32 e;
+	gl::Texture tex_;
+	RenderBatch * batch;
 
 	math::Mat4 projection_matrix;
 

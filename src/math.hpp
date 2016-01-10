@@ -717,8 +717,11 @@ namespace math {
 		Vec2 max;
 	};
 
-	Rec2 rec(Vec2 const & min, Vec2 const & max) {
-		return { min, max };
+	Rec2 rec2(Vec2 const & min, Vec2 const & max) {
+		Rec2 r;
+		r.min = min;
+		r.max = max;
+		return r;
 	}
 
 	Rec2 rec2_centre_size(Vec2 const & pos, Vec2 const & scale) {
