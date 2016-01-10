@@ -19,7 +19,7 @@ struct AssetState {
 	MemoryPool * memory_pool;
 
 	TextureAtlas tex_atlas;
-	Sprite * sprites;
+	Sprite sprites[SpriteId_count];
 };
 
 #endif

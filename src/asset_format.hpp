@@ -6,6 +6,16 @@
 
 #define TEXTURE_CHANNELS 4
 
+enum SpriteId {
+	//TODO: Temp!!
+	SpriteId_null,
+
+	SpriteId_dolly,
+	SpriteId_teacup,
+
+	SpriteId_count,
+};
+
 #pragma pack(push, 1)
 struct AssetPackHeader {
 	u32 tex_count;
@@ -17,7 +27,8 @@ struct TextureAsset {
 	u32 sub_tex_count;
 };
 
-struct SubTextureAsset {
+struct SpriteAsset {
+	SpriteId id;
 	math::Vec2 size;
 	//TODO: Store just one texture coordinate??
 	math::Vec2 tex_coords[2];

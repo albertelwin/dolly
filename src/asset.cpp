@@ -18,22 +18,21 @@ void load_assets(AssetState * asset_state, MemoryPool * pool) {
 	AssetPackHeader * pack = (AssetPackHeader *)file_buf;
 
 	TextureAsset * tex_asset = (TextureAsset *)(pack + 1);
-	SubTextureAsset * sub_tex_assets = (SubTextureAsset *)(tex_asset + 1);
-	u8 * tex_mem = (u8 *)(sub_tex_assets + tex_asset->sub_tex_count);
+	SpriteAsset * sprite_assets = (SpriteAsset *)(tex_asset + 1);
+	u8 * tex_mem = (u8 *)(sprite_assets + tex_asset->sub_tex_count);
 
 	TextureAtlas * atlas = &asset_state->tex_atlas;
 	atlas->tex = gl::create_texture(tex_mem, tex_asset->width, tex_asset->height, GL_RGBA, GL_LINEAR, GL_CLAMP_TO_EDGE);
 	atlas->sub_tex_count = tex_asset->sub_tex_count;
 	ASSERT(atlas->tex.id);
 
-	asset_state->sprites = PUSH_ARRAY(asset_state->memory_pool, Sprite, tex_asset->sub_tex_count);
 	for(u32 i = 0; i < tex_asset->sub_tex_count; i++) {
-		SubTextureAsset * sub_tex = sub_tex_assets + i;
+		SpriteAsset * asset = sprite_assets + i;
 
-		Sprite * sprite = asset_state->sprites + i;
-		sprite->size = sub_tex->size;
-		sprite->tex_coords[0] = sub_tex->tex_coords[0];
-		sprite->tex_coords[1] = sub_tex->tex_coords[1];		
+		Sprite * sprite = asset_state->sprites + asset->id;
+		sprite->size = asset->size;
+		sprite->tex_coords[0] = asset->tex_coords[0];
+		sprite->tex_coords[1] = asset->tex_coords[1];
 	}
 
 	std::fclose(file_ptr);

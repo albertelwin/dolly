@@ -56,6 +56,9 @@ struct Entity {
 	math::Vec4 color;
 	TextureId tex_id;
 	gl::VertexBuffer * v_buf;
+
+	//TODO: Temp!!
+	b32 should_render;
 };
 
 struct Player {

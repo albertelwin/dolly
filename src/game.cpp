@@ -49,6 +49,7 @@ Entity * push_entity(GameState * game_state, TextureId tex_id, math::Vec3 pos) {
 	entity->color = math::vec4(1.0f);
 	entity->tex_id = tex_id;
 	entity->v_buf = &game_state->entity_v_buf;
+	entity->should_render = true;
 	return entity;
 }
 
@@ -70,11 +71,11 @@ void clear_render_batch(RenderBatch * batch) {
 	batch->e = 0;
 }
 
-void render_sprite(RenderBatch * batch, Sprite * sprite, math::Vec3 pos) {
+void render_sprite(RenderBatch * batch, Sprite * sprite, math::Vec3 pos, math::Vec2 scale) {
 	ASSERT(batch->e <= (batch->v_len - VERTS_PER_QUAD));
 
-	math::Vec2 pos0 = pos.xy - sprite->size * 0.5f;
-	math::Vec2 pos1 = pos.xy + sprite->size * 0.5f;
+	math::Vec2 pos0 = pos.xy - scale * 0.5f;
+	math::Vec2 pos1 = pos.xy + scale * 0.5f;
 	f32 z = pos.z;
 
 	math::Vec2 uv0 = sprite->tex_coords[0];
@@ -290,7 +291,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		game_state->sprite_batch = allocate_render_batch(&game_state->memory_pool, &game_state->asset_state.tex_atlas.tex, VERTS_PER_QUAD * 8);
 
 		game_state->player.e = push_entity(game_state, TextureId_dolly, math::vec3((f32)game_state->ideal_window_width * -0.5f * (2.0f / 3.0f), 0.0f, 0.0f));
-		game_state->player.sprite = &game_state->asset_state.sprites[0];
+		game_state->player.e->should_render = false;
+		game_state->player.sprite = &game_state->asset_state.sprites[SpriteId_dolly];
 		game_state->player.initial_x = game_state->player.e->pos.x;
 
 		TeacupEmitter * emitter = &game_state->teacup_emitter;
@@ -301,14 +303,15 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		emitter->entity_count = 0;
 		for(u32 i = 0; i < ARRAY_COUNT(emitter->entity_array); i++) {
 			Teacup * teacup = PUSH_STRUCT(&game_state->memory_pool, Teacup);
-			teacup->e = push_entity(game_state, TextureId_teacup, emitter->pos);
 
+			teacup->e = push_entity(game_state, TextureId_teacup, emitter->pos);
+			teacup->e->should_render = false;
 			teacup->hit = false;
 
 			emitter->entity_array[i] = teacup;
 		}
 
-		Entity * debug_entity = push_entity(game_state, TextureId_debug, math::vec3(0.0f));
+		// Entity * debug_entity = push_entity(game_state, TextureId_debug, math::vec3(0.0f));
 		// debug_entity->scale *= 0.5f;
 
 		game_state->d_time = 1.0f;
@@ -464,11 +467,13 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	glUseProgram(game_state->entity_program);
 	for(u32 i = 0; i < game_state->entity_count; i++) {
 		Entity * entity = game_state->entity_array + i;
-		gl::Texture * tex = game_state->textures + entity->tex_id;
+		if(entity->should_render) {
+			gl::Texture * tex = game_state->textures + entity->tex_id;
 
-		math::Mat4 xform = view_projection_matrix * math::translate(entity->pos.x, entity->pos.y, entity->pos.z) * math::scale(entity->scale.x, entity->scale.y, 1.0f) * math::rotate_around_z(entity->rot);
+			math::Mat4 xform = view_projection_matrix * math::translate(entity->pos.x, entity->pos.y, entity->pos.z) * math::scale(entity->scale.x, entity->scale.y, 1.0f) * math::rotate_around_z(entity->rot);
 
-		render_v_buf(entity->v_buf, &game_state->basic_shader, &xform, tex, entity->color);
+			render_v_buf(entity->v_buf, &game_state->basic_shader, &xform, tex, entity->color);			
+		}
 	}
 
 	{
@@ -477,7 +482,12 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		RenderBatch * batch = game_state->sprite_batch;
 		clear_render_batch(batch);
 
-		render_sprite(batch, &game_state->asset_state.sprites[(u32)game_input->total_time % 8], player->e->pos);
+		render_sprite(batch, player->sprite, player->e->pos, player->e->scale);
+
+		for(u32 i = 0; i < emitter->entity_count; i++) {
+			Teacup * teacup = emitter->entity_array[i];
+			render_sprite(batch, &game_state->asset_state.sprites[SpriteId_teacup], teacup->e->pos, teacup->e->scale);
+		}
 
 		//TODO: Should we pull this out into a begin/end type thing??
 		glBindBuffer(GL_ARRAY_BUFFER, batch->v_buf.id);
