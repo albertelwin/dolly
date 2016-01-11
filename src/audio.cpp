@@ -86,6 +86,7 @@ void audio_output_samples(AudioState * audio_state, i16 * sample_memory_ptr, u32
 		u32 valid_samples = clip->samples;
 		if(!source->loop) {
 			valid_samples--;
+			ASSERT(valid_samples);
 		}
 
 		while(samples_left_to_write) {

@@ -45,9 +45,10 @@ struct WavFormat {
 
 struct Texture {
 	TextureId id;
+	TextureSampling sampling;
 
 	u32 width;
-	u32 height;
+	u32 height;	
 
 	u32 size;
 	u8 * ptr;
@@ -89,7 +90,7 @@ void push_req(LoadReqArray * reqs, char * file_name, SpriteId id) {
 	req->id = id;
 }
 
-Texture load_texture(char const * file_name, TextureId id, TextureSampling filter = TextureSampling_bilinear) {
+Texture load_texture(char const * file_name, TextureId id, TextureSampling sampling = TextureSampling_bilinear) {
 	stbi_set_flip_vertically_on_load(true);
 
 	i32 width, height, channels;
@@ -98,6 +99,7 @@ Texture load_texture(char const * file_name, TextureId id, TextureSampling filte
 
 	Texture tex = {};
 	tex.id = id;
+	tex.sampling = sampling;
 	tex.width = (u32)width;
 	tex.height = (u32)height;	
 
@@ -123,8 +125,10 @@ Texture load_texture(char const * file_name, TextureId id, TextureSampling filte
 	return tex;
 }
 
-Texture allocate_texture(u32 width, u32 height) {
+Texture allocate_texture(u32 width, u32 height, TextureId id, TextureSampling sampling = TextureSampling_bilinear) {
 	Texture tex = {};
+	tex.id = id;
+	tex.sampling = sampling;
 	tex.width = width;
 	tex.height = height;
 	tex.size = tex.width * tex.height * TEXTURE_CHANNELS;
@@ -224,7 +228,7 @@ AudioClip load_audio_clip(char const * file_name, AudioClipId id) {
 	AudioClip clip = {};
 	clip.id = id;
 
-	FileBuffer file_buffer = read_file_to_memory(file_name);
+	MemoryPtr file_buffer = read_file_to_memory(file_name);
 
 	WavHeader * wav_header = (WavHeader *)file_buffer.ptr;
 	ASSERT(wav_header->riff_id == RiffCode_RIFF);
@@ -244,10 +248,11 @@ AudioClip load_audio_clip(char const * file_name, AudioClipId id) {
 	i16 * wav_data = (i16 *)((u8 *)wav_data_header + sizeof(WavChunkHeader));
 
 	clip.samples = wav_data_header->size / (wav_format->channels * sizeof(i16));
+	ASSERT(clip.samples > 0);
 	u32 samples_with_padding = clip.samples + AUDIO_PADDING_SAMPLES;
 
 	clip.size = samples_with_padding * sizeof(i16) * AUDIO_CHANNELS; 
-	clip.ptr = ALLOC_ARRAY(i16, samples_with_padding * AUDIO_CHANNELS);
+	clip.ptr = ALLOC_MEMORY(i16, clip.size);
 	if(wav_format->channels == 2) {
 		for(u32 i = 0; i < samples_with_padding * 2; i++) {
 			clip.ptr[i] = wav_data[i % (clip.samples * 2)];
@@ -261,7 +266,7 @@ AudioClip load_audio_clip(char const * file_name, AudioClipId id) {
 		}
 	}
 
-	free(file_buffer.ptr);
+	FREE_MEMORY(file_buffer.ptr);
 
 	return clip;
 }
@@ -285,13 +290,15 @@ int main() {
 	push_req(&reqs, "dolly.png", SpriteId_dolly);
 	push_req(&reqs, "teacup.png", SpriteId_teacup);
 
+
+	Texture atlas = allocate_texture(512, 512, TextureId_atlas);
+
 	TextureInfo tex_info = {};
-	tex_info.id = TextureId_atlas;
+	tex_info.id = atlas.id;
+	tex_info.sampling = atlas.sampling;
 	tex_info.width = 512;
 	tex_info.height = 512;
 	tex_info.sub_tex_count = reqs.count;
-
-	Texture atlas = allocate_texture(tex_info.width, tex_info.height);
 
 	SpriteInfo * sprites = ALLOC_ARRAY(SpriteInfo, reqs.count);
 	for(u32 i = 0; i < reqs.count; i++) {
@@ -350,6 +357,7 @@ int main() {
 
 		TextureInfo info = {};
 		info.id = tex->id;
+		info.sampling = tex->sampling;
 		info.width = tex->width;
 		info.height = tex->height;
 		info.sub_tex_count = 0;

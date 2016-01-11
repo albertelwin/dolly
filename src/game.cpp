@@ -440,7 +440,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			EntityTextureBasedRenderer * renderer = &entity->tex;
 
 			gl::Texture * tex = game_state->asset_state.textures + renderer->id;
-			math::Mat4 xform = view_projection_matrix * math::translate(entity->pos.x, entity->pos.y, entity->pos.z) * math::scale(entity->scale.x, entity->scale.y, 1.0f) * math::rotate_around_z(entity->rot);
+			math::Mat4 xform = view_projection_matrix * math::translate(entity->pos.x + 0.5f, entity->pos.y, entity->pos.z) * math::scale(entity->scale.x, entity->scale.y, 1.0f) * math::rotate_around_z(entity->rot);
 			render_v_buf(renderer->v_buf, &game_state->basic_shader, &xform, tex, entity->color);						
 		}
 	}

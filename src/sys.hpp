@@ -99,9 +99,47 @@ struct Str {
 	u32 max_len;
 };
 
+Str str_fixed_size(char const * ptr, u32 len) {
+	Str str;
+	str.ptr = (char *)ptr;
+	str.max_len = str.len = len;
+	return str;
+}
+
+Str str_from_c_str(char const * c_str) {
+	Str str;
+	str.max_len = str.len = c_str_len(c_str);
+	str.ptr = (char *)c_str;
+	return str;
+}
+
 void str_clear(Str * str) {
 	str->len = 0;
 	str->ptr[0] = 0;
+}
+
+b32 str_equal(Str * str_x, Str * str_y) {
+	b32 equal;
+	if(str_x->len == str_y->len) {
+		equal = true;
+
+		for(u32 i = 0; i < str_x->len; i++) {
+			if(str_x->ptr[i] != str_y->ptr[i]) {
+				equal = false;
+				break;
+			}
+		}
+	}
+	else {
+		equal = false;
+	}
+
+	return equal;
+}
+
+b32 str_equal(Str * str_x, char const * c_str) {
+	Str str_y = str_from_c_str(c_str);
+	return str_equal(str_x, &str_y);
 }
 
 void str_push(Str * str, char char_) {
@@ -206,6 +244,11 @@ void str_print(Str * str, char const * fmt, ...) {
 	va_end(args);
 }
 
+struct MemoryPtr {
+	size_t size;
+	u8 * ptr;
+};
+
 struct MemoryPool {
 	size_t size;
 	size_t used;
@@ -223,31 +266,35 @@ MemoryPool create_memory_pool(void * base_address, size_t size) {
 
 #define PUSH_STRUCT(pool, type) (type *)push_memory_(pool, sizeof(type))
 #define PUSH_ARRAY(pool, type, length) (type *)push_memory_(pool, sizeof(type) * (length))
-#define PUSH_MEMORY(pool, size) push_memory_(pool, size)
+#define PUSH_MEMORY(pool, type, size) (type *)push_memory_(pool, size)
 void * push_memory_(MemoryPool * pool, size_t size) {
 	ASSERT((pool->used + size) <= pool->size);
 	
 	void * ptr = pool->base_address + pool->used;
 	pool->used += size;
+
+	std::printf("LOG: %u\n", pool->used);
+
 	return ptr;
 }
 
 #define ALLOC_STRUCT(type) (type *)alloc_memory_(sizeof(type))
 #define ALLOC_ARRAY(type, length) (type *)alloc_memory_(sizeof(type) * length)
-#define ALLOC_MEMORY(size) alloc_memory_(size)
+#define ALLOC_MEMORY(type, size) (type *)alloc_memory_(size)
 void * alloc_memory_(size_t size) {
-	void * ptr = malloc(size);
+	void * ptr = std::malloc(size);
 	return ptr;
 }
 
 #define FREE_MEMORY(ptr) free_memory_(ptr)
 void free_memory_(void * ptr) {
-	free(ptr);
+	std::free(ptr);
 }
 
-void zero_memory(u8 * ptr, size_t size) {
+void zero_memory(void * ptr, size_t size) {
+	u8 * ptr_u8 = (u8 *)ptr;
 	for(u32 i = 0; i < size; i++) {
-		ptr[i] = 0;
+		ptr_u8[i] = 0;
 	}
 }
 
@@ -259,28 +306,23 @@ void zero_memory(u8 * ptr, size_t size) {
 #define KEY_PRESSED (1 << KEY_PRESSED_BIT)
 #define KEY_RELEASED (1 << KEY_RELEASED_BIT)
 
-struct FileBuffer {
-	size_t size;
-	u8 * ptr;
-};
-
-FileBuffer read_file_to_memory(char const * file_name) {
+MemoryPtr read_file_to_memory(char const * file_name) {
 	std::FILE * file_ptr = std::fopen(file_name, "rb");
 	ASSERT(file_ptr != 0);
 
-	FileBuffer buf;
+	MemoryPtr mem_ptr;
 
 	std::fseek(file_ptr, 0, SEEK_END);
-	buf.size = (size_t)std::ftell(file_ptr);
+	mem_ptr.size = (size_t)std::ftell(file_ptr);
 	std::rewind(file_ptr);
 
-	buf.ptr = ALLOC_ARRAY(u8, buf.size);
-	size_t read_result = std::fread(buf.ptr, 1, buf.size, file_ptr);
-	ASSERT(read_result == buf.size);
+	mem_ptr.ptr = ALLOC_MEMORY(u8, mem_ptr.size);
+	size_t read_result = std::fread(mem_ptr.ptr, 1, mem_ptr.size, file_ptr);
+	ASSERT(read_result == mem_ptr.size);
 
 	std::fclose(file_ptr);
 
-	return buf;
+	return mem_ptr;
 }
 
 #endif
