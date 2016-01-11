@@ -83,10 +83,15 @@ void audio_output_samples(AudioState * audio_state, i16 * sample_memory_ptr, u32
 		u32 samples_left_to_write = samples_to_write;
 		u32 samples_written = 0;
 
+		u32 valid_samples = clip->samples;
+		if(!source->loop) {
+			valid_samples--;
+		}
+
 		while(samples_left_to_write) {
 			u32 samples_to_play = samples_left_to_write;
 
-			AudioVal64 samples_left_high = audio_val64((f32)(clip->samples - source->sample_pos.int_part) / pitch);
+			AudioVal64 samples_left_high = audio_val64((f32)(valid_samples - source->sample_pos.int_part) / pitch);
 			AudioVal64 samples_left_low = audio_val64(source->sample_pos.frc_part / pitch);
 
 			u32 samples_left = samples_left_high.int_part - samples_left_low.int_part;
@@ -117,13 +122,13 @@ void audio_output_samples(AudioState * audio_state, i16 * sample_memory_ptr, u32
 			for(u32 i = 0; i < samples_to_play; i++) {
 				for(u32 ii = 0; ii < AUDIO_CHANNELS; ii++) {
 					u32 sample_index = source->sample_pos.int_part;
-					ASSERT(sample_index < clip->samples);
+					ASSERT(sample_index < valid_samples);
 
 					i16 sample_i16 = clip->sample_data[sample_index * 2 + ii];
 					f32 sample_f32 = audio_i16_to_f32(sample_i16);
 
 					u32 next_sample_index = sample_index + 1;
-					ASSERT(next_sample_index < (clip->samples + AUDIO_PADDING_SAMPLES));
+					ASSERT(next_sample_index < (valid_samples + AUDIO_PADDING_SAMPLES));
 
 					i16 next_sample_i16 = clip->sample_data[next_sample_index * 2 + ii];
 					f32 next_sample_f32 = audio_i16_to_f32(next_sample_i16);
@@ -159,9 +164,9 @@ void audio_output_samples(AudioState * audio_state, i16 * sample_memory_ptr, u32
 			}
 
 			samples_left_to_write -= samples_to_play;
-			if(source->sample_pos.int_part >= clip->samples) {
+			if(source->sample_pos.int_part >= valid_samples) {
 				if(source->loop) {
-					source->sample_pos.int_part -= clip->samples;
+					source->sample_pos.int_part -= valid_samples;
 				}
 				else {
 					samples_left_to_write = 0;
@@ -169,7 +174,7 @@ void audio_output_samples(AudioState * audio_state, i16 * sample_memory_ptr, u32
 			}
 		}
 
-		if(source->sample_pos.int_part >= clip->samples && !source->loop) {
+		if(source->sample_pos.int_part >= valid_samples && !source->loop) {
 			*source_ptr = source->next;
 			source->next = audio_state->source_free_list;
 			audio_state->source_free_list = source;

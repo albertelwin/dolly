@@ -396,9 +396,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			AudioClipId clip_id = AudioClipId_pickup;
 			AudioClip * clip = get_audio_clip(&game_state->asset_state, clip_id, math::rand_i32() % get_audio_clip_count(&game_state->asset_state, clip_id));
 			AudioSource * source = play_audio_clip(&game_state->audio_state, clip);
-
-			f32 pitch = math::lerp(0.9f, 1.1f, math::rand_f32());
-			change_pitch(source, pitch);
+			change_pitch(source, math::lerp(0.9f, 1.1f, math::rand_f32()));
 
 			game_state->score++;
 		}
