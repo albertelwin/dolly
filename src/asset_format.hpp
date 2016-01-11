@@ -39,6 +39,10 @@ enum SpriteId {
 	SpriteId_count,
 };
 
+#define AUDIO_CLIP_SAMPLES_PER_SECOND 48000
+#define AUDIO_PADDING_SAMPLES 1
+#define AUDIO_CHANNELS 2
+
 enum AudioClipId {
 	AudioClipId_sin_440,
 	AudioClipId_beep,
@@ -56,7 +60,7 @@ struct AssetPackHeader {
 	u32 clip_count;
 };
 
-struct TextureAsset {
+struct TextureInfo {
 	TextureId id;
 	TextureSampling sampling;
 
@@ -65,15 +69,18 @@ struct TextureAsset {
 	u32 sub_tex_count;
 };
 
-struct SpriteAsset {
+struct SpriteInfo {
 	SpriteId id;
 
 	math::Vec2 dim;
 	math::Vec2 tex_coords[2];
 };
 
-struct AudioClipAsset {
+struct AudioClipInfo {
+	AudioClipId id;
 
+	u32 samples;
+	u32 size;
 };
 #pragma pack(pop)
 

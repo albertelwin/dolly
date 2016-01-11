@@ -9,14 +9,48 @@
 
 #include <asset_format.hpp>
 
+#define PACK_RIFF_CODE(x, y, z, w) ((u32)(x) << 0) | ((u32)(y) << 8) | ((u32)(z) << 16) | ((u32)(w) << 24)
+enum RiffCode {
+	RiffCode_RIFF = PACK_RIFF_CODE('R', 'I', 'F', 'F'),
+	RiffCode_WAVE = PACK_RIFF_CODE('W', 'A', 'V', 'E'),
+	RiffCode_fmt = PACK_RIFF_CODE('f', 'm', 't', ' '),
+	RiffCode_data = PACK_RIFF_CODE('d', 'a', 't', 'a'),
+};
+
+#pragma pack(push, 1)
+struct WavHeader {
+	u32 riff_id;
+	u32 size;
+	u32 wave_id;
+};
+
+struct WavChunkHeader {
+	u32 id;
+	u32 size;
+};
+
+struct WavFormat {
+	u16 tag;
+	u16 channels;
+	u32 samples_per_second;
+	u32 avg_bytes_per_second;
+	u16 block_align;
+	u16 bits_per_sample;
+	u16 extension_size;
+	u16 valid_bits_per_sample;
+	u32 channel_mask;
+	u8 guid[16];
+};
+#pragma pack(pop)
+
 struct Texture {
 	TextureId id;
 
-	u32 size;
-	u8 * ptr;
-
 	u32 width;
 	u32 height;
+
+	u32 size;
+	u8 * ptr;
 
 	u32 x;
 	u32 y;
@@ -36,6 +70,15 @@ struct LoadReq {
 struct LoadReqArray {
 	u32 count;
 	LoadReq array[128];
+};
+
+struct AudioClip {
+	AudioClipId id;
+
+	u32 samples;
+
+	u32 size;
+	i16 * ptr;
 };
 
 void push_req(LoadReqArray * reqs, char * file_name, SpriteId id) {
@@ -82,13 +125,13 @@ Texture load_texture(char const * file_name, TextureId id, TextureSampling filte
 
 Texture allocate_texture(u32 width, u32 height) {
 	Texture tex = {};
-	tex.size = width * height * TEXTURE_CHANNELS;
-	tex.ptr = (u8 *)malloc(tex.size);
 	tex.width = width;
 	tex.height = height;
+	tex.size = tex.width * tex.height * TEXTURE_CHANNELS;
+	tex.ptr = ALLOC_ARRAY(u8, tex.size);
 
-	for(u32 y = 0, i = 0; y < height; y++) {
-		for(u32 x = 0; x < width; x++, i += 4) {
+	for(u32 y = 0, i = 0; y < tex.height; y++) {
+		for(u32 x = 0; x < tex.width; x++, i += 4) {
 			tex.ptr[i + 0] = 0;
 			tex.ptr[i + 1] = 0;
 			tex.ptr[i + 2] = 0;
@@ -177,9 +220,56 @@ Blit blit_texture(Texture * dst, Texture * src) {
 	return result;
 }
 
+AudioClip load_audio_clip(char const * file_name, AudioClipId id) {
+	AudioClip clip = {};
+	clip.id = id;
+
+	FileBuffer file_buffer = read_file_to_memory(file_name);
+
+	WavHeader * wav_header = (WavHeader *)file_buffer.ptr;
+	ASSERT(wav_header->riff_id == RiffCode_RIFF);
+	ASSERT(wav_header->wave_id == RiffCode_WAVE);
+
+	WavChunkHeader * wav_format_header = (WavChunkHeader *)((u8 *)wav_header + sizeof(WavHeader));
+	ASSERT(wav_format_header->id == RiffCode_fmt);
+
+	WavFormat * wav_format = (WavFormat *)((u8 *)wav_format_header + sizeof(WavChunkHeader));
+	ASSERT(wav_format->channels <= AUDIO_CHANNELS);
+	ASSERT(wav_format->samples_per_second == AUDIO_CLIP_SAMPLES_PER_SECOND);
+	ASSERT((wav_format->bits_per_sample / 8) == sizeof(i16));
+
+	WavChunkHeader * wav_data_header = (WavChunkHeader *)((u8 *)wav_format_header + sizeof(WavChunkHeader) + wav_format_header->size);
+	ASSERT(wav_data_header->id == RiffCode_data);
+
+	i16 * wav_data = (i16 *)((u8 *)wav_data_header + sizeof(WavChunkHeader));
+
+	clip.samples = wav_data_header->size / (wav_format->channels * sizeof(i16));
+	u32 samples_with_padding = clip.samples + AUDIO_PADDING_SAMPLES;
+
+	clip.size = samples_with_padding * sizeof(i16) * AUDIO_CHANNELS; 
+	clip.ptr = ALLOC_ARRAY(i16, samples_with_padding * AUDIO_CHANNELS);
+	if(wav_format->channels == 2) {
+		for(u32 i = 0; i < samples_with_padding * 2; i++) {
+			clip.ptr[i] = wav_data[i % (clip.samples * 2)];
+		}
+	}
+	else {
+		for(u32 i = 0, sample_index = 0; i < samples_with_padding; i++) {
+			i16 sample = wav_data[i % clip.samples];
+			clip.ptr[sample_index++] = sample;
+			clip.ptr[sample_index++] = sample;
+		}
+	}
+
+	free(file_buffer.ptr);
+
+	return clip;
+}
+
 int main() {
 	AssetPackHeader asset_pack = {};
 	asset_pack.tex_count = 1;
+	asset_pack.clip_count = 0;
 
 	LoadReqArray reqs = {};
 
@@ -195,15 +285,15 @@ int main() {
 	push_req(&reqs, "dolly.png", SpriteId_dolly);
 	push_req(&reqs, "teacup.png", SpriteId_teacup);
 
-	TextureAsset tex_asset = {};
-	tex_asset.id = TextureId_atlas;
-	tex_asset.width = 512;
-	tex_asset.height = 512;
-	tex_asset.sub_tex_count = reqs.count;
+	TextureInfo tex_info = {};
+	tex_info.id = TextureId_atlas;
+	tex_info.width = 512;
+	tex_info.height = 512;
+	tex_info.sub_tex_count = reqs.count;
 
-	Texture atlas = allocate_texture(tex_asset.width, tex_asset.height);
+	Texture atlas = allocate_texture(tex_info.width, tex_info.height);
 
-	SpriteAsset * sprites = (SpriteAsset *)malloc(sizeof(SpriteAsset) * reqs.count);
+	SpriteInfo * sprites = ALLOC_ARRAY(SpriteInfo, reqs.count);
 	for(u32 i = 0; i < reqs.count; i++) {
 		LoadReq * req = reqs.array + i;
 
@@ -212,10 +302,10 @@ int main() {
 
 		Blit blit = blit_texture(&atlas, tex);
 
-		u32 tex_size = tex_asset.width;
+		u32 tex_size = tex_info.width;
 		f32 r_tex_size = 1.0f / (f32)tex_size;
 
-		SpriteAsset * sprite = sprites + i;
+		SpriteInfo * sprite = sprites + i;
 		sprite->id = req->id;
 		sprite->dim = math::vec2(blit.width, blit.height);
 		sprite->tex_coords[0] = math::vec2(blit.u, blit.v) * r_tex_size;
@@ -233,25 +323,51 @@ int main() {
 
 	asset_pack.tex_count += ARRAY_COUNT(reg_tex_array);
 
+	AudioClip clips[] = {
+		load_audio_clip("sin_440.wav", AudioClipId_sin_440),
+		load_audio_clip("woosh.wav", AudioClipId_woosh),
+		load_audio_clip("beep.wav", AudioClipId_beep),
+		load_audio_clip("pickup0.wav", AudioClipId_pickup),
+		load_audio_clip("pickup1.wav", AudioClipId_pickup),
+		load_audio_clip("pickup2.wav", AudioClipId_pickup),
+		load_audio_clip("explosion0.wav", AudioClipId_explosion),
+		load_audio_clip("explosion1.wav", AudioClipId_explosion),
+		load_audio_clip("music.wav", AudioClipId_music),
+	};
+
+	asset_pack.clip_count += ARRAY_COUNT(clips);
+
 	std::FILE * file_ptr = std::fopen("asset.pak", "wb");
 	ASSERT(file_ptr != 0);
 
 	std::fwrite(&asset_pack, sizeof(AssetPackHeader), 1, file_ptr);
-	std::fwrite(&tex_asset, sizeof(TextureAsset), 1, file_ptr);
-	std::fwrite(sprites, sizeof(SpriteAsset), reqs.count, file_ptr);
+	std::fwrite(&tex_info, sizeof(TextureInfo), 1, file_ptr);
+	std::fwrite(sprites, sizeof(SpriteInfo), reqs.count, file_ptr);
 	std::fwrite(atlas.ptr, atlas.size, 1, file_ptr);
 
 	for(u32 i = 0; i < ARRAY_COUNT(reg_tex_array); i++) {
 		Texture * tex = reg_tex_array + i;
 
-		TextureAsset header = {};
-		header.id = tex->id;
-		header.width = tex->width;
-		header.height = tex->height;
-		header.sub_tex_count = 0;
+		TextureInfo info = {};
+		info.id = tex->id;
+		info.width = tex->width;
+		info.height = tex->height;
+		info.sub_tex_count = 0;
 
-		std::fwrite(&header, sizeof(TextureAsset), 1, file_ptr);
+		std::fwrite(&info, sizeof(TextureInfo), 1, file_ptr);
 		std::fwrite(tex->ptr, tex->size, 1, file_ptr);
+	}
+
+	for(u32 i = 0; i < ARRAY_COUNT(clips); i++) {
+		AudioClip * clip = clips + i;
+
+		AudioClipInfo info = {};
+		info.id = clip->id;
+		info.samples = clip->samples;
+		info.size = clip->size;
+
+		std::fwrite(&info, sizeof(AudioClipInfo), 1, file_ptr);
+		std::fwrite(clip->ptr, clip->size, 1, file_ptr);
 	}
 
 	std::fclose(file_ptr);

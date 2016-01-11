@@ -232,6 +232,19 @@ void * push_memory_(MemoryPool * pool, size_t size) {
 	return ptr;
 }
 
+#define ALLOC_STRUCT(type) (type *)alloc_memory_(sizeof(type))
+#define ALLOC_ARRAY(type, length) (type *)alloc_memory_(sizeof(type) * length)
+#define ALLOC_MEMORY(size) alloc_memory_(size)
+void * alloc_memory_(size_t size) {
+	void * ptr = malloc(size);
+	return ptr;
+}
+
+#define FREE_MEMORY(ptr) free_memory_(ptr)
+void free_memory_(void * ptr) {
+	free(ptr);
+}
+
 void zero_memory(u8 * ptr, size_t size) {
 	for(u32 i = 0; i < size; i++) {
 		ptr[i] = 0;
@@ -261,7 +274,7 @@ FileBuffer read_file_to_memory(char const * file_name) {
 	buf.size = (size_t)std::ftell(file_ptr);
 	std::rewind(file_ptr);
 
-	buf.ptr = (u8 *)malloc(buf.size);
+	buf.ptr = ALLOC_ARRAY(u8, buf.size);
 	size_t read_result = std::fread(buf.ptr, 1, buf.size, file_ptr);
 	ASSERT(read_result == buf.size);
 
