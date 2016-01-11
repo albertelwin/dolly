@@ -191,9 +191,9 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		AudioState * audio_state = &game_state->audio_state;
 		load_audio(audio_state, &game_state->memory_pool, &game_state->asset_state, game_input->audio_supported);
-		// audio_state->master_volume = 0.0f;
+		audio_state->master_volume = 0.0f;
 
-		game_state->music = play_audio_clip(audio_state, AudioClipId_sin_440, true);
+		game_state->music = play_audio_clip(audio_state, AudioClipId_music, true);
 
 		Shader * basic_shader = &game_state->basic_shader;
 		u32 basic_vert = gl::compile_shader_from_source(BASIC_VERT_SRC, GL_VERTEX_SHADER);
@@ -396,7 +396,9 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			AudioClipId clip_id = AudioClipId_pickup;
 			AudioClip * clip = get_audio_clip(&game_state->asset_state, clip_id, math::rand_i32() % get_audio_clip_count(&game_state->asset_state, clip_id));
 			AudioSource * source = play_audio_clip(&game_state->audio_state, clip);
-			change_pitch(source, math::lerp(0.9f, 1.1f, math::rand_f32()));
+
+			f32 pitch = math::lerp(0.9f, 1.1f, math::rand_f32());
+			change_pitch(source, pitch);
 
 			game_state->score++;
 		}

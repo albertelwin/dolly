@@ -5,7 +5,7 @@ AudioClip * get_audio_clip(AssetState * assets, AudioClipId clip_id, u32 index) 
 	AudioClip * clip = 0;
 
 	AudioClipGroup * clip_group = assets->clip_groups + clip_id;
-	if(clip_group->index) {
+	if(clip_group->count) {
 		u32 clip_index = clip_group->index + index;
 		clip = assets->clips + clip_index;
 	}
@@ -56,26 +56,23 @@ void load_assets(AssetState * assets, MemoryPool * pool) {
 		file_ptr = tex_ptr + tex_size;
 	}
 
-	std::printf("LOG: %u\n", pack->clip_count);
-
-	assets->clip_count = 0;
+	assets->clip_count = pack->clip_count;
 	assets->clips = PUSH_ARRAY(assets->memory_pool, AudioClip, pack->clip_count);
-	for(u32 i = 0; i < pack->clip_count; i++) {
+
+	for(u32 i = 0; i < assets->clip_count; i++) {
 		AudioClipInfo * info = (AudioClipInfo *)file_ptr;
 
 		AudioClipGroup * clip_group = assets->clip_groups + info->id;
-
-		u32 clip_index = assets->clip_count++;
 		if(!clip_group->index) {
 			ASSERT(clip_group->count == 0);
-			clip_group->index = clip_index;
+			clip_group->index = i;
 		}
 		else {
 			//NOTE: Clip variations must be added sequentially!!
-			ASSERT((clip_index - clip_group->index) == clip_group->count);
+			ASSERT((i - clip_group->index) == clip_group->count);
 		}
 
-		AudioClip * clip = assets->clips + clip_index;
+		AudioClip * clip = assets->clips + i;
 		clip->samples = info->samples;
 		clip->sample_data = (i16 *)(info + 1);
 
