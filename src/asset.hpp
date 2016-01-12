@@ -14,11 +14,15 @@ struct AudioClip {
 	i16 * sample_data;
 };
 
-//TODO: Turn this into a X macro!!
 enum AssetType {
-	AssetType_texture,
-	AssetType_sprite,
-	AssetType_audio_clip,
+#define ASSET_TYPE_NAME_STRUCT_X	\
+	X(texture, gl::Texture)			\
+	X(sprite, Sprite)				\
+	X(audio_clip, AudioClip)
+
+#define X(NAME, STRUCT) AssetType_##NAME,
+	ASSET_TYPE_NAME_STRUCT_X
+#undef X
 
 	AssetType_count,
 };
@@ -27,9 +31,9 @@ struct Asset {
 	AssetType type;
 
 	union {
-		gl::Texture texture;
-		Sprite sprite;
-		AudioClip audio_clip;
+#define X(NAME, STRUCT) STRUCT NAME;
+	ASSET_TYPE_NAME_STRUCT_X
+#undef X
 	};
 };
 

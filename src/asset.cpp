@@ -14,21 +14,20 @@ Asset * get_asset(AssetState * assets, AssetId id, u32 index) {
 	return asset;
 }
 
-#define META_GET_ASSET_FUNC(TYPE, STRUCT)									\
-STRUCT * get_##TYPE##_asset(AssetState * assets, AssetId id, u32 index) {	\
-	STRUCT * TYPE = 0;														\
+#define X(NAME, STRUCT)														\
+STRUCT * get_##NAME##_asset(AssetState * assets, AssetId id, u32 index) {	\
+	STRUCT * NAME = 0;														\
 																			\
 	Asset * asset = get_asset(assets, id, index);							\
 	if(asset) {																\
-		ASSERT(asset->type == AssetType_##TYPE);							\
-		TYPE = &asset->TYPE;												\
+		ASSERT(asset->type == AssetType_##NAME);							\
+		NAME = &asset->NAME;												\
 	}																		\
 																			\
-	return TYPE;															\
+	return NAME;															\
 }
-META_GET_ASSET_FUNC(texture, gl::Texture)
-META_GET_ASSET_FUNC(sprite, Sprite)
-META_GET_ASSET_FUNC(audio_clip, AudioClip)
+	ASSET_TYPE_NAME_STRUCT_X
+#undef X
 
 u32 get_asset_count(AssetState * assets, AssetId id) {
 	AssetGroup * group = assets->asset_groups + id;
