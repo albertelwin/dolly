@@ -177,16 +177,21 @@ Blit blit_texture(Texture * dst, Texture * src) {
 		}
 	}
 
-	u32 width = max_x - min_x;
-	u32 height = max_y - min_y;
+	u32 width = (max_x + 1) - min_x;
+	u32 height = (max_y + 1) - min_y;
 	ASSERT(width > 0 && height > 0);
 
-	if((dst->x + width) > dst->width) {
-		dst->x = 0;
+	u32 pad = TEXTURE_PADDING_PIXELS;
+	u32 pad_2 = pad * 2;
+
+	ASSERT((width + pad_2) <= dst->width);
+
+	if((dst->x + width + pad) > dst->width) {
+		dst->x = pad;
 		dst->y = dst->safe_y;
 	}
 
-	ASSERT((dst->y + height <= dst->height));
+	ASSERT((dst->y + height + pad) <= dst->height);
 
 	for(u32 y = 0; y < height; y++) {
 		for(u32 x = 0; x < width; x++) {
@@ -201,23 +206,20 @@ Blit blit_texture(Texture * dst, Texture * src) {
 	}
 
 	Blit result = {};
-	result.u = dst->x;
-	result.v = dst->y;
-	result.width = width;
-	result.height = height;
+	result.u = dst->x - pad;
+	result.v = dst->y - pad;
+	result.width = width + pad_2;
+	result.height = height + pad_2;
 
-	//NOTE: 1px padding for bilinear filter!!
-	u32 pad = 1;
-
-	u32 y = dst->y + height + pad;
+	u32 y = dst->y + height + pad_2;
 	if(y > dst->safe_y) {
 		dst->safe_y = y;
 	}
 
-	dst->x += width + pad;
+	dst->x += width + pad_2;
 	ASSERT(dst->x <= dst->width);
 	if(dst->x >= dst->width) {
-		dst->x = 0;
+		dst->x = pad;
 		dst->y = dst->safe_y;
 	}
 
@@ -287,17 +289,18 @@ int main() {
 	push_req(&reqs, "dolly6.png", SpriteId_null);
 	push_req(&reqs, "dolly7.png", SpriteId_null);
 
-	push_req(&reqs, "dolly.png", SpriteId_dolly);
 	push_req(&reqs, "teacup.png", SpriteId_teacup);
+	push_req(&reqs, "dolly.png", SpriteId_dolly);
 
-
-	Texture atlas = allocate_texture(512, 512, TextureId_atlas);
+	Texture atlas = allocate_texture(512, 512, TextureId_atlas, TextureSampling_bilinear);
+	atlas.x = TEXTURE_PADDING_PIXELS;
+	atlas.y = atlas.safe_y = TEXTURE_PADDING_PIXELS;
 
 	TextureInfo tex_info = {};
 	tex_info.id = atlas.id;
 	tex_info.sampling = atlas.sampling;
-	tex_info.width = 512;
-	tex_info.height = 512;
+	tex_info.width = atlas.width;
+	tex_info.height = atlas.height;
 	tex_info.sub_tex_count = reqs.count;
 
 	SpriteInfo * sprites = ALLOC_ARRAY(SpriteInfo, reqs.count);

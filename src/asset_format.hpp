@@ -5,6 +5,7 @@
 #include <math.hpp>
 
 #define TEXTURE_CHANNELS 4
+#define TEXTURE_PADDING_PIXELS 1
 
 enum TextureId {
 	TextureId_null,

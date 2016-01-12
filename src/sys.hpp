@@ -272,9 +272,6 @@ void * push_memory_(MemoryPool * pool, size_t size) {
 	
 	void * ptr = pool->base_address + pool->used;
 	pool->used += size;
-
-	std::printf("LOG: %u\n", pool->used);
-
 	return ptr;
 }
 
