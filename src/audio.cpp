@@ -42,8 +42,8 @@ AudioSource * play_audio_clip(AudioState * audio_state, AudioClip * clip, b32 lo
 	return source;
 }
 
-AudioSource * play_audio_clip(AudioState * audio_state, AudioClipId clip_id, b32 loop = false) {
-	AudioClip * clip = get_audio_clip(audio_state->assets, clip_id, 0);
+AudioSource * play_audio_clip(AudioState * audio_state, AssetId clip_id, b32 loop = false) {
+	AudioClip * clip = get_audio_clip_asset(audio_state->assets, clip_id, 0);
 	return play_audio_clip(audio_state, clip, loop);
 }
 

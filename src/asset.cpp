@@ -90,27 +90,62 @@ MemoryPtr load_and_decompress_zip_file(char const * file_name) {
 	return {};
 }
 
-AudioClip * get_audio_clip(AssetState * assets, AudioClipId clip_id, u32 index) {
-	AudioClip * clip = 0;
+Asset * get_asset(AssetState * assets, AssetId id, u32 index) {
+	Asset * asset = 0;
 
-	AudioClipGroup * clip_group = assets->clip_groups + clip_id;
-	if(clip_group->count) {
-		u32 clip_index = clip_group->index + index;
-		clip = assets->clips + clip_index;
+	AssetGroup * group = assets->asset_groups + id;
+	if(group->count && index < group->count) {
+		asset = assets->assets + group->index + index;
 	}
 
-	return clip;
+	return asset;
 }
 
-u32 get_audio_clip_count(AssetState * assets, AudioClipId clip_id) {
-	AudioClipGroup * clip_group = assets->clip_groups + clip_id;
-	return clip_group->count;
+#define META_GET_ASSET_FUNC(TYPE, STRUCT)									\
+STRUCT * get_##TYPE##_asset(AssetState * assets, AssetId id, u32 index) {	\
+	STRUCT * TYPE = 0;														\
+																			\
+	Asset * asset = get_asset(assets, id, index);							\
+	if(asset) {																\
+		ASSERT(asset->type == AssetType_##TYPE);							\
+		TYPE = &asset->TYPE;												\
+	}																		\
+																			\
+	return TYPE;															\
+}
+META_GET_ASSET_FUNC(texture, gl::Texture)
+META_GET_ASSET_FUNC(sprite, Sprite)
+META_GET_ASSET_FUNC(audio_clip, AudioClip)
+
+u32 get_asset_count(AssetState * assets, AssetId id) {
+	AssetGroup * group = assets->asset_groups + id;
+	return group->count;
+}
+
+Asset * push_asset(AssetState * assets, AssetId id, AssetType type) {
+	u32 index = assets->asset_count++;
+
+	AssetGroup * group = assets->asset_groups + id;
+	if(!group->count) {
+		ASSERT(group->count == 0);
+		group->index = index;
+	}
+	else {
+		//NOTE: Asset variations must be added sequentially!!
+		ASSERT((index - group->index) == group->count);
+	}
+
+	group->count++;
+
+	Asset * asset = assets->assets + index;
+	asset->type = type;
+	return asset;
 }
 
 void load_assets(AssetState * assets, MemoryPool * pool) {
 	assets->memory_pool = pool;
 
-	load_and_decompress_zip_file("asset.zip");
+	// load_and_decompress_zip_file("asset.zip");
 
 	MemoryPtr file_buf = read_file_to_memory("asset.pak");
 	u8 * file_ptr = file_buf.ptr;
@@ -118,17 +153,19 @@ void load_assets(AssetState * assets, MemoryPool * pool) {
 	AssetPackHeader * pack = (AssetPackHeader *)file_ptr;
 	file_ptr += sizeof(AssetPackHeader);
 
-	for(u32 i = 0; i < pack->tex_count; i++) {
+	assets->assets = PUSH_ARRAY(assets->memory_pool, Asset, pack->asset_count);
+ 
+	for(u32 i = 0; i < pack->texture_count; i++) {
 		TextureInfo * tex_info = (TextureInfo *)file_ptr;
 
 		SpriteInfo * sprite_info_arr = (SpriteInfo *)(tex_info + 1);
 		for(u32 i = 0; i < tex_info->sub_tex_count; i++) {
-			SpriteInfo * asset = sprite_info_arr + i;
+			SpriteInfo * info = sprite_info_arr + i;
 
-			Sprite * sprite = assets->sprites + asset->id;
-			sprite->dim = asset->dim;
-			sprite->tex_coords[0] = asset->tex_coords[0];
-			sprite->tex_coords[1] = asset->tex_coords[1];
+			Asset * asset = push_asset(assets, info->id, AssetType_sprite);
+			asset->sprite.dim = info->dim;
+			asset->sprite.tex_coords[0] = info->tex_coords[0];
+			asset->sprite.tex_coords[1] = info->tex_coords[1];
 		}		
 
 		u32 tex_size = tex_info->width * tex_info->height * TEXTURE_CHANNELS;
@@ -142,32 +179,18 @@ void load_assets(AssetState * assets, MemoryPool * pool) {
 			ASSERT(tex_info->sampling == TextureSampling_bilinear);
 		}
 
-		assets->textures[tex_info->id] = gl::create_texture(tex_ptr, tex_info->width, tex_info->height, GL_RGBA, filter, GL_CLAMP_TO_EDGE);
+		Asset * asset = push_asset(assets, tex_info->id, AssetType_texture);
+		asset->texture = gl::create_texture(tex_ptr, tex_info->width, tex_info->height, GL_RGBA, filter, GL_CLAMP_TO_EDGE);
 
 		file_ptr = tex_ptr + tex_size;
 	}
 
-	assets->clip_count = pack->clip_count;
-	assets->clips = PUSH_ARRAY(assets->memory_pool, AudioClip, pack->clip_count);
-
-	for(u32 i = 0; i < assets->clip_count; i++) {
+	for(u32 i = 0; i < pack->clip_count; i++) {
 		AudioClipInfo * info = (AudioClipInfo *)file_ptr;
 
-		AudioClipGroup * clip_group = assets->clip_groups + info->id;
-		if(!clip_group->index) {
-			ASSERT(clip_group->count == 0);
-			clip_group->index = i;
-		}
-		else {
-			//NOTE: Clip variations must be added sequentially!!
-			ASSERT((i - clip_group->index) == clip_group->count);
-		}
-
-		AudioClip * clip = assets->clips + i;
-		clip->samples = info->samples;
-		clip->sample_data = (i16 *)(info + 1);
-
-		clip_group->count++;
+		Asset * asset = push_asset(assets, info->id, AssetType_audio_clip);
+		asset->audio_clip.samples = info->samples;
+		asset->audio_clip.sample_data = (i16 *)(info + 1);
 
 		file_ptr += sizeof(AudioClipInfo) + info->size;
 	}

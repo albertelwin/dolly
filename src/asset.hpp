@@ -14,8 +14,26 @@ struct AudioClip {
 	i16 * sample_data;
 };
 
-//TOOD: Asset groups!!
-struct AudioClipGroup {
+//TODO: Turn this into a X macro!!
+enum AssetType {
+	AssetType_texture,
+	AssetType_sprite,
+	AssetType_audio_clip,
+
+	AssetType_count,
+};
+
+struct Asset {
+	AssetType type;
+
+	union {
+		gl::Texture texture;
+		Sprite sprite;
+		AudioClip audio_clip;
+	};
+};
+
+struct AssetGroup {
 	u32 index;
 	u32 count;
 };
@@ -23,12 +41,9 @@ struct AudioClipGroup {
 struct AssetState {
 	MemoryPool * memory_pool;
 
-	gl::Texture textures[TextureId_count];
-	Sprite sprites[SpriteId_count];
-
-	u32 clip_count;
-	AudioClip * clips;
-	AudioClipGroup clip_groups[AudioClipId_count];
+	u32 asset_count;
+	Asset * assets;
+	AssetGroup asset_groups[AssetId_count];
 };
 
 #endif

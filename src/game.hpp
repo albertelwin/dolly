@@ -32,22 +32,6 @@ struct RenderBatch {
 // 	f32 anim_time;
 // };
 
-enum EntityRenderTypeId {
-	EntityRenderTypeId_texture,
-	EntityRenderTypeId_sprite,
-
-	EntityRenderTypeId_count,
-};
-
-struct EntityTextureBasedRenderer {
-	TextureId id;
-	gl::VertexBuffer * v_buf;
-};
-
-struct EntitySpriteBasedRenderer {
-	SpriteId id;
-};
-
 struct Entity {
 	math::Vec3 pos;
 	math::Vec2 scale;
@@ -55,18 +39,16 @@ struct Entity {
 
 	math::Vec4 color;
 
-	//TODO: Should these just be separate entity types??
-	EntityRenderTypeId render_type;
-	union {
-		EntityTextureBasedRenderer tex;
-		EntitySpriteBasedRenderer sprite;
-	};
+	AssetType asset_type;
+	AssetId asset_id;
+	u32 asset_index;
+
+	gl::VertexBuffer * v_buf;
 };
 
 struct Player {
 	Entity * e;
 
-	Sprite * sprite;
 	f32 initial_x;
 };
 

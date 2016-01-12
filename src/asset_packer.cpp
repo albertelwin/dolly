@@ -44,11 +44,11 @@ struct WavFormat {
 #pragma pack(pop)
 
 struct Texture {
-	TextureId id;
-	TextureSampling sampling;
+	AssetId id;
 
 	u32 width;
 	u32 height;	
+	TextureSampling sampling;
 
 	u32 size;
 	u8 * ptr;
@@ -65,7 +65,7 @@ struct TexCoord {
 
 struct LoadReq {
 	char * file_name;
-	SpriteId id;
+	AssetId id;
 };
 
 struct LoadReqArray {
@@ -74,7 +74,7 @@ struct LoadReqArray {
 };
 
 struct AudioClip {
-	AudioClipId id;
+	AssetId id;
 
 	u32 samples;
 
@@ -82,7 +82,7 @@ struct AudioClip {
 	i16 * ptr;
 };
 
-void push_req(LoadReqArray * reqs, char * file_name, SpriteId id) {
+void push_req(LoadReqArray * reqs, char * file_name, AssetId id) {
 	ASSERT(reqs->count < (ARRAY_COUNT(reqs->array) - 1));
 
 	LoadReq * req = reqs->array + reqs->count++;
@@ -90,7 +90,7 @@ void push_req(LoadReqArray * reqs, char * file_name, SpriteId id) {
 	req->id = id;
 }
 
-Texture load_texture(char const * file_name, TextureId id, TextureSampling sampling = TextureSampling_bilinear) {
+Texture load_texture(char const * file_name, AssetId id, TextureSampling sampling = TextureSampling_bilinear) {
 	stbi_set_flip_vertically_on_load(true);
 
 	i32 width, height, channels;
@@ -99,9 +99,9 @@ Texture load_texture(char const * file_name, TextureId id, TextureSampling sampl
 
 	Texture tex = {};
 	tex.id = id;
-	tex.sampling = sampling;
 	tex.width = (u32)width;
 	tex.height = (u32)height;	
+	tex.sampling = sampling;
 
 	//NOTE: Premultiplied alpha!!
 	f32 r_255 = 1.0f / 255.0f;
@@ -125,12 +125,12 @@ Texture load_texture(char const * file_name, TextureId id, TextureSampling sampl
 	return tex;
 }
 
-Texture allocate_texture(u32 width, u32 height, TextureId id, TextureSampling sampling = TextureSampling_bilinear) {
+Texture allocate_texture(u32 width, u32 height, AssetId id, TextureSampling sampling = TextureSampling_bilinear) {
 	Texture tex = {};
 	tex.id = id;
-	tex.sampling = sampling;
 	tex.width = width;
 	tex.height = height;
+	tex.sampling = sampling;
 	tex.size = tex.width * tex.height * TEXTURE_CHANNELS;
 	tex.ptr = ALLOC_ARRAY(u8, tex.size);
 
@@ -226,7 +226,7 @@ Blit blit_texture(Texture * dst, Texture * src) {
 	return result;
 }
 
-AudioClip load_audio_clip(char const * file_name, AudioClipId id) {
+AudioClip load_audio_clip(char const * file_name, AssetId id) {
 	AudioClip clip = {};
 	clip.id = id;
 
@@ -275,24 +275,22 @@ AudioClip load_audio_clip(char const * file_name, AudioClipId id) {
 
 int main() {
 	AssetPackHeader asset_pack = {};
-	asset_pack.tex_count = 1;
-	asset_pack.clip_count = 0;
 
 	LoadReqArray reqs = {};
 
-	push_req(&reqs, "dolly0.png", SpriteId_null);
-	push_req(&reqs, "dolly1.png", SpriteId_null);
-	push_req(&reqs, "dolly2.png", SpriteId_null);
-	push_req(&reqs, "dolly3.png", SpriteId_null);
-	push_req(&reqs, "dolly4.png", SpriteId_null);
-	push_req(&reqs, "dolly5.png", SpriteId_null);
-	push_req(&reqs, "dolly6.png", SpriteId_null);
-	push_req(&reqs, "dolly7.png", SpriteId_null);
+	push_req(&reqs, "dolly.png", AssetId_dolly);
+	push_req(&reqs, "dolly0.png", AssetId_dolly);
+	push_req(&reqs, "dolly1.png", AssetId_dolly);
+	push_req(&reqs, "dolly2.png", AssetId_dolly);
+	push_req(&reqs, "dolly3.png", AssetId_dolly);
+	push_req(&reqs, "dolly4.png", AssetId_dolly);
+	push_req(&reqs, "dolly5.png", AssetId_dolly);
+	push_req(&reqs, "dolly6.png", AssetId_dolly);
+	push_req(&reqs, "dolly7.png", AssetId_dolly);
 
-	push_req(&reqs, "teacup.png", SpriteId_teacup);
-	push_req(&reqs, "dolly.png", SpriteId_dolly);
+	push_req(&reqs, "teacup.png", AssetId_teacup);
 
-	Texture atlas = allocate_texture(512, 512, TextureId_atlas, TextureSampling_bilinear);
+	Texture atlas = allocate_texture(512, 512, AssetId_atlas, TextureSampling_bilinear);
 	atlas.x = TEXTURE_PADDING_PIXELS;
 	atlas.y = atlas.safe_y = TEXTURE_PADDING_PIXELS;
 
@@ -302,12 +300,13 @@ int main() {
 	tex_info.width = atlas.width;
 	tex_info.height = atlas.height;
 	tex_info.sub_tex_count = reqs.count;
+	asset_pack.texture_count++;
 
 	SpriteInfo * sprites = ALLOC_ARRAY(SpriteInfo, reqs.count);
 	for(u32 i = 0; i < reqs.count; i++) {
 		LoadReq * req = reqs.array + i;
 
-		Texture tex_ = load_texture(req->file_name, TextureId_null);
+		Texture tex_ = load_texture(req->file_name, AssetId_null);
 		Texture * tex = &tex_;
 
 		Blit blit = blit_texture(&atlas, tex);
@@ -320,32 +319,34 @@ int main() {
 		sprite->dim = math::vec2(blit.width, blit.height);
 		sprite->tex_coords[0] = math::vec2(blit.u, blit.v) * r_tex_size;
 		sprite->tex_coords[1] = math::vec2(blit.u + blit.width, blit.v + blit.height) * r_tex_size;
+		asset_pack.sprite_count++;
 	}
 
 	Texture reg_tex_array[] = {
-		load_texture("font.png", TextureId_font, TextureSampling_point),
+		load_texture("font.png", AssetId_font, TextureSampling_point),
 
-		load_texture("bg_layer0.png", TextureId_bg_layer0),
-		load_texture("bg_layer1.png", TextureId_bg_layer1),
-		load_texture("bg_layer2.png", TextureId_bg_layer2),
-		load_texture("bg_layer3.png", TextureId_bg_layer3),
+		load_texture("bg_layer0.png", AssetId_bg_layer),
+		load_texture("bg_layer1.png", AssetId_bg_layer),
+		load_texture("bg_layer2.png", AssetId_bg_layer),
+		load_texture("bg_layer3.png", AssetId_bg_layer),
 	};
 
-	asset_pack.tex_count += ARRAY_COUNT(reg_tex_array);
+	asset_pack.texture_count += ARRAY_COUNT(reg_tex_array);
 
 	AudioClip clips[] = {
-		load_audio_clip("sin_440.wav", AudioClipId_sin_440),
-		load_audio_clip("woosh.wav", AudioClipId_woosh),
-		load_audio_clip("beep.wav", AudioClipId_beep),
-		load_audio_clip("pickup0.wav", AudioClipId_pickup),
-		load_audio_clip("pickup1.wav", AudioClipId_pickup),
-		load_audio_clip("pickup2.wav", AudioClipId_pickup),
-		load_audio_clip("explosion0.wav", AudioClipId_explosion),
-		load_audio_clip("explosion1.wav", AudioClipId_explosion),
-		load_audio_clip("music.wav", AudioClipId_music),
+		load_audio_clip("sin_440.wav", AssetId_sin_440),
+		load_audio_clip("woosh.wav", AssetId_woosh),
+		load_audio_clip("beep.wav", AssetId_beep),
+		load_audio_clip("pickup0.wav", AssetId_pickup),
+		load_audio_clip("pickup1.wav", AssetId_pickup),
+		load_audio_clip("pickup2.wav", AssetId_pickup),
+		load_audio_clip("explosion0.wav", AssetId_explosion),
+		load_audio_clip("explosion1.wav", AssetId_explosion),
+		load_audio_clip("music.wav", AssetId_music),
 	};
 
 	asset_pack.clip_count += ARRAY_COUNT(clips);
+	asset_pack.asset_count = asset_pack.texture_count + asset_pack.sprite_count + asset_pack.clip_count;
 
 	std::FILE * file_ptr = std::fopen("asset.pak", "wb");
 	ASSERT(file_ptr != 0);
@@ -360,9 +361,9 @@ int main() {
 
 		TextureInfo info = {};
 		info.id = tex->id;
-		info.sampling = tex->sampling;
 		info.width = tex->width;
 		info.height = tex->height;
+		info.sampling = tex->sampling;
 		info.sub_tex_count = 0;
 
 		std::fwrite(&info, sizeof(TextureInfo), 1, file_ptr);
