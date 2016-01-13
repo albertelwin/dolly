@@ -81,7 +81,7 @@ struct TextureAtlas {
 	Texture tex;
 
 	u32 sprite_count;
-	SpriteInfo sprites[128];
+	AssetInfo sprites[128];
 };
 
 struct AssetPacker {
@@ -301,8 +301,12 @@ void push_packed_texture(AssetPacker * packer, AssetFile * files, u32 file_count
 
 		math::Rec2 sub_rec = math::rec2_min_dim(math::vec2(blit.min_x, blit.min_y), blit_dim);
 
-		SpriteInfo * sprite = atlas->sprites + atlas->sprite_count++;
-		sprite->id = file->id;
+		ASSERT(atlas->sprite_count < ARRAY_COUNT(atlas->sprites));
+		AssetInfo * info = atlas->sprites + atlas->sprite_count++;
+		info->id = file->id;
+		info->type = AssetType_sprite;
+
+		SpriteInfo * sprite = &info->sprite;
 		sprite->atlas_index = atlas_index;
 		sprite->dim = blit_dim;
 		sprite->tex_coords[0] = math::vec2(blit.u, blit.v) * r_tex_size;
@@ -310,8 +314,8 @@ void push_packed_texture(AssetPacker * packer, AssetFile * files, u32 file_count
 		sprite->offset = math::rec_centre(sub_rec) - tex_dim * 0.5f;
 	}
 
-	packer->header.texture_count++;
-	packer->header.sprite_count += atlas->sprite_count;
+	packer->header.asset_count++;
+	packer->header.asset_count += atlas->sprite_count;
 }
 
 void push_sprite_sheet(AssetPacker * packer, char const * file_name, AssetId sprite_id, u32 sprite_width, u32 sprite_height, u32 sprite_count) {
@@ -330,31 +334,31 @@ void push_sprite_sheet(AssetPacker * packer, char const * file_name, AssetId spr
 
 	for(u32 y = 0; y < sprites_in_col; y++) {
 		for(u32 x = 0; x < sprites_in_row; x++) {
-			ASSERT(atlas->sprite_count < ARRAY_COUNT(atlas->sprites));
-
-			SpriteInfo * sprite = atlas->sprites + atlas->sprite_count++;
-			sprite->id = sprite_id;
-			sprite->atlas_index = atlas_index;
-			sprite->dim = sprite_dim;
-
 			u32 u = x * sprite_width;
 			u32 v = y * sprite_height;
+
+			ASSERT(atlas->sprite_count < ARRAY_COUNT(atlas->sprites));
+			AssetInfo * info = atlas->sprites + atlas->sprite_count++;
+			info->id = sprite_id;
+			info->type = AssetType_sprite;
+
+			SpriteInfo * sprite = &info->sprite;
+			sprite->atlas_index = atlas_index;
+			sprite->dim = sprite_dim;
 			sprite->tex_coords[0] = math::vec2(u, tex_size - (v + sprite_height)) * r_tex_size;
 			sprite->tex_coords[1] = math::vec2(u + sprite_width, tex_size - v) * r_tex_size;
-
 			sprite->offset = math::vec2(0.0f, 0.0f);
 		}
 	}
 
 	atlas->sprite_count = sprite_count;
 
-	packer->header.texture_count++;
-	packer->header.sprite_count += atlas->sprite_count;
+	packer->header.asset_count++;
+	packer->header.asset_count += atlas->sprite_count;
 }
 
 int main() {
-	AssetPacker asset_packer = {};
-	AssetPackHeader * asset_pack = &asset_packer.header;
+	AssetPacker packer = {};
 
 	AssetFile sprite_files[] = {
 		{ AssetId_dolly, "dolly.png" },
@@ -370,8 +374,8 @@ int main() {
 		{ AssetId_teacup, "teacup.png" },
 	};
 
-	push_packed_texture(&asset_packer, sprite_files, ARRAY_COUNT(sprite_files));
-	push_sprite_sheet(&asset_packer, "sprite_sheet.png", AssetId_animation, 56, 156, 24);
+	push_packed_texture(&packer, sprite_files, ARRAY_COUNT(sprite_files));
+	push_sprite_sheet(&packer, "sprite_sheet.png", AssetId_animation, 56, 156, 24);
 
 	Texture reg_tex_array[] = {
 		load_texture("font.png", AssetId_font, TextureSampling_point),
@@ -382,7 +386,7 @@ int main() {
 		load_texture("bg_layer3.png", AssetId_bg_layer),
 	};
 
-	asset_pack->texture_count += ARRAY_COUNT(reg_tex_array);
+	packer.header.asset_count += ARRAY_COUNT(reg_tex_array);
 
 	AudioClip clips[] = {
 		load_audio_clip("sin_440.wav", AssetId_sin_440),
@@ -396,57 +400,59 @@ int main() {
 		load_audio_clip("music.wav", AssetId_music),
 	};
 
-	asset_pack->clip_count += ARRAY_COUNT(clips);
-	asset_pack->asset_count = asset_pack->texture_count + asset_pack->sprite_count + asset_pack->clip_count;
+	packer.header.asset_count += ARRAY_COUNT(clips);
 
 	std::FILE * file_ptr = std::fopen("asset.pak", "wb");
 	ASSERT(file_ptr != 0);
 
-	std::fwrite(asset_pack, sizeof(AssetPackHeader), 1, file_ptr);
+	std::fwrite(&packer.header, sizeof(AssetPackHeader), 1, file_ptr);
 
-	for(u32 i = 0; i < asset_packer.atlas_count; i++) {
-		TextureAtlas * atlas = asset_packer.atlases + i;
+	for(u32 i = 0; i < packer.atlas_count; i++) {
+		TextureAtlas * atlas = packer.atlases + i;
 		Texture * tex = &atlas->tex;
 
-		TextureInfo info = {};
+		AssetInfo info = {};
 		info.id = tex->id;
-		info.width = tex->width;
-		info.height = tex->height;
-		info.sampling = tex->sampling;
-		info.sub_tex_count = atlas->sprite_count;
+		info.type = AssetType_texture;
+		info.texture.width = tex->width;
+		info.texture.height = tex->height;
+		info.texture.sampling = tex->sampling;
+		info.texture.sub_tex_count = atlas->sprite_count;
 
-		std::fwrite(&info, sizeof(TextureInfo), 1, file_ptr);
+		std::fwrite(&info, sizeof(AssetInfo), 1, file_ptr);
 		std::fwrite(tex->ptr, tex->size, 1, file_ptr);
+	}
+
+	for(u32 i = 0; i < packer.atlas_count; i++) {
+		TextureAtlas * atlas = packer.atlases + i;
+		std::fwrite(atlas->sprites, sizeof(AssetInfo), atlas->sprite_count, file_ptr);
 	}
 
 	for(u32 i = 0; i < ARRAY_COUNT(reg_tex_array); i++) {
 		Texture * tex = reg_tex_array + i;
 
-		TextureInfo info = {};
+		AssetInfo info = {};
 		info.id = tex->id;
-		info.width = tex->width;
-		info.height = tex->height;
-		info.sampling = tex->sampling;
-		info.sub_tex_count = 0;
+		info.type = AssetType_texture;
+		info.texture.width = tex->width;
+		info.texture.height = tex->height;
+		info.texture.sampling = tex->sampling;
+		info.texture.sub_tex_count = 0;
 
-		std::fwrite(&info, sizeof(TextureInfo), 1, file_ptr);
+		std::fwrite(&info, sizeof(AssetInfo), 1, file_ptr);
 		std::fwrite(tex->ptr, tex->size, 1, file_ptr);
-	}
-
-	for(u32 i = 0; i < asset_packer.atlas_count; i++) {
-		TextureAtlas * atlas = asset_packer.atlases + i;
-		std::fwrite(atlas->sprites, sizeof(SpriteInfo), atlas->sprite_count, file_ptr);
 	}
 
 	for(u32 i = 0; i < ARRAY_COUNT(clips); i++) {
 		AudioClip * clip = clips + i;
 
-		AudioClipInfo info = {};
+		AssetInfo info = {};
 		info.id = clip->id;
-		info.samples = clip->samples;
-		info.size = clip->size;
+		info.type = AssetType_audio_clip;
+		info.audio_clip.samples = clip->samples;
+		info.audio_clip.size = clip->size;
 
-		std::fwrite(&info, sizeof(AudioClipInfo), 1, file_ptr);
+		std::fwrite(&info, sizeof(AssetInfo), 1, file_ptr);
 		std::fwrite(clip->ptr, clip->size, 1, file_ptr);
 	}
 

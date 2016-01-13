@@ -44,19 +44,25 @@ enum AssetId {
 	AssetId_count,
 };
 
+enum AssetType {
+#define ASSET_TYPE_NAME_STRUCT_X	\
+	X(texture, Texture)				\
+	X(sprite, Sprite)				\
+	X(audio_clip, AudioClip)
+
+#define X(NAME, STRUCT) AssetType_##NAME,
+	ASSET_TYPE_NAME_STRUCT_X
+#undef X
+
+	AssetType_count,
+};
+
 #pragma pack(push, 1)
 struct AssetPackHeader {
 	u32 asset_count;
-
-	//TODO: Remove these!!
-	u32 texture_count;
-	u32 sprite_count;
-	u32 clip_count;
 };
 
 struct TextureInfo {
-	AssetId id;
-
 	u32 width;
 	u32 height;
 
@@ -65,8 +71,6 @@ struct TextureInfo {
 };
 
 struct SpriteInfo {
-	AssetId id;
-
 	//TODO: Share this info!!
 	u32 atlas_index;
 	math::Vec2 dim;
@@ -75,11 +79,21 @@ struct SpriteInfo {
 };
 
 struct AudioClipInfo {
-	AssetId id;
-
 	u32 samples;
 	u32 size;
 };
+
+struct AssetInfo {
+	AssetId id;
+	AssetType type;
+
+	union {
+		TextureInfo texture;
+		SpriteInfo sprite;
+		AudioClipInfo audio_clip;
+	};
+};
+
 #pragma pack(pop)
 
 #endif

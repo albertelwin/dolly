@@ -67,49 +67,62 @@ void load_assets(AssetState * assets, MemoryPool * pool) {
 
 	assets->assets = PUSH_ARRAY(assets->memory_pool, Asset, pack->asset_count);
  
-	//TODO: Unify these loops!!
-	for(u32 i = 0; i < pack->texture_count; i++) {
-		TextureInfo * tex_info = (TextureInfo *)file_ptr;
+	for(u32 i = 0; i < pack->asset_count; i++) {
+		AssetInfo * asset_info = (AssetInfo *)file_ptr;
+		file_ptr += sizeof(AssetInfo);
 
-		u32 tex_size = tex_info->width * tex_info->height * TEXTURE_CHANNELS;
-		u8 * tex_ptr = (u8 *)(tex_info + 1);
+		switch(asset_info->type) {
+			case AssetType_texture: {
+				TextureInfo * info = &asset_info->texture;
 
-		i32 filter = GL_LINEAR;
-		if(tex_info->sampling == TextureSampling_point) {
-			filter = GL_NEAREST;
+				i32 filter = GL_LINEAR;
+				if(info->sampling == TextureSampling_point) {
+					filter = GL_NEAREST;
+				}
+				else {
+					ASSERT(info->sampling == TextureSampling_bilinear);
+				}
+
+				Asset * asset = push_asset(assets, asset_info->id, AssetType_texture);
+				asset->texture = gl::create_texture(file_ptr, info->width, info->height, GL_RGBA, filter, GL_CLAMP_TO_EDGE);
+
+				file_ptr += info->width * info->height * TEXTURE_CHANNELS;;
+
+				break;
+			}
+
+			case AssetType_sprite: {
+				SpriteInfo * info = &asset_info->sprite;
+
+				Asset * asset = push_asset(assets, asset_info->id, AssetType_sprite);
+				asset->sprite.atlas_index = info->atlas_index;
+				asset->sprite.dim = info->dim;
+				asset->sprite.tex_coords[0] = info->tex_coords[0];
+				asset->sprite.tex_coords[1] = info->tex_coords[1];
+				asset->sprite.offset = info->offset;
+
+				break;
+			}
+
+			case AssetType_audio_clip: {
+				AudioClipInfo * info = (AudioClipInfo *)file_ptr;
+
+				Asset * asset = push_asset(assets, asset_info->id, AssetType_audio_clip);
+				asset->audio_clip.samples = info->samples;
+				asset->audio_clip.sample_data = (i16 *)(info + 1);
+
+				file_ptr += info->size;
+
+				break;
+			}
+
+			default: {
+				ASSERT(!"Invalid asset type!!");
+				break;
+			}
 		}
-		else {
-			ASSERT(tex_info->sampling == TextureSampling_bilinear);
-		}
 
-		Asset * asset = push_asset(assets, tex_info->id, AssetType_texture);
-		asset->texture = gl::create_texture(tex_ptr, tex_info->width, tex_info->height, GL_RGBA, filter, GL_CLAMP_TO_EDGE);
-
-		file_ptr = tex_ptr + tex_size;
-	}
-
-	for(u32 i = 0; i < pack->sprite_count; i++) {
-		SpriteInfo * info = (SpriteInfo *)file_ptr;
-
-		Asset * asset = push_asset(assets, info->id, AssetType_sprite);
-		asset->sprite.atlas_index = info->atlas_index;
-		asset->sprite.dim = info->dim;
-		asset->sprite.tex_coords[0] = info->tex_coords[0];
-		asset->sprite.tex_coords[1] = info->tex_coords[1];
-		asset->sprite.offset = info->offset;
-
-		file_ptr += sizeof(SpriteInfo);
 	}
  
-	for(u32 i = 0; i < pack->clip_count; i++) {
-		AudioClipInfo * info = (AudioClipInfo *)file_ptr;
-
-		Asset * asset = push_asset(assets, info->id, AssetType_audio_clip);
-		asset->audio_clip.samples = info->samples;
-		asset->audio_clip.sample_data = (i16 *)(info + 1);
-
-		file_ptr += sizeof(AudioClipInfo) + info->size;
-	}
-
 	// free(file_buf.ptr);
 }

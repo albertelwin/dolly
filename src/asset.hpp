@@ -18,19 +18,6 @@ struct AudioClip {
 	i16 * sample_data;
 };
 
-enum AssetType {
-#define ASSET_TYPE_NAME_STRUCT_X	\
-	X(texture, Texture)				\
-	X(sprite, Sprite)				\
-	X(audio_clip, AudioClip)
-
-#define X(NAME, STRUCT) AssetType_##NAME,
-	ASSET_TYPE_NAME_STRUCT_X
-#undef X
-
-	AssetType_count,
-};
-
 struct Asset {
 	AssetType type;
 

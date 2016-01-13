@@ -34,6 +34,7 @@ struct RenderBatch {
 
 struct Entity {
 	math::Vec3 pos;
+	//TODO: Should scale simply be a multiplier??
 	math::Vec2 scale;
 	f32 rot;
 
@@ -66,6 +67,10 @@ struct TeacupEmitter {
 
 	u32 entity_count;
 	Teacup * entity_array[4];
+};
+
+struct Camera {
+	math::Vec2 pos;
 };
 
 enum ButtonId {
@@ -138,7 +143,6 @@ struct GameState {
 	u32 ideal_window_width;
 	u32 ideal_window_height;
 
-	math::Mat4 view_matrix;
 	math::Mat4 projection_matrix;
 
 	u32 sprite_batch_count;
@@ -147,12 +151,15 @@ struct GameState {
 	u32 entity_count;
 	Entity entity_array[64];
 
-	Entity * bg_layers[4];
+	u32 bg_layer_count;
+	Entity ** bg_layers;
 
 	Player player;
 	TeacupEmitter teacup_emitter;
 
 	Entity * animated_entity;
+
+	Camera camera;
 
 	f32 d_time;
 	u32 score;
