@@ -4,9 +4,13 @@
 
 #include <asset_format.hpp>
 
+typedef gl::Texture Texture;
+
 struct Sprite {
+	u32 atlas_index;
 	math::Vec2 dim;
 	math::Vec2 tex_coords[2];
+	math::Vec2 offset;
 };
 
 struct AudioClip {
@@ -16,7 +20,7 @@ struct AudioClip {
 
 enum AssetType {
 #define ASSET_TYPE_NAME_STRUCT_X	\
-	X(texture, gl::Texture)			\
+	X(texture, Texture)				\
 	X(sprite, Sprite)				\
 	X(audio_clip, AudioClip)
 

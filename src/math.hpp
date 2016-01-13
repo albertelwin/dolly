@@ -109,10 +109,17 @@ namespace math {
 	}
 
 	Vec2 vec2(u32 x, u32 y) {
-		Vec2 vec;
-		vec.x = (f32)x;
-		vec.y = (f32)y;
-		return vec;
+		Vec2 v;
+		v.x = (f32)x;
+		v.y = (f32)y;
+		return v;
+	}
+
+	Vec2 vec2(i32 x, i32 y) {
+		Vec2 v;
+		v.x = (f32)x;
+		v.y = (f32)y;
+		return v;
 	}
 
 	Vec2 vec2(f32 x) {
@@ -724,15 +731,26 @@ namespace math {
 		return r;
 	}
 
-	Rec2 rec2_centre_size(Vec2 const & pos, Vec2 const & scale) {
+	Rec2 rec2_centre_dim(Vec2 const & pos, Vec2 const & dim) {
 		Rec2 r;
-		r.min = pos - scale * 0.5f;
-		r.max = pos + scale * 0.5f;
+		r.min = pos - dim * 0.5f;
+		r.max = pos + dim * 0.5f;
 		return r;
 	}
 
-	b32 rec_overlap(Rec2 const & x, Rec2 const & y) {
-		return ((x.min.x < y.min.x && x.max.x > y.min.x) || (x.min.x >= y.min.x && x.min.x < y.max.x)) && ((x.min.y < y.min.y && x.max.y > y.min.y) || (x.min.y >= y.min.y && x.min.y < y.max.y));
+	Rec2 rec2_min_dim(math::Vec2 const & min, math::Vec2 const & dim) {
+		Rec2 r;
+		r.min = min;
+		r.max = min + dim;
+		return r;
+	}
+
+	Vec2 rec_centre(Rec2 const & r) {
+		return r.min + (r.max - r.min) * 0.5f;
+	}
+
+	b32 rec_overlap(Rec2 const & r0, Rec2 const & r1) {
+		return ((r0.min.x < r1.min.x && r0.max.x > r1.min.x) || (r0.min.x >= r1.min.x && r0.min.x < r1.max.x)) && ((r0.min.y < r1.min.y && r0.max.y > r1.min.y) || (r0.min.y >= r1.min.y && r0.min.y < r1.max.y));
 	}
 
 	struct Ray {

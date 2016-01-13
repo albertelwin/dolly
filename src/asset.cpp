@@ -67,21 +67,12 @@ void load_assets(AssetState * assets, MemoryPool * pool) {
 
 	assets->assets = PUSH_ARRAY(assets->memory_pool, Asset, pack->asset_count);
  
+	//TODO: Unify these loops!!
 	for(u32 i = 0; i < pack->texture_count; i++) {
 		TextureInfo * tex_info = (TextureInfo *)file_ptr;
 
-		SpriteInfo * sprite_info_arr = (SpriteInfo *)(tex_info + 1);
-		for(u32 i = 0; i < tex_info->sub_tex_count; i++) {
-			SpriteInfo * info = sprite_info_arr + i;
-
-			Asset * asset = push_asset(assets, info->id, AssetType_sprite);
-			asset->sprite.dim = info->dim;
-			asset->sprite.tex_coords[0] = info->tex_coords[0];
-			asset->sprite.tex_coords[1] = info->tex_coords[1];
-		}		
-
 		u32 tex_size = tex_info->width * tex_info->height * TEXTURE_CHANNELS;
-		u8 * tex_ptr = (u8 *)(sprite_info_arr + tex_info->sub_tex_count);
+		u8 * tex_ptr = (u8 *)(tex_info + 1);
 
 		i32 filter = GL_LINEAR;
 		if(tex_info->sampling == TextureSampling_point) {
@@ -97,6 +88,19 @@ void load_assets(AssetState * assets, MemoryPool * pool) {
 		file_ptr = tex_ptr + tex_size;
 	}
 
+	for(u32 i = 0; i < pack->sprite_count; i++) {
+		SpriteInfo * info = (SpriteInfo *)file_ptr;
+
+		Asset * asset = push_asset(assets, info->id, AssetType_sprite);
+		asset->sprite.atlas_index = info->atlas_index;
+		asset->sprite.dim = info->dim;
+		asset->sprite.tex_coords[0] = info->tex_coords[0];
+		asset->sprite.tex_coords[1] = info->tex_coords[1];
+		asset->sprite.offset = info->offset;
+
+		file_ptr += sizeof(SpriteInfo);
+	}
+ 
 	for(u32 i = 0; i < pack->clip_count; i++) {
 		AudioClipInfo * info = (AudioClipInfo *)file_ptr;
 

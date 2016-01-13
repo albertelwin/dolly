@@ -47,7 +47,7 @@ struct Texture {
 	AssetId id;
 
 	u32 width;
-	u32 height;	
+	u32 height;
 	TextureSampling sampling;
 
 	u32 size;
@@ -63,14 +63,9 @@ struct TexCoord {
 	u32 v;
 };
 
-struct LoadReq {
-	char * file_name;
+struct AssetFile {
 	AssetId id;
-};
-
-struct LoadReqArray {
-	u32 count;
-	LoadReq array[128];
+	char * name;
 };
 
 struct AudioClip {
@@ -82,13 +77,19 @@ struct AudioClip {
 	i16 * ptr;
 };
 
-void push_req(LoadReqArray * reqs, char * file_name, AssetId id) {
-	ASSERT(reqs->count < (ARRAY_COUNT(reqs->array) - 1));
+struct TextureAtlas {
+	Texture tex;
 
-	LoadReq * req = reqs->array + reqs->count++;
-	req->file_name = file_name;
-	req->id = id;
-}
+	u32 sprite_count;
+	SpriteInfo sprites[128];
+};
+
+struct AssetPacker {
+	AssetPackHeader header;
+
+	u32 atlas_count;
+	TextureAtlas atlases[64];
+};
 
 Texture load_texture(char const * file_name, AssetId id, TextureSampling sampling = TextureSampling_bilinear) {
 	stbi_set_flip_vertically_on_load(true);
@@ -128,11 +129,16 @@ Texture load_texture(char const * file_name, AssetId id, TextureSampling samplin
 Texture allocate_texture(u32 width, u32 height, AssetId id, TextureSampling sampling = TextureSampling_bilinear) {
 	Texture tex = {};
 	tex.id = id;
+
 	tex.width = width;
 	tex.height = height;
 	tex.sampling = sampling;
+
 	tex.size = tex.width * tex.height * TEXTURE_CHANNELS;
 	tex.ptr = ALLOC_ARRAY(u8, tex.size);
+
+	tex.x = TEXTURE_PADDING_PIXELS;
+	tex.y = tex.safe_y = TEXTURE_PADDING_PIXELS;
 
 	for(u32 y = 0, i = 0; y < tex.height; y++) {
 		for(u32 x = 0; x < tex.width; x++, i += 4) {
@@ -146,7 +152,7 @@ Texture allocate_texture(u32 width, u32 height, AssetId id, TextureSampling samp
 	return tex;
 }
 
-struct Blit { u32 u; u32 v; u32 width; u32 height; };
+struct Blit { u32 u; u32 v; u32 width; u32 height; i32 min_x; i32 min_y; };
 Blit blit_texture(Texture * dst, Texture * src) {
 	u32 min_x = U32_MAX;
 	u32 min_y = U32_MAX;
@@ -210,6 +216,8 @@ Blit blit_texture(Texture * dst, Texture * src) {
 	result.v = dst->y - pad;
 	result.width = width + pad_2;
 	result.height = height + pad_2;
+	result.min_x = (i32)min_x - 1;
+	result.min_y = (i32)min_y - 1;
 
 	u32 y = dst->y + height + pad_2;
 	if(y > dst->safe_y) {
@@ -273,54 +281,97 @@ AudioClip load_audio_clip(char const * file_name, AssetId id) {
 	return clip;
 }
 
-int main() {
-	AssetPackHeader asset_pack = {};
+void push_packed_texture(AssetPacker * packer, AssetFile * files, u32 file_count) {
+	ASSERT(packer->atlas_count < ARRAY_COUNT(packer->atlases));
 
-	LoadReqArray reqs = {};
+	u32 atlas_index = packer->atlas_count++;
+	TextureAtlas * atlas = packer->atlases + atlas_index;
+	atlas->tex = allocate_texture(512, 512, AssetId_atlas);
 
-	push_req(&reqs, "dolly.png", AssetId_dolly);
-	push_req(&reqs, "dolly0.png", AssetId_dolly);
-	push_req(&reqs, "dolly1.png", AssetId_dolly);
-	push_req(&reqs, "dolly2.png", AssetId_dolly);
-	push_req(&reqs, "dolly3.png", AssetId_dolly);
-	push_req(&reqs, "dolly4.png", AssetId_dolly);
-	push_req(&reqs, "dolly5.png", AssetId_dolly);
-	push_req(&reqs, "dolly6.png", AssetId_dolly);
-	push_req(&reqs, "dolly7.png", AssetId_dolly);
+	f32 r_tex_size = 1.0f / (f32)atlas->tex.width;
 
-	push_req(&reqs, "teacup.png", AssetId_teacup);
+	for(u32 i = 0; i < file_count; i++) {
+		AssetFile * file = files + i;
 
-	Texture atlas = allocate_texture(512, 512, AssetId_atlas, TextureSampling_bilinear);
-	atlas.x = TEXTURE_PADDING_PIXELS;
-	atlas.y = atlas.safe_y = TEXTURE_PADDING_PIXELS;
+		Texture tex = load_texture(file->name, AssetId_null);
+		math::Vec2 tex_dim = math::vec2(tex.width, tex.height);
 
-	TextureInfo tex_info = {};
-	tex_info.id = atlas.id;
-	tex_info.sampling = atlas.sampling;
-	tex_info.width = atlas.width;
-	tex_info.height = atlas.height;
-	tex_info.sub_tex_count = reqs.count;
-	asset_pack.texture_count++;
+		Blit blit = blit_texture(&atlas->tex, &tex);
+		math::Vec2 blit_dim = math::vec2(blit.width, blit.height);
 
-	SpriteInfo * sprites = ALLOC_ARRAY(SpriteInfo, reqs.count);
-	for(u32 i = 0; i < reqs.count; i++) {
-		LoadReq * req = reqs.array + i;
+		math::Rec2 sub_rec = math::rec2_min_dim(math::vec2(blit.min_x, blit.min_y), blit_dim);
 
-		Texture tex_ = load_texture(req->file_name, AssetId_null);
-		Texture * tex = &tex_;
-
-		Blit blit = blit_texture(&atlas, tex);
-
-		u32 tex_size = tex_info.width;
-		f32 r_tex_size = 1.0f / (f32)tex_size;
-
-		SpriteInfo * sprite = sprites + i;
-		sprite->id = req->id;
-		sprite->dim = math::vec2(blit.width, blit.height);
+		SpriteInfo * sprite = atlas->sprites + atlas->sprite_count++;
+		sprite->id = file->id;
+		sprite->atlas_index = atlas_index;
+		sprite->dim = blit_dim;
 		sprite->tex_coords[0] = math::vec2(blit.u, blit.v) * r_tex_size;
 		sprite->tex_coords[1] = math::vec2(blit.u + blit.width, blit.v + blit.height) * r_tex_size;
-		asset_pack.sprite_count++;
+		sprite->offset = math::rec_centre(sub_rec) - tex_dim * 0.5f;
 	}
+
+	packer->header.texture_count++;
+	packer->header.sprite_count += atlas->sprite_count;
+}
+
+void push_sprite_sheet(AssetPacker * packer, char const * file_name, AssetId sprite_id, u32 sprite_width, u32 sprite_height, u32 sprite_count) {
+	ASSERT(packer->atlas_count < ARRAY_COUNT(packer->atlases));
+
+	u32 atlas_index = packer->atlas_count++;
+	TextureAtlas * atlas = packer->atlases + atlas_index;
+	atlas->tex = load_texture("sprite_sheet.png", AssetId_atlas);
+
+	u32 tex_size = atlas->tex.width;
+	f32 r_tex_size = 1.0f / tex_size;
+
+	math::Vec2 sprite_dim = math::vec2(sprite_width, sprite_height);
+	u32 sprites_in_row = atlas->tex.width / sprite_width;
+	u32 sprites_in_col = atlas->tex.height / sprite_height;
+
+	for(u32 y = 0; y < sprites_in_col; y++) {
+		for(u32 x = 0; x < sprites_in_row; x++) {
+			ASSERT(atlas->sprite_count < ARRAY_COUNT(atlas->sprites));
+
+			SpriteInfo * sprite = atlas->sprites + atlas->sprite_count++;
+			sprite->id = sprite_id;
+			sprite->atlas_index = atlas_index;
+			sprite->dim = sprite_dim;
+
+			u32 u = x * sprite_width;
+			u32 v = y * sprite_height;
+			sprite->tex_coords[0] = math::vec2(u, tex_size - (v + sprite_height)) * r_tex_size;
+			sprite->tex_coords[1] = math::vec2(u + sprite_width, tex_size - v) * r_tex_size;
+
+			sprite->offset = math::vec2(0.0f, 0.0f);
+		}
+	}
+
+	atlas->sprite_count = sprite_count;
+
+	packer->header.texture_count++;
+	packer->header.sprite_count += atlas->sprite_count;
+}
+
+int main() {
+	AssetPacker asset_packer = {};
+	AssetPackHeader * asset_pack = &asset_packer.header;
+
+	AssetFile sprite_files[] = {
+		{ AssetId_dolly, "dolly.png" },
+		{ AssetId_dolly, "dolly0.png" },
+		{ AssetId_dolly, "dolly1.png" },
+		{ AssetId_dolly, "dolly2.png" },
+		{ AssetId_dolly, "dolly3.png" },
+		{ AssetId_dolly, "dolly4.png" },
+		{ AssetId_dolly, "dolly5.png" },
+		{ AssetId_dolly, "dolly6.png" },
+		{ AssetId_dolly, "dolly7.png" },
+
+		{ AssetId_teacup, "teacup.png" },
+	};
+
+	push_packed_texture(&asset_packer, sprite_files, ARRAY_COUNT(sprite_files));
+	push_sprite_sheet(&asset_packer, "sprite_sheet.png", AssetId_animation, 56, 156, 24);
 
 	Texture reg_tex_array[] = {
 		load_texture("font.png", AssetId_font, TextureSampling_point),
@@ -331,7 +382,7 @@ int main() {
 		load_texture("bg_layer3.png", AssetId_bg_layer),
 	};
 
-	asset_pack.texture_count += ARRAY_COUNT(reg_tex_array);
+	asset_pack->texture_count += ARRAY_COUNT(reg_tex_array);
 
 	AudioClip clips[] = {
 		load_audio_clip("sin_440.wav", AssetId_sin_440),
@@ -345,16 +396,28 @@ int main() {
 		load_audio_clip("music.wav", AssetId_music),
 	};
 
-	asset_pack.clip_count += ARRAY_COUNT(clips);
-	asset_pack.asset_count = asset_pack.texture_count + asset_pack.sprite_count + asset_pack.clip_count;
+	asset_pack->clip_count += ARRAY_COUNT(clips);
+	asset_pack->asset_count = asset_pack->texture_count + asset_pack->sprite_count + asset_pack->clip_count;
 
 	std::FILE * file_ptr = std::fopen("asset.pak", "wb");
 	ASSERT(file_ptr != 0);
 
-	std::fwrite(&asset_pack, sizeof(AssetPackHeader), 1, file_ptr);
-	std::fwrite(&tex_info, sizeof(TextureInfo), 1, file_ptr);
-	std::fwrite(sprites, sizeof(SpriteInfo), reqs.count, file_ptr);
-	std::fwrite(atlas.ptr, atlas.size, 1, file_ptr);
+	std::fwrite(asset_pack, sizeof(AssetPackHeader), 1, file_ptr);
+
+	for(u32 i = 0; i < asset_packer.atlas_count; i++) {
+		TextureAtlas * atlas = asset_packer.atlases + i;
+		Texture * tex = &atlas->tex;
+
+		TextureInfo info = {};
+		info.id = tex->id;
+		info.width = tex->width;
+		info.height = tex->height;
+		info.sampling = tex->sampling;
+		info.sub_tex_count = atlas->sprite_count;
+
+		std::fwrite(&info, sizeof(TextureInfo), 1, file_ptr);
+		std::fwrite(tex->ptr, tex->size, 1, file_ptr);
+	}
 
 	for(u32 i = 0; i < ARRAY_COUNT(reg_tex_array); i++) {
 		Texture * tex = reg_tex_array + i;
@@ -368,6 +431,11 @@ int main() {
 
 		std::fwrite(&info, sizeof(TextureInfo), 1, file_ptr);
 		std::fwrite(tex->ptr, tex->size, 1, file_ptr);
+	}
+
+	for(u32 i = 0; i < asset_packer.atlas_count; i++) {
+		TextureAtlas * atlas = asset_packer.atlases + i;
+		std::fwrite(atlas->sprites, sizeof(SpriteInfo), atlas->sprite_count, file_ptr);
 	}
 
 	for(u32 i = 0; i < ARRAY_COUNT(clips); i++) {

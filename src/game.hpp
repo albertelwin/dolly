@@ -7,7 +7,7 @@
 #include <debug.hpp>
 #include <math.hpp>
 
-#define ANIMATION_FRAMES_PER_SEC 1
+#define ANIMATION_FRAMES_PER_SEC 30
 #define VERTS_PER_QUAD 30
 
 struct Shader {
@@ -38,6 +38,7 @@ struct Entity {
 	f32 rot;
 
 	math::Vec4 color;
+	f32 anim_time;
 
 	AssetType asset_type;
 	AssetId asset_id;
@@ -118,6 +119,7 @@ struct GameInput {
 struct GameState {
 	MemoryPool memory_pool;
 
+	//TODO: Just rename this to assets!!
 	AssetState asset_state;
 
 	AudioState audio_state;
@@ -139,7 +141,8 @@ struct GameState {
 	math::Mat4 view_matrix;
 	math::Mat4 projection_matrix;
 
-	RenderBatch * sprite_batch;
+	u32 sprite_batch_count;
+	RenderBatch ** sprite_batches;
 
 	u32 entity_count;
 	Entity entity_array[64];
@@ -149,7 +152,7 @@ struct GameState {
 	Player player;
 	TeacupEmitter teacup_emitter;
 
-	Entity * pixel_art;
+	Entity * animated_entity;
 
 	f32 d_time;
 	u32 score;

@@ -31,6 +31,8 @@ enum AssetId {
 	AssetId_dolly,
 	AssetId_teacup,
 
+	AssetId_animation,
+
 	//NOTE: Audio!!
 	AssetId_sin_440,
 	AssetId_beep,
@@ -57,16 +59,19 @@ struct TextureInfo {
 
 	u32 width;
 	u32 height;
-	TextureSampling sampling;
 
+	TextureSampling sampling;
 	u32 sub_tex_count;
 };
 
 struct SpriteInfo {
 	AssetId id;
 
+	//TODO: Share this info!!
+	u32 atlas_index;
 	math::Vec2 dim;
 	math::Vec2 tex_coords[2];
+	math::Vec2 offset;
 };
 
 struct AudioClipInfo {

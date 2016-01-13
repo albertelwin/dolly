@@ -5,7 +5,7 @@
 #include <audio.cpp>
 #include <math.cpp>
 
-Entity * push_entity(GameState * game_state, AssetId asset_id, u32 asset_index, math::Vec3 pos) {
+Entity * push_entity(GameState * game_state, AssetId asset_id, u32 asset_index, math::Vec3 pos = math::vec3(0.0f)) {
 	ASSERT(game_state->entity_count < ARRAY_COUNT(game_state->entity_array));
 
 	Asset * asset = get_asset(&game_state->asset_state, asset_id, asset_index);
@@ -245,13 +245,18 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		game_state->projection_matrix = math::orthographic_projection((f32)game_state->ideal_window_width, (f32)game_state->ideal_window_height);
 
+		game_state->sprite_batch_count = get_asset_count(&game_state->asset_state, AssetId_atlas);
+		game_state->sprite_batches = PUSH_ARRAY(&game_state->memory_pool, RenderBatch *, game_state->sprite_batch_count);
+		for(u32 i = 0; i < game_state->sprite_batch_count; i++) {
+			u32 batch_size = VERTS_PER_QUAD * 32;
+			game_state->sprite_batches[i] = allocate_render_batch(&game_state->memory_pool, get_texture_asset(&game_state->asset_state, AssetId_atlas, i), batch_size);
+		}
+
 		for(u32 i = 0; i < ARRAY_COUNT(game_state->bg_layers); i++) {
-			Entity * bg_layer = push_entity(game_state, AssetId_bg_layer, i, math::vec3(0.0f));
+			Entity * bg_layer = push_entity(game_state, AssetId_bg_layer, i);
 			bg_layer->v_buf = &game_state->bg_v_buf;
 			game_state->bg_layers[i] = bg_layer;
 		}
-
-		game_state->sprite_batch = allocate_render_batch(&game_state->memory_pool, get_texture_asset(&game_state->asset_state, AssetId_atlas, 0), VERTS_PER_QUAD * 8);
 
 		game_state->player.e = push_entity(game_state, AssetId_dolly, 0, math::vec3((f32)game_state->ideal_window_width * -0.5f * (2.0f / 3.0f), 0.0f, 0.0f));
 		game_state->player.initial_x = game_state->player.e->pos.x;
@@ -271,7 +276,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			emitter->entity_array[i] = teacup;
 		}
 
-		// push_entity(game_state, AssetId_atlas, 0, math::vec3(0.0f));
+		game_state->animated_entity = push_entity(game_state, AssetId_animation, 0);
+		// push_entity(game_state, AssetId_atlas, 1, math::vec3(0.0f));
 
 		game_state->d_time = 1.0f;
 		game_state->score = 0;
@@ -326,6 +332,12 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	player->e->pos.xy += player_dd_pos;
 	player->e->pos.x = math::clamp(player->e->pos.x, player->initial_x - 20.0f, player->initial_x + 20.0f);
 
+	player->e->anim_time += game_input->delta_time * game_state->d_time * ANIMATION_FRAMES_PER_SEC;
+	player->e->asset_index = (u32)player->e->anim_time % get_asset_count(&game_state->asset_state, player->e->asset_id);
+
+	game_state->animated_entity->anim_time = player->e->anim_time;
+	game_state->animated_entity->asset_index = (u32)player->e->anim_time % get_asset_count(&game_state->asset_state, game_state->animated_entity->asset_id);
+
 	if(game_input->buttons[ButtonId_mute] & KEY_PRESSED) {
 		game_state->audio_state.master_volume = game_state->audio_state.master_volume > 0.0f ? 0.0f : 1.0f;
 	}
@@ -351,7 +363,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		emitter->time_until_next_spawn = 1.0f;
 	}
 
-	math::Rec2 player_rec = math::rec2_centre_size(player->e->pos.xy, player->e->scale);
+	math::Rec2 player_rec = math::rec2_centre_dim(player->e->pos.xy, player->e->scale);
 
 	for(u32 i = 0; i < emitter->entity_count; i++) {
 		Teacup * teacup = emitter->entity_array[i];
@@ -377,7 +389,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		}
 
 		//TODO: When should this check happen??
-		math::Rec2 rec = math::rec2_centre_size(entity->pos.xy, entity->scale);
+		math::Rec2 rec = math::rec2_centre_dim(entity->pos.xy, entity->scale);
 		if(rec_overlap(player_rec, rec) && !teacup->hit) {
 			teacup->hit = true;
 			entity->scale = emitter->scale * 2.0f;
@@ -388,10 +400,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			AudioSource * source = play_audio_clip(&game_state->audio_state, clip);
 			change_pitch(source, math::lerp(0.9f, 1.1f, math::rand_f32()));
 
-			player->e->asset_index++;
-			if(player->e->asset_index >= get_asset_count(&game_state->asset_state, player->e->asset_id)) {
-				player->e->asset_index = 0;
-			}
+			// player->e->asset_index++;
+			// if(player->e->asset_index >= get_asset_count(&game_state->asset_state, player->e->asset_id)) {
+			// 	player->e->asset_index = 0;
+			// }
 
 			game_state->score++;
 		}
@@ -427,41 +439,42 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
-	//TODO: Sorting!!
-	glUseProgram(game_state->entity_program);
-	for(u32 i = 0; i < game_state->entity_count; i++) {
-		Entity * entity = game_state->entity_array + i;
-		if(entity->asset_type == AssetType_texture) {
-
-			gl::Texture * tex = get_texture_asset(&game_state->asset_state, entity->asset_id, entity->asset_index);
-			if(tex) {
-				math::Mat4 xform = view_projection_matrix * math::translate(entity->pos.x, entity->pos.y, entity->pos.z) * math::scale(entity->scale.x, entity->scale.y, 1.0f) * math::rotate_around_z(entity->rot);
-				render_v_buf(entity->v_buf, &game_state->basic_shader, &xform, tex, entity->color);
-			}
-		}
-	}
-
 	{
 		DEBUG_TIME_BLOCK();
 
-		RenderBatch * batch = game_state->sprite_batch;
-		clear_render_batch(batch);
+		for(u32 i = 0; i < game_state->sprite_batch_count; i++) {
+			clear_render_batch(game_state->sprite_batches[i]);
+		}
 
-		//TODO: Only loop over entities once!!
+		//TODO: Sorting!!
+		glUseProgram(game_state->entity_program);
 		for(u32 i = 0; i < game_state->entity_count; i++) {
 			Entity * entity = game_state->entity_array + i;
-			if(entity->asset_type == AssetType_sprite) {
+			if(entity->asset_type == AssetType_texture) {
+				gl::Texture * tex = get_texture_asset(&game_state->asset_state, entity->asset_id, entity->asset_index);
+				if(tex) {
+					math::Mat4 xform = view_projection_matrix * math::translate(entity->pos.x, entity->pos.y, entity->pos.z) * math::scale(entity->scale.x, entity->scale.y, 1.0f) * math::rotate_around_z(entity->rot);
+					render_v_buf(entity->v_buf, &game_state->basic_shader, &xform, tex, entity->color);
+				}
+			}
+			else {
 				Sprite * sprite = get_sprite_asset(&game_state->asset_state, entity->asset_id, entity->asset_index);
 				if(sprite) {
-					render_sprite(batch, sprite, entity->pos, entity->scale);
+					ASSERT(sprite->atlas_index < game_state->sprite_batch_count);
+					
+					RenderBatch * batch = game_state->sprite_batches[sprite->atlas_index];
+					render_sprite(batch, sprite, entity->pos + math::vec3(sprite->offset, 0.0f), entity->scale);
 				}
 			}
 		}
+		
+		for(u32 i = 0; i < game_state->sprite_batch_count; i++) {
+			RenderBatch * batch = game_state->sprite_batches[i];
 
-		//TODO: Should we pull this out into a begin/end type thing??
-		glBindBuffer(GL_ARRAY_BUFFER, batch->v_buf.id);
-		glBufferSubData(GL_ARRAY_BUFFER, 0, batch->v_buf.size_in_bytes, batch->v_arr);
-		render_v_buf(&batch->v_buf, &game_state->basic_shader, &view_projection_matrix, batch->tex);
+			glBindBuffer(GL_ARRAY_BUFFER, batch->v_buf.id);
+			glBufferSubData(GL_ARRAY_BUFFER, 0, batch->v_buf.size_in_bytes, batch->v_arr);
+			render_v_buf(&batch->v_buf, &game_state->basic_shader, &view_projection_matrix, batch->tex);
+		}
 	}
 
 	{
