@@ -9,7 +9,8 @@ IF %COMPILE_AND_RUN_ASSET_PACKER%==1 (
 	cl -MTd -Od -Z7 -nologo -Feasset_packer -EHa- -Gm- -GR- -fp:fast -Oi -WX -W4 -wd4996 -wd4100 -wd4189 -wd4127 -wd4201 -DWIN32=1 -I../lib -I../src ../src/asset_packer.cpp shell32.lib user32.lib gdi32.lib -link
 	cd ../dat
 	"../bin/asset_packer.exe"
-	"C:\Program Files\7-zip\7z" a -mm=lzma asset.zip asset.pak > NUL:
+	"C:\Program Files\7-zip\7z" a asset.zip asset.pak > NUL:
+	del "asset.pak"
 	cd ../bin
 )
 
@@ -18,5 +19,5 @@ set COMMON_COMPILER_FLAGS=-s TOTAL_MEMORY=134217728 -std=c++11 -Werror -Wall -Wn
 set COMPILER_FLAGS=%COMMON_COMPILER_FLAGS%
 REM set COMPILER_FLAGS=%COMMON_COMPILER_FLAGS% -O3
 
-em++ %COMPILER_FLAGS% -I../src --js-library ../src/web_audio.js ../src/asm_js_main.cpp -o dolly.html --shell-file ../src/template.html --preload-file ../dat/asset.pak@asset.pak --preload-file ../dat/asset.zip@asset.zip
+em++ %COMPILER_FLAGS% -I../src --js-library ../src/web_audio.js ../src/asm_js_main.cpp -o dolly.html --shell-file ../src/template.html --preload-file ../dat/asset.zip@asset.zip
 cd ..

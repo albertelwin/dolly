@@ -1,7 +1,8 @@
 
 #include <asset.hpp>
 
-#include <lzma.hpp>
+#define MINIZ_NO_TIME
+#include <miniz.c>
 
 Asset * get_asset(AssetState * assets, AssetId id, u32 index) {
 	Asset * asset = 0;
@@ -57,9 +58,8 @@ Asset * push_asset(AssetState * assets, AssetId id, AssetType type) {
 void load_assets(AssetState * assets, MemoryPool * pool) {
 	assets->memory_pool = pool;
 
-	// load_and_decompress_zip_file("asset.zip");
-
-	MemoryPtr file_buf = read_file_to_memory("asset.pak");
+	MemoryPtr file_buf; 
+	file_buf.ptr = (u8 *)mz_zip_extract_archive_file_to_heap("asset.zip", "asset.pak", &file_buf.size, 0);
 	u8 * file_ptr = file_buf.ptr;
 
 	AssetPackHeader * pack = (AssetPackHeader *)file_ptr;
