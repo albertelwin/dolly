@@ -323,14 +323,16 @@ void push_sprite_sheet(AssetPacker * packer, char const * file_name, AssetId spr
 
 	u32 atlas_index = packer->atlas_count++;
 	TextureAtlas * atlas = packer->atlases + atlas_index;
-	atlas->tex = load_texture("sprite_sheet.png", AssetId_atlas);
+	atlas->tex = load_texture(file_name, AssetId_atlas);
 
-	u32 tex_size = atlas->tex.width;
-	f32 r_tex_size = 1.0f / tex_size;
+	u32 tex_width = atlas->tex.width;
+	u32 tex_height = atlas->tex.height;
+
+	math::Vec2 r_tex_dim = math::vec2(1.0f / (f32)tex_width, 1.0f / (f32)tex_height);
 
 	math::Vec2 sprite_dim = math::vec2(sprite_width, sprite_height);
-	u32 sprites_in_row = atlas->tex.width / sprite_width;
-	u32 sprites_in_col = atlas->tex.height / sprite_height;
+	u32 sprites_in_row = tex_width / sprite_width;
+	u32 sprites_in_col = tex_height / sprite_height;
 
 	for(u32 y = 0; y < sprites_in_col; y++) {
 		for(u32 x = 0; x < sprites_in_row; x++) {
@@ -345,8 +347,8 @@ void push_sprite_sheet(AssetPacker * packer, char const * file_name, AssetId spr
 			SpriteInfo * sprite = &info->sprite;
 			sprite->atlas_index = atlas_index;
 			sprite->dim = sprite_dim;
-			sprite->tex_coords[0] = math::vec2(u, tex_size - (v + sprite_height)) * r_tex_size;
-			sprite->tex_coords[1] = math::vec2(u + sprite_width, tex_size - v) * r_tex_size;
+			sprite->tex_coords[0] = math::vec2(u, tex_height - (v + sprite_height)) * r_tex_dim;
+			sprite->tex_coords[1] = math::vec2(u + sprite_width, tex_height - v) * r_tex_dim;
 			sprite->offset = math::vec2(0.0f, 0.0f);
 		}
 	}
@@ -375,15 +377,17 @@ int main() {
 	};
 
 	push_packed_texture(&packer, sprite_files, ARRAY_COUNT(sprite_files));
-	push_sprite_sheet(&packer, "sprite_sheet.png", AssetId_animation, 56, 156, 24);
+	push_sprite_sheet(&packer, "telly_sheet.png", AssetId_animation, 192, 192, 39);
 
 	Texture reg_tex_array[] = {
 		load_texture("font.png", AssetId_font, TextureSampling_point),
 
+		load_texture("bg.png", AssetId_bg),
+
 		load_texture("bg_layer0.png", AssetId_bg_layer),
 		load_texture("bg_layer1.png", AssetId_bg_layer),
 		load_texture("bg_layer2.png", AssetId_bg_layer),
-		load_texture("bg_layer3.png", AssetId_bg_layer),
+		// load_texture("bg_layer3.png", AssetId_bg_layer),
 	};
 
 	packer.header.asset_count += ARRAY_COUNT(reg_tex_array);

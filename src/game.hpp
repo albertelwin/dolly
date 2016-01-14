@@ -8,7 +8,8 @@
 #include <math.hpp>
 
 #define ANIMATION_FRAMES_PER_SEC 30
-#define VERTS_PER_QUAD 30
+#define VERT_ELEM_COUNT 8
+#define QUAD_ELEM_COUNT (VERT_ELEM_COUNT * 6)
 
 struct Shader {
 	u32 id;
@@ -34,18 +35,21 @@ struct RenderBatch {
 
 struct Entity {
 	math::Vec3 pos;
-	//TODO: Should scale simply be a multiplier??
-	math::Vec2 scale;
-	f32 rot;
-
+	f32 scale;
 	math::Vec4 color;
-	f32 anim_time;
 
 	AssetType asset_type;
 	AssetId asset_id;
 	u32 asset_index;
 
 	gl::VertexBuffer * v_buf;
+
+	math::Vec2 d_pos;
+	math::Vec2 speed;
+	f32 damp;
+	b32 use_gravity;
+
+	f32 anim_time;
 };
 
 struct Player {
@@ -62,7 +66,7 @@ struct Teacup {
 
 struct TeacupEmitter {
 	math::Vec3 pos;
-	math::Vec2 scale;
+	f32 scale;
 	f32 time_until_next_spawn;
 
 	u32 entity_count;
@@ -71,6 +75,7 @@ struct TeacupEmitter {
 
 struct Camera {
 	math::Vec2 pos;
+	math::Vec2 offset;
 };
 
 enum ButtonId {
@@ -150,6 +155,7 @@ struct GameState {
 
 	u32 entity_count;
 	Entity entity_array[64];
+	math::Vec2 entity_gravity;
 
 	u32 bg_layer_count;
 	Entity ** bg_layers;
@@ -162,6 +168,7 @@ struct GameState {
 	Camera camera;
 
 	f32 d_time;
+	f32 pitch;
 	u32 score;
 };
 

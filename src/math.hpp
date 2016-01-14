@@ -482,6 +482,10 @@ namespace math {
 		return x.x * y.x + x.y * y.y + x.z * y.z + x.w * y.w;
 	}
 
+	Vec4 rand_vec4() {
+		return vec4(rand_f32(), rand_f32(), rand_f32(), rand_f32());
+	}
+
 	struct Mat4 {
 		f32 v[16];
 	};
@@ -747,6 +751,10 @@ namespace math {
 
 	Vec2 rec_centre(Rec2 const & r) {
 		return r.min + (r.max - r.min) * 0.5f;
+	}
+
+	Vec2 rec_dim(Rec2 const & r) {
+		return r.max - r.min;
 	}
 
 	b32 rec_overlap(Rec2 const & r0, Rec2 const & r1) {

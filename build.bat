@@ -1,6 +1,6 @@
 @echo off
 
-set COMPILE_AND_RUN_ASSET_PACKER=1
+set COMPILE_AND_RUN_ASSET_PACKER=0
 
 IF NOT EXIST bin mkdir bin
 cd bin

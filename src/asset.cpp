@@ -105,7 +105,7 @@ void load_assets(AssetState * assets, MemoryPool * pool) {
 			}
 
 			case AssetType_audio_clip: {
-				AudioClipInfo * info = (AudioClipInfo *)file_ptr;
+				AudioClipInfo * info = (AudioClipInfo *)&asset_info->audio_clip;
 
 				Asset * asset = push_asset(assets, asset_info->id, AssetType_audio_clip);
 				asset->audio_clip.samples = info->samples;
