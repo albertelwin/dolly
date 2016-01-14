@@ -71,7 +71,7 @@ void render_quad(RenderBatch * batch, math::Vec2 pos0, math::Vec2 pos1, math::Ve
 	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;	
 }
 
-void render_sprite(RenderBatch * batch, Sprite * sprite, math::Vec2 pos, math::Vec2 dim, math::Vec4 color = math::vec4(1.0f)) {
+void render_sprite(RenderBatch * batch, Sprite * sprite, math::Vec2 pos, math::Vec2 dim, math::Vec4 color) {
 	ASSERT(batch->e <= (batch->v_len - QUAD_ELEM_COUNT));
 
 	math::Vec2 pos0 = pos - dim * 0.5f;
@@ -99,14 +99,14 @@ void render_v_buf(gl::VertexBuffer * v_buf, Shader * shader, math::Mat4 * xform,
 
 	u32 stride = v_buf->vert_size * sizeof(f32);
 
-	glVertexAttribPointer(0, 2, GL_FLOAT, 0, stride, 0);
-	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(shader->i_position, 2, GL_FLOAT, 0, stride, 0);
+	glEnableVertexAttribArray(shader->i_position);
 
-	glVertexAttribPointer(1, 2, GL_FLOAT, 0, stride, (void *)(2 * sizeof(f32)));
-	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(shader->i_tex_coord, 2, GL_FLOAT, 0, stride, (void *)(2 * sizeof(f32)));
+	glEnableVertexAttribArray(shader->i_tex_coord);
 
-	glVertexAttribPointer(2, 4, GL_FLOAT, 0, stride, (void *)(4 * sizeof(f32)));
-	glEnableVertexAttribArray(2);
+	glVertexAttribPointer(shader->i_color, 4, GL_FLOAT, 0, stride, (void *)(4 * sizeof(f32)));
+	glEnableVertexAttribArray(shader->i_color);
 
 	glDrawArrays(GL_TRIANGLES, 0, v_buf->vert_count);
 }
@@ -237,6 +237,9 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		u32 basic_vert = gl::compile_shader_from_source(BASIC_VERT_SRC, GL_VERTEX_SHADER);
 		u32 basic_frag = gl::compile_shader_from_source(BASIC_FRAG_SRC, GL_FRAGMENT_SHADER);
 		basic_shader->id = gl::link_shader_program(basic_vert, basic_frag);
+		basic_shader->i_position = glGetAttribLocation(basic_shader->id, "i_position");
+		basic_shader->i_tex_coord = glGetAttribLocation(basic_shader->id, "i_tex_coord");
+		basic_shader->i_color = glGetAttribLocation(basic_shader->id, "i_color");
 		basic_shader->xform = glGetUniformLocation(basic_shader->id, "xform");
 		basic_shader->color = glGetUniformLocation(basic_shader->id, "color");
 		basic_shader->tex0 = glGetUniformLocation(basic_shader->id, "tex0");
@@ -291,7 +294,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		game_state->sprite_batch_count = get_asset_count(assets, AssetId_atlas);
 		game_state->sprite_batches = PUSH_ARRAY(&game_state->memory_pool, RenderBatch *, game_state->sprite_batch_count);
 		for(u32 i = 0; i < game_state->sprite_batch_count; i++) {
-			u32 batch_size = QUAD_ELEM_COUNT * 16;
+			u32 batch_size = QUAD_ELEM_COUNT * 32;
 			game_state->sprite_batches[i] = allocate_render_batch(&game_state->memory_pool, get_texture_asset(assets, AssetId_atlas, i), batch_size);
 		}
 
@@ -309,12 +312,12 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		}
 
 		game_state->player.e = push_entity(game_state, AssetId_dolly, 0, math::vec3((f32)game_state->ideal_window_width * -0.5f * (2.0f / 3.0f), 0.0f, 0.0f));
-		game_state->player.e->speed = math::vec2(50.0f, 4000.0f);
+		game_state->player.e->speed = math::vec2(50.0f, 6000.0f);
 		game_state->player.initial_x = game_state->player.e->pos.x;
 
 		TeacupEmitter * emitter = &game_state->teacup_emitter;
 		Sprite * emitter_sprite = get_sprite_asset(assets, AssetId_teacup, 0);
-		emitter->pos = math::vec3(game_state->ideal_window_width, 0.0f, 0.0f);
+		emitter->pos = math::vec3(game_state->ideal_window_width * 0.75f, 0.0f, 0.0f);
 		emitter->scale = 1.0f;
 		emitter->time_until_next_spawn = 0.0f;
 		emitter->entity_count = 0;
@@ -416,12 +419,12 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			teacup->hit = false;
 
 			Entity * entity = teacup->e;
-			entity->pos = math::vec3(emitter->pos.x, emitter->pos.y + (math::rand_f32() * 2.0f - 1.0f) * 300.0f, 0.0f);
+			entity->pos = math::vec3(emitter->pos.x, emitter->pos.y + (math::rand_f32() * 2.0f - 1.0f) * 250.0f, 0.0f);
 			entity->scale = emitter->scale;
 			entity->color = math::vec4(1.0f);
 		}
 
-		emitter->time_until_next_spawn = 1.0f;
+		emitter->time_until_next_spawn = 0.5f;
 	}
 
 	math::Rec2 player_bounds = get_entity_bounds(assets, player->e);
@@ -538,7 +541,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		Camera * camera = &game_state->camera;
 		camera->pos.x = 0.0f;
 		camera->pos.y = math::max(player->e->pos.y, 0.0f);
-		// camera->offset = math::rand_vec2() * math::max(game_state->d_time - 1.0f, 0.0f) * 2.5f;
+		camera->offset = (math::rand_vec2() * 2.0f - 1.0f) * math::max(game_state->d_time - 2.0f, 0.0f);
 
 		for(u32 i = 0; i < game_state->sprite_batch_count; i++) {
 			clear_render_batch(game_state->sprite_batches[i]);

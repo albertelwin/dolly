@@ -13,6 +13,11 @@
 
 struct Shader {
 	u32 id;
+
+	u32 i_position;
+	u32 i_tex_coord;
+	u32 i_color;
+
 	u32 xform;
 	u32 color;
 	u32 tex0;
@@ -70,7 +75,7 @@ struct TeacupEmitter {
 	f32 time_until_next_spawn;
 
 	u32 entity_count;
-	Teacup * entity_array[4];
+	Teacup * entity_array[16];
 };
 
 struct Camera {

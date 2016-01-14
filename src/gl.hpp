@@ -28,6 +28,50 @@ namespace gl {
 		u32 height;
 	};
 
+#define GL_CHECK_ERRORS() { GLenum err = glGetError(); while(err != GL_NO_ERROR) { std::printf("ERROR: %s:%u: %s\n", (char *)__FILE__, __LINE__, gl::error_to_str(err)); err = glGetError(); } }
+	char * error_to_str(GLenum err) {
+		char const * str = "";
+
+		switch(err) {
+			case GL_NO_ERROR: {
+				str = "GL_NO_ERROR";
+				break;
+			}
+
+			case GL_INVALID_ENUM: {
+				str = "GL_INVALID_ENUM";
+				break;
+			}
+
+			case GL_INVALID_VALUE: {
+				str = "GL_INVALID_VALUE";
+				break;
+			}
+
+			case GL_INVALID_OPERATION: {
+				str = "GL_INVALID_OPERATION";
+				break;
+			}
+
+			case GL_INVALID_FRAMEBUFFER_OPERATION: {
+				str = "GL_INVALID_FRAMEBUFFER_OPERATION";
+				break;
+			}
+
+			case GL_OUT_OF_MEMORY: {
+				str = "GL_OUT_OF_MEMORY";
+				break;
+			}
+
+			default: {
+				ASSERT("Invalid GL error code!");
+				break;
+			}
+		}
+
+		return (char *)str;
+	}
+
 	GLuint compile_shader_from_source(char const * shader_src, GLenum shader_type) {
 		GLuint shader_id = glCreateShader(shader_type);
 		glShaderSource(shader_id, 1, &shader_src, 0);
@@ -170,6 +214,8 @@ namespace gl {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap_mode);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
+
+		GL_CHECK_ERRORS();
 
 		return tex;
 	}	
