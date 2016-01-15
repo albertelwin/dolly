@@ -257,6 +257,24 @@ math::Rec2 get_entity_bounds(AssetState * assets, Entity * entity) {
 	return math::rec2_centre_dim(pos, dim * entity->scale);
 }
 
+void push_player_clone(GameState * game_state) {
+	if(game_state->player_clone_count < ARRAY_COUNT(game_state->player_clones)) {
+		u32 clone_index = game_state->player_clone_count++;
+		Entity * entity = game_state->player_clones[clone_index];
+
+		entity->asset_index = (clone_index % (get_asset_count(&game_state->asset_state, AssetId_dolly) - 1)) + 1;
+	}
+}
+
+void pop_player_clone(GameState * game_state) {
+	if(game_state->player_clone_count > 0) {
+		u32 clone_index = --game_state->player_clone_count;
+		Entity * entity = game_state->player_clones[clone_index];
+
+		entity->pos = game_state->entity_null_pos;
+	}
+}
+
 void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	ASSERT(sizeof(GameState) <= game_memory->size);
 	GameState * game_state = (GameState *)game_memory->ptr;
@@ -271,7 +289,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		AudioState * audio_state = &game_state->audio_state;
 		load_audio(audio_state, &game_state->memory_pool, assets, game_input->audio_supported);
-		audio_state->master_volume = 0.0f;
+		// audio_state->master_volume = 0.0f;
 
 		game_state->music = play_audio_clip(audio_state, AssetId_music, true);
 
@@ -339,10 +357,11 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		game_state->sprite_batch_count = get_asset_count(assets, AssetId_atlas);
 		game_state->sprite_batches = PUSH_ARRAY(&game_state->memory_pool, RenderBatch *, game_state->sprite_batch_count);
 		for(u32 i = 0; i < game_state->sprite_batch_count; i++) {
-			u32 batch_size = QUAD_ELEM_COUNT * 32;
+			u32 batch_size = QUAD_ELEM_COUNT * 128;
 			game_state->sprite_batches[i] = allocate_render_batch(&game_state->memory_pool, get_texture_asset(assets, AssetId_atlas, i), batch_size);
 		}
 
+		game_state->entity_null_pos = math::vec3((f32)game_state->ideal_window_width, 0.0f, 0.0f);
 		game_state->entity_gravity = math::vec2(0.0f, -10000.0f);
 
 		game_state->bg_layer_count = get_asset_count(assets, AssetId_background_layer);
@@ -356,7 +375,14 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			game_state->bg_layers[i] = bg_layer;
 		}
 
-		game_state->player = push_entity(game_state, AssetId_dolly, 0, math::vec3((f32)game_state->ideal_window_width * -0.5f * (2.0f / 3.0f), 0.0f, 0.0f));
+		game_state->player_clone_index = 0;
+		game_state->player_clone_count = 0;
+		for(u32 i = 0; i < ARRAY_COUNT(game_state->player_clones); i++) {
+			game_state->player_clones[i] = push_entity(game_state, AssetId_dolly, 0, game_state->entity_null_pos);
+		}
+
+		// game_state->player = push_entity(game_state, AssetId_dolly, 0, math::vec3((f32)game_state->ideal_window_width * -0.5f * (2.0f / 3.0f), 0.0f, 0.0f));
+		game_state->player = push_entity(game_state, AssetId_dolly, 0, math::vec3((f32)game_state->ideal_window_width * -0.25f, 0.0f, 0.0f));
 		game_state->player->speed = math::vec2(50.0f, 6000.0f);
 		game_state->player->damp = 0.15f;
 		game_state->player->initial_x = game_state->player->pos.x;
@@ -425,6 +451,23 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	f32 half_screen_height = (f32)game_state->ideal_window_height * 0.5f;
 
 	Entity * player = game_state->player;
+
+	for(u32 i = 0; i < game_state->player_clone_count; i++) {
+		u32 clone_index = game_state->player_clone_count - (i + 1);
+		Entity * entity = game_state->player_clones[clone_index];
+
+		if(clone_index == 0) {
+			entity->pos = player->pos;
+		}
+		else {
+			Entity * next_entity = game_state->player_clones[clone_index - 1];
+			entity->pos = next_entity->pos;
+		}
+
+		entity->pos.x -= 5.0f;
+		entity->pos.y += math::sin((game_input->total_time * 0.5f + clone_index * 0.375f) * math::PI) * 50.0f;
+	}
+
 	math::Vec2 player_dd_pos = math::vec2(0.0f);
 
 	if(game_input->buttons[ButtonId_up] & KEY_DOWN) {
@@ -456,8 +499,17 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 	player->pos.xy += player->d_pos * game_input->delta_time;
 
+
 	f32 max_dist_x = 20.0f;
 	player->pos.x = math::clamp(player->pos.x, player->initial_x - max_dist_x, player->initial_x + max_dist_x);
+
+	AssetId emitter_types[] = {
+		AssetId_smiley,
+		AssetId_smiley,
+		AssetId_telly,
+		AssetId_telly,
+		AssetId_dolly,
+	};
 
 	EntityEmitter * emitter = &game_state->entity_emitter;
 	emitter->time_until_next_spawn -= adjusted_dt;
@@ -469,7 +521,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			entity->scale = 1.0f;
 			entity->color = math::vec4(1.0f);
 
-			AssetId asset_id = math::rand_f32() > 0.5f ? AssetId_smiley : AssetId_telly;
+			u32 type_index = (u32)(math::rand_f32() * ARRAY_COUNT(emitter_types));
+			ASSERT(type_index < ARRAY_COUNT(emitter_types));
+			AssetId asset_id = emitter_types[type_index];
+
 			Asset * asset = get_asset(assets, asset_id, 0);
 			ASSERT(asset);
 			ASSERT(asset->type == AssetType_texture || asset->type == AssetType_sprite);
@@ -523,12 +578,17 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			AudioSource * source = play_audio_clip(&game_state->audio_state, clip);
 			change_pitch(source, math::lerp(0.9f, 1.1f, math::rand_f32()));
 
-			player->asset_index++;
-			if(player->asset_index >= get_asset_count(assets, player->asset_id)) {
-				player->asset_index = 0;
+			if(entity->asset_id == AssetId_dolly) {
+				push_player_clone(game_state);
 			}
-
-			game_state->score++;
+			else if(entity->asset_id == AssetId_telly) {
+				pop_player_clone(game_state);
+				pop_player_clone(game_state);
+				pop_player_clone(game_state);
+			}
+			else {
+				game_state->score++;
+			}
 		}
 
 		if(destroy) {
@@ -683,7 +743,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		RenderBatch * batch = font->batch;
 
 		str_clear(game_state->title_str);
-		str_print(game_state->title_str, "DOLLY DOLLY DOLLY DAYS!\nDT: %f | D_TIME: %f | D_POS %f | SCORE: %u\n\n", game_input->delta_time, game_state->d_time, game_state->player->d_pos.y, game_state->score);
+		str_print(game_state->title_str, "DOLLY DOLLY DOLLY DAYS!\nDT: %f | D_TIME: %f | SCORE: %u | CLONES: %u\n\n", game_input->delta_time, game_state->d_time, game_state->score, game_state->player_clone_count);
 		render_str(font, game_state->title_str);
 
 		render_str(font, game_state->debug_str);

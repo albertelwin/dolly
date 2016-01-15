@@ -160,13 +160,19 @@ struct GameState {
 	RenderBatch ** sprite_batches;
 
 	u32 entity_count;
-	Entity entity_array[64];
+	Entity entity_array[256];
+
+	math::Vec3 entity_null_pos;
 	math::Vec2 entity_gravity;
 
 	u32 bg_layer_count;
 	Entity ** bg_layers;
 
 	Entity * player;
+
+	u32 player_clone_index;
+	u32 player_clone_count;
+	Entity * player_clones[32];
 
 	EntityEmitter entity_emitter;
 
