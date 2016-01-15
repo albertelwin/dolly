@@ -22,6 +22,8 @@ enum AssetId {
 	AssetId_null,
 
 	//NOTE: Textures!!
+	AssetId_white,
+
 	AssetId_font,
 
 	AssetId_background,
@@ -32,8 +34,8 @@ enum AssetId {
 	//NOTE: Sprites!!
 	AssetId_dolly,
 	AssetId_teacup,
-
-	AssetId_animation,
+	AssetId_telly,
+	AssetId_smiley,
 
 	//NOTE: Audio!!
 	AssetId_sin_440,

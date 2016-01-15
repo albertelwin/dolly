@@ -374,12 +374,15 @@ int main() {
 		{ AssetId_dolly, "dolly7.png" },
 
 		{ AssetId_teacup, "teacup.png" },
+		{ AssetId_smiley, "smiley.png" },
 	};
 
 	push_packed_texture(&packer, sprite_files, ARRAY_COUNT(sprite_files));
-	push_sprite_sheet(&packer, "telly_sheet.png", AssetId_animation, 192, 192, 39);
+	push_sprite_sheet(&packer, "telly_sheet.png", AssetId_telly, 192, 192, 39);
 
 	Texture reg_tex_array[] = {
+		load_texture("white.png", AssetId_white),
+
 		load_texture("font.png", AssetId_font, TextureSampling_point),
 
 		load_texture("background.png", AssetId_background),

@@ -355,6 +355,13 @@ namespace math {
 		return tmp;
 	}
 
+	Vec3 & operator*=(Vec3 & x, Vec3 const & y) {
+		x.x *= y.x;
+		x.y *= y.y;
+		x.z *= y.z;
+		return x;
+	}
+
 	Vec3 & operator*=(Vec3 & v, f32 x) {
 		v.x *= x;
 		v.y *= x;

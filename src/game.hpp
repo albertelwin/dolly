@@ -23,6 +23,13 @@ struct Shader {
 	u32 tex0;
 };
 
+enum RenderMode {
+	RenderMode_triangles = GL_TRIANGLES,
+
+	RenderMode_lines = GL_LINES,
+	RenderMode_line_strip = GL_LINE_STRIP,
+};
+
 struct RenderBatch {
 	gl::Texture * tex;
 
@@ -30,6 +37,8 @@ struct RenderBatch {
 	f32 * v_arr;
 	gl::VertexBuffer v_buf;
 	u32 e;
+
+	RenderMode mode;
 };
 
 //TODO: Formalise sprite animation!!
@@ -49,33 +58,22 @@ struct Entity {
 
 	gl::VertexBuffer * v_buf;
 
-	math::Vec2 d_pos;
 	math::Vec2 speed;
 	f32 damp;
 	b32 use_gravity;
+	math::Vec2 d_pos;
 
 	f32 anim_time;
-};
-
-struct Player {
-	Entity * e;
-
 	f32 initial_x;
-};
-
-struct Teacup {
-	Entity * e;
-
 	b32 hit;
 };
 
-struct TeacupEmitter {
+struct EntityEmitter {
 	math::Vec3 pos;
-	f32 scale;
 	f32 time_until_next_spawn;
 
 	u32 entity_count;
-	Teacup * entity_array[16];
+	Entity * entity_array[16];
 };
 
 struct Camera {
@@ -155,6 +153,9 @@ struct GameState {
 
 	math::Mat4 projection_matrix;
 
+	b32 debug_render_entity_bounds;
+	RenderBatch * debug_batch;
+
 	u32 sprite_batch_count;
 	RenderBatch ** sprite_batches;
 
@@ -165,10 +166,9 @@ struct GameState {
 	u32 bg_layer_count;
 	Entity ** bg_layers;
 
-	Player player;
-	TeacupEmitter teacup_emitter;
+	Entity * player;
 
-	Entity * animated_entity;
+	EntityEmitter entity_emitter;
 
 	Camera camera;
 
