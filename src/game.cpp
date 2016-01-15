@@ -44,11 +44,6 @@ RenderBatch * allocate_render_batch(MemoryPool * pool, gl::Texture * tex, u32 v_
 	return batch;
 }
 
-void clear_render_batch(RenderBatch * batch) {
-	zero_memory((u8 *)batch->v_arr, batch->v_len * sizeof(f32));
-	batch->e = 0;
-}
-
 void render_quad(RenderBatch * batch, math::Vec2 pos0, math::Vec2 pos1, math::Vec2 uv0, math::Vec2 uv1, math::Vec4 color) {
 	f32 * v = batch->v_arr;
 
@@ -111,6 +106,18 @@ void render_v_buf(gl::VertexBuffer * v_buf, Shader * shader, math::Mat4 * xform,
 	glDrawArrays(GL_TRIANGLES, 0, v_buf->vert_count);
 }
 
+void render_and_clear_render_batch(RenderBatch * batch, Shader * shader, math::Mat4 * xform) {
+	if(batch->e > 0) {
+		glBindBuffer(GL_ARRAY_BUFFER, batch->v_buf.id);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, batch->v_buf.size_in_bytes, batch->v_arr);
+
+		render_v_buf(&batch->v_buf, shader, xform, batch->tex);
+
+		zero_memory((u8 *)batch->v_arr, batch->v_len * sizeof(f32));
+		batch->e = 0;		
+	}
+}
+ 
 Font * allocate_font(MemoryPool * pool, gl::Texture * tex, u32 v_len, u32 back_buffer_width, u32 back_buffer_height) {
 	Font * font = PUSH_STRUCT(pool, Font);
 
@@ -300,10 +307,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		game_state->entity_gravity = math::vec2(0.0f, -10000.0f);
 
-		game_state->bg_layer_count = get_asset_count(assets, AssetId_bg_layer);
+		game_state->bg_layer_count = get_asset_count(assets, AssetId_background_layer);
 		game_state->bg_layers = PUSH_ARRAY(&game_state->memory_pool, Entity *, game_state->bg_layer_count);
-		for(u32 i = 0; i < game_state->bg_layer_count; i++) {
-			Entity * bg_layer = push_entity(game_state, AssetId_bg_layer, i);
+		for(u32 i = 0; i < game_state->bg_layer_count - 1; i++) {
+			Entity * bg_layer = push_entity(game_state, AssetId_background_layer, i);
 
 			bg_layer->pos.z = 2.5f * (game_state->bg_layer_count - i);
 			bg_layer->v_buf = &game_state->bg_v_buf;
@@ -313,6 +320,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		game_state->player.e = push_entity(game_state, AssetId_dolly, 0, math::vec3((f32)game_state->ideal_window_width * -0.5f * (2.0f / 3.0f), 0.0f, 0.0f));
 		game_state->player.e->speed = math::vec2(50.0f, 6000.0f);
+		game_state->player.e->damp = 0.15f;
 		game_state->player.initial_x = game_state->player.e->pos.x;
 
 		TeacupEmitter * emitter = &game_state->teacup_emitter;
@@ -332,6 +340,16 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		game_state->animated_entity = push_entity(game_state, AssetId_animation, 0);
 		// push_entity(game_state, AssetId_atlas, 1);
+
+		//TODO: Adding foreground layer at the end until we have sorting!!
+		{
+			u32 i = game_state->bg_layer_count - 1;
+			Entity * bg_layer = push_entity(game_state, AssetId_background_layer, i);
+
+			bg_layer->pos.z = -0.5f;
+			bg_layer->v_buf = &game_state->bg_v_buf;
+			game_state->bg_layers[i] = bg_layer;
+		}
 
 		game_state->camera.pos = math::vec2(0.0f, game_state->player.e->pos.y);
 
@@ -354,8 +372,9 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	if(game_input->buttons[ButtonId_right] & KEY_DOWN) {
 		dd_time += 4.0f * game_input->delta_time;
 	}
-	
+
 	game_state->d_time += dd_time;
+	//TODO: Disable this to go backwards in time!!
 	game_state->d_time = math::max(game_state->d_time, 0.0f);
 
 	if(game_state->d_time < 1.0f) {
@@ -411,7 +430,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	game_state->animated_entity->asset_index = (u32)game_state->animated_entity->anim_time % get_asset_count(assets, game_state->animated_entity->asset_id);
 
 	TeacupEmitter * emitter = &game_state->teacup_emitter;
-	emitter->pos.y = player->e->pos.y;
 	emitter->time_until_next_spawn -= adjusted_dt;
 	if(emitter->time_until_next_spawn <= 0.0f) {
 		if(emitter->entity_count < ARRAY_COUNT(emitter->entity_array)) {
@@ -522,14 +540,16 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	glViewport(0, letterboxing_pixels, game_input->back_buffer_width, viewport_height);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	{
-		Texture * bg_tex = get_texture_asset(assets, AssetId_bg, 0);
-		ASSERT(bg_tex);
+	Shader * shader = &game_state->basic_shader;
 
-		math::Vec2 dim = math::vec2(bg_tex->width, bg_tex->height);
+	{
+		Texture * tex = get_texture_asset(assets, AssetId_background, 0);
+		ASSERT(tex);
+
+		math::Vec2 dim = math::vec2(tex->width, tex->height);
 		math::Mat4 xform = game_state->projection_matrix * math::scale(dim.x, dim.y, 1.0f);
 
-		render_v_buf(&game_state->entity_v_buf, &game_state->basic_shader, &xform, bg_tex);
+		render_v_buf(&game_state->entity_v_buf, shader, &xform, tex);
 	}
 
 	glEnable(GL_BLEND);
@@ -543,9 +563,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		camera->pos.y = math::max(player->e->pos.y, 0.0f);
 		camera->offset = (math::rand_vec2() * 2.0f - 1.0f) * math::max(game_state->d_time - 2.0f, 0.0f);
 
-		for(u32 i = 0; i < game_state->sprite_batch_count; i++) {
-			clear_render_batch(game_state->sprite_batches[i]);
-		}
+		u32 null_batch_index = game_state->sprite_batch_count;
+		u32 current_batch_index = null_batch_index;
 
 		//TODO: Sorting!!
 		for(u32 i = 0; i < game_state->entity_count; i++) {
@@ -557,15 +576,26 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				gl::Texture * tex = get_texture_asset(assets, entity->asset_id, entity->asset_index);
 				ASSERT(tex);
 
+				if(current_batch_index != null_batch_index) {
+					render_and_clear_render_batch(game_state->sprite_batches[current_batch_index], shader, &game_state->projection_matrix);
+					current_batch_index = null_batch_index;
+				}
+
 				math::Vec2 dim = math::vec2(tex->width, tex->height) * entity->scale;
 				math::Mat4 xform = game_state->projection_matrix * math::translate(pos.x, pos.y, 0.0f) * math::scale(dim.x, dim.y, 1.0f);
 
-				render_v_buf(entity->v_buf, &game_state->basic_shader, &xform, tex, entity->color);
+				render_v_buf(entity->v_buf, shader, &xform, tex, entity->color);
 			}
 			else {
 				Sprite * sprite = get_sprite_asset(assets, entity->asset_id, entity->asset_index);
 				ASSERT(sprite);
 				ASSERT(sprite->atlas_index < game_state->sprite_batch_count);
+
+				if(current_batch_index != sprite->atlas_index && current_batch_index != null_batch_index) {
+					render_and_clear_render_batch(game_state->sprite_batches[current_batch_index], shader, &game_state->projection_matrix);
+				}
+
+				current_batch_index = sprite->atlas_index;
 
 				RenderBatch * batch = game_state->sprite_batches[sprite->atlas_index];
 				render_sprite(batch, sprite, pos + sprite->offset, sprite->dim * entity->scale, entity->color);
@@ -573,11 +603,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		}
 		
 		for(u32 i = 0; i < game_state->sprite_batch_count; i++) {
-			RenderBatch * batch = game_state->sprite_batches[i];
-
-			glBindBuffer(GL_ARRAY_BUFFER, batch->v_buf.id);
-			glBufferSubData(GL_ARRAY_BUFFER, 0, batch->v_buf.size_in_bytes, batch->v_arr);
-			render_v_buf(&batch->v_buf, &game_state->basic_shader, &game_state->projection_matrix, batch->tex);
+			render_and_clear_render_batch(game_state->sprite_batches[i], shader, &game_state->projection_matrix);
 		}
 	}
 
@@ -590,17 +616,14 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		font->pos = font->anchor;
 
 		RenderBatch * batch = font->batch;
-		clear_render_batch(font->batch);
 
 		str_clear(game_state->title_str);
 		str_print(game_state->title_str, "DOLLY DOLLY DOLLY DAYS!\nDT: %f | D_TIME: %f | D_POS %f | SCORE: %u\n\n", game_input->delta_time, game_state->d_time, game_state->player.e->d_pos.y, game_state->score);
 		render_str(font, game_state->title_str);
 
-		// render_str(font, game_state->debug_str);
+		render_str(font, game_state->debug_str);
 
-		glBindBuffer(GL_ARRAY_BUFFER, batch->v_buf.id);
-		glBufferSubData(GL_ARRAY_BUFFER, 0, batch->v_buf.size_in_bytes, batch->v_arr);
-		render_v_buf(&batch->v_buf, &game_state->basic_shader, &font->projection_matrix, batch->tex);
+		render_and_clear_render_batch(batch, shader, &font->projection_matrix);
 	}
 
 	glDisable(GL_BLEND);

@@ -382,12 +382,12 @@ int main() {
 	Texture reg_tex_array[] = {
 		load_texture("font.png", AssetId_font, TextureSampling_point),
 
-		load_texture("bg.png", AssetId_bg),
+		load_texture("background.png", AssetId_background),
 
-		load_texture("bg_layer0.png", AssetId_bg_layer),
-		load_texture("bg_layer1.png", AssetId_bg_layer),
-		load_texture("bg_layer2.png", AssetId_bg_layer),
-		// load_texture("bg_layer3.png", AssetId_bg_layer),
+		load_texture("background_layer0.png", AssetId_background_layer),
+		load_texture("background_layer1.png", AssetId_background_layer),
+		load_texture("background_layer2.png", AssetId_background_layer),
+		load_texture("background_layer3.png", AssetId_background_layer),
 	};
 
 	packer.header.asset_count += ARRAY_COUNT(reg_tex_array);

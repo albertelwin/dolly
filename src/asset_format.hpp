@@ -24,8 +24,8 @@ enum AssetId {
 	//NOTE: Textures!!
 	AssetId_font,
 
-	AssetId_bg,
-	AssetId_bg_layer,
+	AssetId_background,
+	AssetId_background_layer,
 
 	AssetId_atlas,
 
