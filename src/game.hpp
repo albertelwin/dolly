@@ -66,6 +66,8 @@ struct Entity {
 	f32 anim_time;
 	f32 initial_x;
 	b32 hit;
+
+	math::Vec2 chain_pos;
 };
 
 struct EntityEmitter {
@@ -89,6 +91,8 @@ enum ButtonId {
 
 	//TODO: Temp!!
 	ButtonId_mute,
+
+	ButtonId_debug,
 
 	ButtonId_count,
 };
@@ -172,7 +176,8 @@ struct GameState {
 
 	u32 player_clone_index;
 	u32 player_clone_count;
-	Entity * player_clones[32];
+	Entity * player_clones[64];
+	math::Vec2 player_clone_offset;
 
 	EntityEmitter entity_emitter;
 

@@ -259,10 +259,7 @@ math::Rec2 get_entity_bounds(AssetState * assets, Entity * entity) {
 
 void push_player_clone(GameState * game_state) {
 	if(game_state->player_clone_count < ARRAY_COUNT(game_state->player_clones)) {
-		u32 clone_index = game_state->player_clone_count++;
-		Entity * entity = game_state->player_clones[clone_index];
-
-		entity->asset_index = (clone_index % (get_asset_count(&game_state->asset_state, AssetId_dolly) - 1)) + 1;
+		game_state->player_clone_count++;
 	}
 }
 
@@ -289,7 +286,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		AudioState * audio_state = &game_state->audio_state;
 		load_audio(audio_state, &game_state->memory_pool, assets, game_input->audio_supported);
-		// audio_state->master_volume = 0.0f;
+		audio_state->master_volume = 0.0f;
 
 		game_state->music = play_audio_clip(audio_state, AssetId_music, true);
 
@@ -377,12 +374,14 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		game_state->player_clone_index = 0;
 		game_state->player_clone_count = 0;
+		game_state->player_clone_offset = math::vec2(-5.0f, 0.0f);
 		for(u32 i = 0; i < ARRAY_COUNT(game_state->player_clones); i++) {
-			game_state->player_clones[i] = push_entity(game_state, AssetId_dolly, 0, game_state->entity_null_pos);
+			u32 asset_index = (i % (get_asset_count(&game_state->asset_state, AssetId_dolly) - 1)) + 1;
+			game_state->player_clones[i] = push_entity(game_state, AssetId_dolly, asset_index, game_state->entity_null_pos);
 		}
 
-		// game_state->player = push_entity(game_state, AssetId_dolly, 0, math::vec3((f32)game_state->ideal_window_width * -0.5f * (2.0f / 3.0f), 0.0f, 0.0f));
-		game_state->player = push_entity(game_state, AssetId_dolly, 0, math::vec3((f32)game_state->ideal_window_width * -0.25f, 0.0f, 0.0f));
+		// game_state->player = push_entity(game_state, AssetId_dolly, 0, math::vec3((f32)game_state->ideal_window_width * -0.25f, 0.0f, 0.0f));
+		game_state->player = push_entity(game_state, AssetId_dolly, 0, math::vec3(0.0f, 0.0f, 0.0f));
 		game_state->player->speed = math::vec2(50.0f, 6000.0f);
 		game_state->player->damp = 0.15f;
 		game_state->player->initial_x = game_state->player->pos.x;
@@ -395,8 +394,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		for(u32 i = 0; i < ARRAY_COUNT(emitter->entity_array); i++) {
 			emitter->entity_array[i] = push_entity(game_state, AssetId_teacup, 0, emitter->pos);
 		}
-
-		// push_entity(game_state, AssetId_atlas, 1);
 
 		//TODO: Adding foreground layer at the end until we have sorting!!
 		{
@@ -417,10 +414,12 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	}
 
-	if(game_input->buttons[ButtonId_mute] & KEY_PRESSED) {
-		// game_state->audio_state.master_volume = game_state->audio_state.master_volume > 0.0f ? 0.0f : 1.0f;
-
+	if(game_input->buttons[ButtonId_debug] & KEY_PRESSED) {
 		game_state->debug_render_entity_bounds = !game_state->debug_render_entity_bounds;
+	}
+
+	if(game_input->buttons[ButtonId_mute] & KEY_PRESSED) {
+		game_state->audio_state.master_volume = game_state->audio_state.master_volume > 0.0f ? 0.0f : 1.0f;
 	}
 
 	f32 dd_time = 0.0f;
@@ -452,20 +451,21 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 	Entity * player = game_state->player;
 
-	for(u32 i = 0; i < game_state->player_clone_count; i++) {
-		u32 clone_index = game_state->player_clone_count - (i + 1);
-		Entity * entity = game_state->player_clones[clone_index];
+	for(i32 i = game_state->player_clone_count - 1; i >= 0; i--) {
+		Entity * entity = game_state->player_clones[i];
 
-		if(clone_index == 0) {
-			entity->pos = player->pos;
+		if(i == 0) {
+			entity->chain_pos = player->pos.xy;
 		}
 		else {
-			Entity * next_entity = game_state->player_clones[clone_index - 1];
-			entity->pos = next_entity->pos;
+			Entity * next_entity = game_state->player_clones[i - 1];
+			entity->chain_pos = next_entity->chain_pos;
 		}
 
-		entity->pos.x -= 5.0f;
-		entity->pos.y += math::sin((game_input->total_time * 0.5f + clone_index * 0.375f) * math::PI) * 50.0f;
+		entity->chain_pos += game_state->player_clone_offset;
+
+		entity->pos.xy = entity->chain_pos;
+		entity->pos.y += math::sin((game_input->total_time * 0.25f + i * (3.0f / 13.0f)) * math::TAU) * 50.0f;
 	}
 
 	math::Vec2 player_dd_pos = math::vec2(0.0f);
@@ -499,15 +499,14 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 	player->pos.xy += player->d_pos * game_input->delta_time;
 
-
 	f32 max_dist_x = 20.0f;
 	player->pos.x = math::clamp(player->pos.x, player->initial_x - max_dist_x, player->initial_x + max_dist_x);
 
 	AssetId emitter_types[] = {
-		AssetId_smiley,
-		AssetId_smiley,
-		AssetId_telly,
-		AssetId_telly,
+		// AssetId_smiley,
+		// AssetId_smiley,
+		// AssetId_telly,
+		// AssetId_telly,
 		AssetId_dolly,
 	};
 

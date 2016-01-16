@@ -195,6 +195,8 @@ int main() {
 
 	args.game_button_to_key_map[ButtonId_mute] = SDLK_RETURN;
 
+	args.game_button_to_key_map[ButtonId_debug] = SDLK_0;
+
 	for(u32 i = 0; i < ButtonId_count; i++) {
 		ASSERT(args.game_button_to_key_map[i] != null_key_code);
 	}

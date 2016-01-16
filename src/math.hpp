@@ -126,6 +126,10 @@ namespace math {
 		return { x, x };
 	}
 
+	b32 operator==(Vec2 const & x, Vec2 const & y) {
+		return (x.x == y.x && x.y == y.y);
+	}
+
 	Vec2 operator+(Vec2 const & x, Vec2 const & y) {
 		Vec2 tmp = x;
 		tmp.x += y.x;
@@ -217,6 +221,18 @@ namespace math {
 		tmp.x /= x;
 		tmp.y /= x;
 		return tmp;
+	}
+
+	Vec2 & operator/=(Vec2 & x, Vec2 const & y) {
+		x.x /= y.x;
+		x.y /= y.y;
+		return x;
+	}
+
+	Vec2 & operator/=(Vec2 & v, f32 x) {
+		v.x /= x;
+		v.y /= x;
+		return v;
 	}
 
 	Vec2 clamp01(Vec2 const & x) {
