@@ -758,21 +758,32 @@ namespace math {
 		return r;
 	}
 
-	Rec2 rec2_centre_dim(Vec2 const & pos, Vec2 const & dim) {
+	Rec2 rec2_pos_dim(Vec2 const & pos, Vec2 const & dim) {
 		Rec2 r;
 		r.min = pos - dim * 0.5f;
 		r.max = pos + dim * 0.5f;
 		return r;
 	}
 
-	Rec2 rec2_min_dim(math::Vec2 const & min, math::Vec2 const & dim) {
+	Rec2 rec2_min_dim(Vec2 const & min, Vec2 const & dim) {
 		Rec2 r;
 		r.min = min;
 		r.max = min + dim;
 		return r;
 	}
 
-	Vec2 rec_centre(Rec2 const & r) {
+	Rec2 rec_offset(Rec2 const & r, Vec2 const & v) {
+		Rec2 r2 = r;
+		r2.min += v;
+		r2.max += v;
+		return r2;
+	}
+
+	Rec2 rec_scale(Rec2 const & r, f32 x) {
+		return rec2_pos_dim(r.min + (r.max - r.min) * 0.5f, (r.max - r.min) * x);
+	}
+
+	Vec2 rec_pos(Rec2 const & r) {
 		return r.min + (r.max - r.min) * 0.5f;
 	}
 

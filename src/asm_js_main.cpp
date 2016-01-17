@@ -164,7 +164,7 @@ int main() {
 	ASSERT(SDL_Init(SDL_INIT_VIDEO) == 0);
 
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
-	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 8);
+	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 1);
 
 	// u32 window_width = 640;
 	// u32 window_height = 360;

@@ -5,6 +5,39 @@
 #include <audio.cpp>
 #include <math.cpp>
 
+
+math::Vec2 project_pos(Camera * camera, math::Vec3 pos) {
+	math::Vec2 projected_pos = pos.xy - camera->pos;
+	projected_pos *= 1.0f / (pos.z + 1.0f);
+	return projected_pos;
+}
+
+math::Vec3 unproject_pos(Camera * camera, math::Vec2 pos, f32 z) {
+	math::Vec3 unprojected_pos = math::vec3(pos, z);
+	unprojected_pos.xy *= (z + 1.0f);
+	unprojected_pos.xy += camera->pos;
+	return unprojected_pos;
+}
+
+math::Rec2 get_asset_bounds(AssetState * assets, AssetId asset_id, u32 asset_index) {
+	math::Vec2 pos = math::vec2(0.0f);
+	math::Vec2 dim;
+
+	Asset * asset = get_asset(assets, asset_id, asset_index);
+	if(asset->type == AssetType_texture) {
+		dim = math::vec2(asset->texture.width, asset->texture.height);
+	}
+	else {
+		ASSERT(asset->type == AssetType_sprite);
+		Sprite * sprite = &asset->sprite;
+
+		pos += sprite->offset;
+		dim = sprite->dim;
+	}
+
+	return math::rec2_pos_dim(pos, dim);
+}
+
 Entity * push_entity(GameState * game_state, AssetId asset_id, u32 asset_index, math::Vec3 pos = math::vec3(0.0f)) {
 	ASSERT(game_state->entity_count < ARRAY_COUNT(game_state->entity_array));
 
@@ -27,12 +60,27 @@ Entity * push_entity(GameState * game_state, AssetId asset_id, u32 asset_index, 
 	entity->speed = math::vec2(500.0f);
 	entity->damp = 0.1f;
 	entity->use_gravity = false;
+	entity->collider = get_asset_bounds(&game_state->asset_state, entity->asset_id, entity->asset_index);
 
 	entity->anim_time = 0.0f;
 	entity->initial_x = pos.x;
 	entity->hit = false;
 
 	return entity;
+}
+
+math::Rec2 get_entity_render_bounds(AssetState * assets, Entity * entity, Camera * camera) {
+	math::Rec2 bounds = get_asset_bounds(assets, entity->asset_id, entity->asset_index);
+
+	//TODO: Should the sprite offset be projected??
+	math::Vec2 pos = project_pos(camera, entity->pos) + camera->offset + math::rec_pos(bounds);
+	math::Vec2 dim = math::rec_dim(bounds) * entity->scale;
+
+	return math::rec2_pos_dim(pos, dim);
+}
+
+math::Rec2 get_entity_collider_bounds(Entity * entity) {
+	return math::rec_offset(entity->collider, entity->pos.xy);
 }
 
 RenderBatch * allocate_render_batch(MemoryPool * pool, gl::Texture * tex, u32 v_len, RenderMode render_mode = RenderMode_triangles) {
@@ -228,35 +276,6 @@ void render_c_str(Font * font, char const * c_str) {
 	render_str(font, &str);
 }
 
-math::Vec2 project_pos(Camera * camera, math::Vec3 pos) {
-	math::Vec2 projected_pos = pos.xy - camera->pos;
-	projected_pos *= 1.0f / (pos.z + 1.0f);
-	return projected_pos;
-}
-
-math::Vec3 unproject_pos(Camera * camera, math::Vec2 pos, f32 z) {
-	math::Vec3 unprojected_pos = math::vec3(pos, z);
-	unprojected_pos.xy *= (z + 1.0f);
-	unprojected_pos.xy += camera->pos;
-	return unprojected_pos;
-}
-
-math::Rec2 get_entity_bounds(AssetState * assets, Entity * entity) {
-	math::Vec2 pos = entity->pos.xy;
-	math::Vec2 dim;
-	if(entity->asset_type == AssetType_texture) {
-		Texture * texture = get_texture_asset(assets, entity->asset_id, entity->asset_index);
-		dim = math::vec2(texture->width, texture->height);
-	}
-	else {
-		Sprite * sprite = get_sprite_asset(assets, entity->asset_id, entity->asset_index);
-		pos += sprite->offset;
-		dim = sprite->dim;
-	}
-
-	return math::rec2_centre_dim(pos, dim * entity->scale);
-}
-
 void push_player_clone(GameState * game_state) {
 	if(game_state->player_clone_count < ARRAY_COUNT(game_state->player_clones)) {
 		game_state->player_clone_count++;
@@ -380,8 +399,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			game_state->player_clones[i] = push_entity(game_state, AssetId_dolly, asset_index, game_state->entity_null_pos);
 		}
 
-		// game_state->player = push_entity(game_state, AssetId_dolly, 0, math::vec3((f32)game_state->ideal_window_width * -0.25f, 0.0f, 0.0f));
-		game_state->player = push_entity(game_state, AssetId_dolly, 0, math::vec3(0.0f, 0.0f, 0.0f));
+		game_state->player = push_entity(game_state, AssetId_dolly, 0, math::vec3((f32)game_state->ideal_window_width * -0.25f, 0.0f, 0.0f));
 		game_state->player->speed = math::vec2(50.0f, 6000.0f);
 		game_state->player->damp = 0.15f;
 		game_state->player->initial_x = game_state->player->pos.x;
@@ -431,9 +449,11 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		dd_time += 4.0f * game_input->delta_time;
 	}
 
-	game_state->d_time += dd_time;
-	//TODO: Disable this to go backwards in time!!
-	game_state->d_time = math::max(game_state->d_time, 0.0f);
+	game_state->d_time = 0.5f + (game_state->player_clone_count * 0.1f);
+
+	// game_state->d_time += dd_time;
+	// //TODO: Disable this to go backwards in time!!
+	// game_state->d_time = math::max(game_state->d_time, 0.0f);
 
 	if(game_state->d_time < 1.0f) {
 		game_state->pitch = game_state->d_time;
@@ -503,10 +523,11 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	player->pos.x = math::clamp(player->pos.x, player->initial_x - max_dist_x, player->initial_x + max_dist_x);
 
 	AssetId emitter_types[] = {
+		AssetId_smiley,
 		// AssetId_smiley,
-		// AssetId_smiley,
-		// AssetId_telly,
-		// AssetId_telly,
+		AssetId_telly,
+		AssetId_telly,
+		AssetId_dolly,
 		AssetId_dolly,
 	};
 
@@ -532,23 +553,29 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			entity->asset_id = asset_id;
 			entity->asset_index = 0;
 
+			entity->collider = get_asset_bounds(assets, entity->asset_id, entity->asset_index);
+			if(entity->asset_id == AssetId_telly) {
+				entity->collider = math::rec_scale(entity->collider, 0.5f);
+			}
+
+
 			entity->hit = false;
 		}
 
 		emitter->time_until_next_spawn = 0.5f;
 	}
 
-	math::Rec2 player_bounds = get_entity_bounds(assets, player);
+	math::Rec2 player_bounds = get_entity_collider_bounds(player);
 
 	for(u32 i = 0; i < emitter->entity_count; i++) {
 		Entity * entity = emitter->entity_array[i];
 		b32 destroy = false;
 
-		math::Rec2 bounds = get_entity_bounds(assets, entity);
-
 		if(!entity->hit) {
 			f32 dd_pos = -500.0f * adjusted_dt;
 			entity->pos.x += dd_pos;
+
+			math::Rec2 bounds = get_entity_render_bounds(assets, entity, &game_state->camera);
 			if(entity->pos.x < -(half_screen_width + math::rec_dim(bounds).x * 0.5f)) {
 				destroy = true;
 			}
@@ -566,6 +593,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		entity->anim_time += adjusted_dt * ANIMATION_FRAMES_PER_SEC;;
 		entity->asset_index = (u32)entity->anim_time % get_asset_count(assets, entity->asset_id);
 
+		math::Rec2 bounds = get_entity_collider_bounds(entity);
 		//TODO: When should this check happen??
 		if(rec_overlap(player_bounds, bounds) && !entity->hit) {
 			entity->hit = true;
@@ -606,8 +634,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		bg_layer->pos.x -= 500.0f * adjusted_dt;
 
-		math::Vec2 screen_pos = project_pos(&game_state->camera, bg_layer->pos);
-		math::Rec2 bounds = get_entity_bounds(assets, bg_layer);
+		math::Rec2 bounds = get_entity_render_bounds(assets, bg_layer, &game_state->camera);
+		math::Vec2 screen_pos = math::rec_pos(bounds);
 		f32 width = math::rec_dim(bounds).x;
 
 		if(screen_pos.x < -(half_screen_width + width * 0.5f)) {
@@ -663,40 +691,46 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		camera->pos.y = math::max(player->pos.y, 0.0f);
 		camera->offset = (math::rand_vec2() * 2.0f - 1.0f) * math::max(game_state->d_time - 2.0f, 0.0f);
 
-		u32 null_batch_index = game_state->sprite_batch_count;
+		math::Rec2 camera_bounds = math::rec2_pos_dim(math::vec2(0.0f), math::vec2(game_state->ideal_window_width, game_state->ideal_window_height));
+
+		u32 null_batch_index = U32_MAX;
 		u32 current_batch_index = null_batch_index;
 
 		//TODO: Sorting!!
 		for(u32 i = 0; i < game_state->entity_count; i++) {
 			Entity * entity = game_state->entity_array + i;
 
-			math::Vec2 pos = project_pos(camera, entity->pos) + camera->offset;
-
+			math::Rec2 bounds = get_entity_render_bounds(assets, entity, camera);
+			math::Vec2 pos = math::rec_pos(bounds);
+			math::Vec2 dim = math::rec_dim(bounds);
+			
 			if(entity->asset_type == AssetType_texture) {
 				gl::Texture * tex = get_texture_asset(assets, entity->asset_id, entity->asset_index);
 
-				if(current_batch_index != null_batch_index) {
-					render_and_clear_render_batch(game_state->sprite_batches[current_batch_index], shader, &game_state->projection_matrix);
-					current_batch_index = null_batch_index;
-				}
+				// if(math::rec_overlap(camera_bounds, bounds)) {
+					if(current_batch_index != null_batch_index) {
+						render_and_clear_render_batch(game_state->sprite_batches[current_batch_index], shader, &game_state->projection_matrix);
+						current_batch_index = null_batch_index;
+					}
 
-				math::Vec2 dim = math::vec2(tex->width, tex->height) * entity->scale;
-				math::Mat4 xform = game_state->projection_matrix * math::translate(pos.x, pos.y, 0.0f) * math::scale(dim.x, dim.y, 1.0f);
-
-				render_v_buf(entity->v_buf, RenderMode_triangles, shader, &xform, tex, entity->color);
+					math::Mat4 xform = game_state->projection_matrix * math::translate(pos.x, pos.y, 0.0f) * math::scale(dim.x, dim.y, 1.0f);
+					render_v_buf(entity->v_buf, RenderMode_triangles, shader, &xform, tex, entity->color);					
+				// }
 			}
 			else {
 				Sprite * sprite = get_sprite_asset(assets, entity->asset_id, entity->asset_index);
 				ASSERT(sprite->atlas_index < game_state->sprite_batch_count);
 
-				if(current_batch_index != sprite->atlas_index && current_batch_index != null_batch_index) {
-					render_and_clear_render_batch(game_state->sprite_batches[current_batch_index], shader, &game_state->projection_matrix);
+				if(math::rec_overlap(camera_bounds, bounds)) {
+					if(current_batch_index != sprite->atlas_index && current_batch_index != null_batch_index) {
+						render_and_clear_render_batch(game_state->sprite_batches[current_batch_index], shader, &game_state->projection_matrix);
+					}
+
+					current_batch_index = sprite->atlas_index;
+
+					RenderBatch * batch = game_state->sprite_batches[sprite->atlas_index];
+					render_sprite(batch, sprite, pos, dim, entity->color);					
 				}
-
-				current_batch_index = sprite->atlas_index;
-
-				RenderBatch * batch = game_state->sprite_batches[sprite->atlas_index];
-				render_sprite(batch, sprite, pos + sprite->offset, sprite->dim * entity->scale, entity->color);
 			}
 		}
 		
@@ -708,27 +742,15 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			for(u32 i = 0; i < game_state->entity_count; i++) {
 				Entity * entity = game_state->entity_array + i;
 
-				math::Vec2 pos = project_pos(camera, entity->pos) + camera->offset;
-				math::Vec2 dim;
-
-				//TODO: Compress this down!!
-				if(entity->asset_type == AssetType_texture) {
-					Texture * tex = get_texture_asset(assets, entity->asset_id, entity->asset_index);
-					dim = math::vec2(tex->width, tex->height) * entity->scale;
-				}
-				else {
-					Sprite * sprite = get_sprite_asset(assets, entity->asset_id, entity->asset_index);
-					pos += sprite->offset;
-					dim = sprite->dim * entity->scale;
-				}
-
-				math::Rec2 rec = math::rec2_centre_dim(pos, dim);
-
-				render_quad_lines(game_state->debug_batch, &rec, math::vec4(1.0f));
+				// math::Rec2 bounds = get_entity_render_bounds(assets, entity, camera);
+				math::Rec2 bounds = math::rec_offset(entity->collider, project_pos(camera, entity->pos) + camera->offset);
+				render_quad_lines(game_state->debug_batch, &bounds, math::vec4(1.0f));
 			}
 
 			render_and_clear_render_batch(game_state->debug_batch, shader, &game_state->projection_matrix);
 		}
+
+		camera->offset = math::vec2(0.0f);
 	}
 
 	glViewport(0, 0, game_input->back_buffer_width, game_input->back_buffer_height);

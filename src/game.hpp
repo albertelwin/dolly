@@ -58,10 +58,11 @@ struct Entity {
 
 	gl::VertexBuffer * v_buf;
 
+	math::Vec2 d_pos;
 	math::Vec2 speed;
 	f32 damp;
 	b32 use_gravity;
-	math::Vec2 d_pos;
+	math::Rec2 collider;
 
 	f32 anim_time;
 	f32 initial_x;
