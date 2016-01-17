@@ -466,7 +466,11 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 	change_pitch(game_state->music, game_state->pitch);
 	
+#if 1
 	f32 adjusted_dt = game_state->d_time * game_input->delta_time;
+#else
+	f32 adjusted_dt = game_input->delta_time;
+#endif
 
 	f32 half_screen_width = (f32)game_state->ideal_window_width * 0.5f;
 	f32 half_screen_height = (f32)game_state->ideal_window_height * 0.5f;
@@ -669,13 +673,24 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		DEBUG_TIME_BLOCK();
 
 		Camera * camera = &game_state->camera;
+
+		camera->letterboxed_height = game_state->ideal_window_height - math::max(game_state->d_time - 1.0f, 0.0f) * 20.0f;
+		camera->letterboxed_height = math::max(camera->letterboxed_height, game_state->ideal_window_height / 3.0f);
+
+		f32 letterbox_pixels = (game_state->ideal_window_height - camera->letterboxed_height) * 0.5f;
+#if 0
+		f32 camera_min_y = -letterbox_pixels * 0.5f;
+#else
+		f32 camera_min_y = 1.0f;
+#endif
+
 		camera->pos.x = 0.0f;
-		camera->pos.y = math::max(player->pos.y, 0.0f);
-#if 1
+		camera->pos.y = math::max(player->pos.y, camera_min_y);
+#if 0
 		camera->offset = (math::rand_vec2() * 2.0f - 1.0f) * math::max(game_state->d_time - 2.0f, 0.0f);
 #endif
 
-		math::Rec2 camera_bounds = math::rec2_pos_dim(math::vec2(0.0f), math::vec2(game_state->ideal_window_width, game_state->ideal_window_height));
+		math::Rec2 camera_bounds = math::rec2_pos_dim(math::vec2(0.0f), math::vec2((f32)game_state->ideal_window_width, camera->letterboxed_height));
 
 		u32 null_batch_index = U32_MAX;
 		u32 current_batch_index = null_batch_index;
@@ -738,11 +753,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		camera->offset = math::vec2(0.0f);
 
 		{
-			f32 letterboxed_height = game_state->ideal_window_height - math::max(game_state->d_time - 1.0f, 0.0f) * 20.0f;
-			letterboxed_height = math::max(letterboxed_height, game_state->ideal_window_height / 3.0f);
-
-			f32 letterbox_pixels = (game_state->ideal_window_height - letterboxed_height) * 0.5f;
-
 			Texture * tex = get_texture_asset(assets, AssetId_white, 0);
 
 			math::Vec2 dim = math::vec2(game_state->ideal_window_width, game_state->ideal_window_height);

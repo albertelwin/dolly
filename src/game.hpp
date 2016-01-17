@@ -82,6 +82,8 @@ struct EntityEmitter {
 struct Camera {
 	math::Vec2 pos;
 	math::Vec2 offset;
+
+	f32 letterboxed_height;
 };
 
 enum ButtonId {
