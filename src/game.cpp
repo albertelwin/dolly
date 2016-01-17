@@ -54,7 +54,7 @@ Entity * push_entity(GameState * game_state, AssetId asset_id, u32 asset_index, 
 	entity->asset_type = asset->type;
 	entity->asset_id = asset_id;
 	entity->asset_index = asset_index;
-	entity->v_buf = &game_state->entity_v_buf;
+	entity->v_buf = &game_state->quad_v_buf;
 
 	entity->d_pos = math::vec2(0.0f);
 	entity->speed = math::vec2(500.0f);
@@ -159,12 +159,12 @@ void render_sprite(RenderBatch * batch, Sprite * sprite, math::Vec2 pos, math::V
 	render_quad(batch, pos0, pos1, uv0, uv1, color);
 }
 
-void render_v_buf(gl::VertexBuffer * v_buf, RenderMode render_mode, Shader * shader, math::Mat4 * xform, gl::Texture * tex0, math::Vec4 color = math::vec4(1.0f)) {
+void render_v_buf(gl::VertexBuffer * v_buf, RenderMode render_mode, Shader * shader, math::Mat4 * transform, gl::Texture * tex0, math::Vec4 color = math::vec4(1.0f)) {
 	DEBUG_TIME_BLOCK();
 
 	glUseProgram(shader->id);
 
-	glUniformMatrix4fv(shader->xform, 1, GL_FALSE, xform->v);
+	glUniformMatrix4fv(shader->transform, 1, GL_FALSE, transform->v);
 	glUniform4f(shader->color, color.r, color.g, color.b, color.a);
 
 	glActiveTexture(GL_TEXTURE0);
@@ -187,14 +187,14 @@ void render_v_buf(gl::VertexBuffer * v_buf, RenderMode render_mode, Shader * sha
 	glDrawArrays(render_mode, 0, v_buf->vert_count);
 }
 
-void render_and_clear_render_batch(RenderBatch * batch, Shader * shader, math::Mat4 * xform) {
+void render_and_clear_render_batch(RenderBatch * batch, Shader * shader, math::Mat4 * transform) {
 	DEBUG_TIME_BLOCK();
 
 	if(batch->e > 0) {
 		glBindBuffer(GL_ARRAY_BUFFER, batch->v_buf.id);
 		glBufferSubData(GL_ARRAY_BUFFER, 0, batch->v_buf.size_in_bytes, batch->v_arr);
 
-		render_v_buf(&batch->v_buf, batch->mode, shader, xform, batch->tex);
+		render_v_buf(&batch->v_buf, batch->mode, shader, transform, batch->tex);
 
 		zero_memory((u8 *)batch->v_arr, batch->v_len * sizeof(f32));
 		batch->e = 0;		
@@ -316,7 +316,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		basic_shader->i_position = glGetAttribLocation(basic_shader->id, "i_position");
 		basic_shader->i_tex_coord = glGetAttribLocation(basic_shader->id, "i_tex_coord");
 		basic_shader->i_color = glGetAttribLocation(basic_shader->id, "i_color");
-		basic_shader->xform = glGetUniformLocation(basic_shader->id, "xform");
+		basic_shader->transform = glGetUniformLocation(basic_shader->id, "transform");
 		basic_shader->color = glGetUniformLocation(basic_shader->id, "color");
 		basic_shader->tex0 = glGetUniformLocation(basic_shader->id, "tex0");
 
@@ -329,7 +329,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			 0.5f,-0.5f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 		};
 
-		game_state->entity_v_buf = gl::create_vertex_buffer(quad_verts, ARRAY_COUNT(quad_verts), VERT_ELEM_COUNT, GL_STATIC_DRAW);
+		game_state->quad_v_buf = gl::create_vertex_buffer(quad_verts, ARRAY_COUNT(quad_verts), VERT_ELEM_COUNT, GL_STATIC_DRAW);
 
 		f32 bg_verts[] = {
 			-1.5f,-0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
@@ -449,11 +449,13 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		dd_time += 4.0f * game_input->delta_time;
 	}
 
+#if 0
 	game_state->d_time = 0.5f + (game_state->player_clone_count * 0.1f);
-
-	// game_state->d_time += dd_time;
-	// //TODO: Disable this to go backwards in time!!
-	// game_state->d_time = math::max(game_state->d_time, 0.0f);
+#else
+	game_state->d_time += dd_time;
+	//TODO: Disable this to go backwards in time!!
+	game_state->d_time = math::max(game_state->d_time, 0.0f);
+#endif
 
 	if(game_state->d_time < 1.0f) {
 		game_state->pitch = game_state->d_time;
@@ -558,7 +560,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				entity->collider = math::rec_scale(entity->collider, 0.5f);
 			}
 
-
 			entity->hit = false;
 		}
 
@@ -644,28 +645,9 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		}
 	}
 
-#if 1
-	f32 actual_over_ideal_height = (f32)game_input->back_buffer_height / (f32)game_state->ideal_window_height;
-	u32 letterboxing_pixels = (u32)(math::max(game_state->d_time - 1.0f, 0.0f) * 10.0f * actual_over_ideal_height);
+	game_state->projection_matrix = math::orthographic_projection((f32)game_state->ideal_window_width, (f32)game_state->ideal_window_height);
 
-	u32 min_viewport_height = game_input->back_buffer_height / 3;
-	u32 viewport_height;
-	if(letterboxing_pixels * 2 < game_input->back_buffer_height - min_viewport_height) {
-		viewport_height = game_input->back_buffer_height - letterboxing_pixels * 2;
-	}
-	else {
-		viewport_height = min_viewport_height;
-		letterboxing_pixels = (game_input->back_buffer_height - min_viewport_height) / 2;
-	}
-#else
-	u32 letterboxing_pixels = 0;
-	u32 viewport_height = game_input->back_buffer_height;
-#endif
-
-	u32 ideal_window_height = (u32)((f32)game_state->ideal_window_height * (f32)viewport_height / (f32)game_input->back_buffer_height);
-	game_state->projection_matrix = math::orthographic_projection((f32)game_state->ideal_window_width, (f32)ideal_window_height);
-
-	glViewport(0, letterboxing_pixels, game_input->back_buffer_width, viewport_height);
+	glViewport(0, 0, game_input->back_buffer_width, game_input->back_buffer_height);
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	Shader * shader = &game_state->basic_shader;
@@ -675,9 +657,9 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		ASSERT(tex);
 
 		math::Vec2 dim = math::vec2(tex->width, tex->height);
-		math::Mat4 xform = game_state->projection_matrix * math::scale(dim.x, dim.y, 1.0f);
+		math::Mat4 transform = game_state->projection_matrix * math::scale(dim.x, dim.y, 1.0f);
 
-		render_v_buf(&game_state->entity_v_buf, RenderMode_triangles, shader, &xform, tex);
+		render_v_buf(&game_state->quad_v_buf, RenderMode_triangles, shader, &transform, tex);
 	}
 
 	glEnable(GL_BLEND);
@@ -689,7 +671,9 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		Camera * camera = &game_state->camera;
 		camera->pos.x = 0.0f;
 		camera->pos.y = math::max(player->pos.y, 0.0f);
+#if 1
 		camera->offset = (math::rand_vec2() * 2.0f - 1.0f) * math::max(game_state->d_time - 2.0f, 0.0f);
+#endif
 
 		math::Rec2 camera_bounds = math::rec2_pos_dim(math::vec2(0.0f), math::vec2(game_state->ideal_window_width, game_state->ideal_window_height));
 
@@ -707,14 +691,15 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			if(entity->asset_type == AssetType_texture) {
 				gl::Texture * tex = get_texture_asset(assets, entity->asset_id, entity->asset_index);
 
+				//TODO: Disable render culling on certain entities!!
 				// if(math::rec_overlap(camera_bounds, bounds)) {
 					if(current_batch_index != null_batch_index) {
 						render_and_clear_render_batch(game_state->sprite_batches[current_batch_index], shader, &game_state->projection_matrix);
 						current_batch_index = null_batch_index;
 					}
 
-					math::Mat4 xform = game_state->projection_matrix * math::translate(pos.x, pos.y, 0.0f) * math::scale(dim.x, dim.y, 1.0f);
-					render_v_buf(entity->v_buf, RenderMode_triangles, shader, &xform, tex, entity->color);					
+					math::Mat4 transform = game_state->projection_matrix * math::translate(pos.x, pos.y, 0.0f) * math::scale(dim.x, dim.y, 1.0f);
+					render_v_buf(entity->v_buf, RenderMode_triangles, shader, &transform, tex, entity->color);					
 				// }
 			}
 			else {
@@ -751,6 +736,24 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		}
 
 		camera->offset = math::vec2(0.0f);
+
+		{
+			f32 letterboxed_height = game_state->ideal_window_height - math::max(game_state->d_time - 1.0f, 0.0f) * 20.0f;
+			letterboxed_height = math::max(letterboxed_height, game_state->ideal_window_height / 3.0f);
+
+			f32 letterbox_pixels = (game_state->ideal_window_height - letterboxed_height) * 0.5f;
+
+			Texture * tex = get_texture_asset(assets, AssetId_white, 0);
+
+			math::Vec2 dim = math::vec2(game_state->ideal_window_width, game_state->ideal_window_height);
+			math::Mat4 scale = math::scale(dim.x, dim.y, 1.0f);
+
+			math::Mat4 transform0 = game_state->projection_matrix * math::translate(0.0f, dim.y - letterbox_pixels, 0.0f) * scale;
+			render_v_buf(&game_state->quad_v_buf, RenderMode_triangles, shader, &transform0, tex, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+
+			math::Mat4 transform1 = game_state->projection_matrix * math::translate(0.0f,-dim.y + letterbox_pixels, 0.0f) * scale;
+			render_v_buf(&game_state->quad_v_buf, RenderMode_triangles, shader, &transform1, tex, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+		}
 	}
 
 	glViewport(0, 0, game_input->back_buffer_width, game_input->back_buffer_height);

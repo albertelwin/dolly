@@ -18,7 +18,7 @@ struct Shader {
 	u32 i_tex_coord;
 	u32 i_color;
 
-	u32 xform;
+	u32 transform;
 	u32 color;
 	u32 tex0;
 };
@@ -145,8 +145,7 @@ struct GameState {
 
 	Shader basic_shader;
 
-	u32 entity_program;
-	gl::VertexBuffer entity_v_buf;
+	gl::VertexBuffer quad_v_buf;
 	gl::VertexBuffer bg_v_buf;
 
 	Font * font;
