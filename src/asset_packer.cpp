@@ -385,14 +385,18 @@ int main() {
 
 		load_texture("font.png", AssetId_font, TextureSampling_point),
 
-		load_texture("background0.png", AssetId_background),
-		load_texture("background1.png", AssetId_background),
-		load_texture("background2.png", AssetId_background),
+		load_texture("city_background.png", AssetId_background),
+		load_texture("space_background.png", AssetId_background),
 
-		load_texture("background_layer0.png", AssetId_background_layer),
-		load_texture("background_layer1.png", AssetId_background_layer),
-		load_texture("background_layer2.png", AssetId_background_layer),
-		load_texture("background_layer3.png", AssetId_background_layer),
+		load_texture("city_background_layer0.png", AssetId_background_layer),
+		load_texture("city_background_layer1.png", AssetId_background_layer),
+		load_texture("city_background_layer2.png", AssetId_background_layer),
+		load_texture("city_background_layer3.png", AssetId_background_layer),
+
+		load_texture("space_background_layer0.png", AssetId_background_layer),
+		load_texture("space_background_layer1.png", AssetId_background_layer),
+		load_texture("space_background_layer2.png", AssetId_background_layer),
+		load_texture("space_background_layer3.png", AssetId_background_layer),
 	};
 
 	packer.header.asset_count += ARRAY_COUNT(reg_tex_array);

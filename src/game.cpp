@@ -402,7 +402,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		game_state->entity_null_pos = math::vec3((f32)game_state->ideal_window_width, 0.0f, 0.0f);
 		game_state->entity_gravity = math::vec2(0.0f, -10000.0f);
 
-		game_state->bg_layer_count = get_asset_count(assets, AssetId_background_layer);
+		// game_state->bg_layer_count = get_asset_count(assets, AssetId_background_layer);
+		game_state->bg_layer_count = 4;
 		game_state->bg_layers = PUSH_ARRAY(&game_state->memory_pool, Entity *, game_state->bg_layer_count);
 		for(u32 i = 0; i < game_state->bg_layer_count - 1; i++) {
 			Entity * bg_layer = push_entity(game_state, AssetId_background_layer, i);
@@ -683,9 +684,14 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 	f32 pixelate_time = game_input->total_time * 1.5f;
 
+	u32 area_index = (u32)(pixelate_time * 0.5f) % get_asset_count(assets, AssetId_background);
+	for(u32 i = 0; i < game_state->bg_layer_count; i++) {
+		Entity * entity = game_state->bg_layers[i];
+		entity->asset_index = game_state->bg_layer_count * area_index + i;
+	}
+
 	{
-		u32 asset_index = (u32)(pixelate_time * 0.5f) % get_asset_count(assets, AssetId_background);
-		Texture * tex = get_texture_asset(assets, AssetId_background, asset_index);
+		Texture * tex = get_texture_asset(assets, AssetId_background, area_index);
 		ASSERT(tex);
 
 		math::Vec2 dim = math::vec2(tex->width, tex->height);
@@ -718,7 +724,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		camera->pos.x = 0.0f;
 		camera->pos.y = math::max(player->pos.y, camera_min_y);
-#if 0
+#if 1
 		camera->offset = (math::rand_vec2() * 2.0f - 1.0f) * math::max(game_state->d_time - 2.0f, 0.0f);
 #endif
 
@@ -806,7 +812,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		pixelate_scale = 1.0f / math::pow(2.0f, (pixelate_scale * 8.0f));
 		glUniform1f(post_shader->pixelate_scale, pixelate_scale);
 
-		// f32 fade_amount = math::sin(game_input->total_time) * 0.5f + 0.5f;
+		f32 fade_amount = math::sin(game_input->total_time) * 0.5f + 0.5f;
 		glUniform1f(post_shader->fade_amount, 0.0f);
 
 		glActiveTexture(GL_TEXTURE0);
