@@ -311,7 +311,7 @@ void push_packed_texture(AssetPacker * packer, AssetFile * files, u32 file_count
 		sprite->dim = blit_dim;
 		sprite->tex_coords[0] = math::vec2(blit.u, blit.v) * r_tex_size;
 		sprite->tex_coords[1] = math::vec2(blit.u + blit.width, blit.v + blit.height) * r_tex_size;
-		sprite->offset = math::rec_centre(sub_rec) - tex_dim * 0.5f;
+		sprite->offset = math::rec_pos(sub_rec) - tex_dim * 0.5f;
 	}
 
 	packer->header.asset_count++;
@@ -385,7 +385,9 @@ int main() {
 
 		load_texture("font.png", AssetId_font, TextureSampling_point),
 
-		load_texture("background.png", AssetId_background),
+		load_texture("background0.png", AssetId_background),
+		load_texture("background1.png", AssetId_background),
+		load_texture("background2.png", AssetId_background),
 
 		load_texture("background_layer0.png", AssetId_background_layer),
 		load_texture("background_layer1.png", AssetId_background_layer),

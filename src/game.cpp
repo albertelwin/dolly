@@ -5,7 +5,6 @@
 #include <audio.cpp>
 #include <math.cpp>
 
-
 math::Vec2 project_pos(Camera * camera, math::Vec3 pos) {
 	math::Vec2 projected_pos = pos.xy - camera->pos;
 	projected_pos *= 1.0f / (pos.z + 1.0f);
@@ -54,7 +53,7 @@ Entity * push_entity(GameState * game_state, AssetId asset_id, u32 asset_index, 
 	entity->asset_type = asset->type;
 	entity->asset_id = asset_id;
 	entity->asset_index = asset_index;
-	entity->v_buf = &game_state->quad_v_buf;
+	entity->v_buf = &game_state->entity_v_buf;
 
 	entity->d_pos = math::vec2(0.0f);
 	entity->speed = math::vec2(500.0f);
@@ -114,11 +113,11 @@ void render_quad(RenderBatch * batch, math::Vec2 pos0, math::Vec2 pos1, math::Ve
 	v[batch->e++] =  pos0.x; v[batch->e++] =  pos0.y; v[batch->e++] =   uv0.x; v[batch->e++] =   uv0.y;
 	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
 
-	v[batch->e++] =  pos1.x; v[batch->e++] =  pos1.y; v[batch->e++] =   uv1.x; v[batch->e++] =   uv1.y;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
-
 	v[batch->e++] =  pos1.x; v[batch->e++] =  pos0.y; v[batch->e++] =   uv1.x; v[batch->e++] =   uv0.y;
 	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;	
+
+	v[batch->e++] =  pos1.x; v[batch->e++] =  pos1.y; v[batch->e++] =   uv1.x; v[batch->e++] =   uv1.y;
+	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
 }
 
 void render_quad_lines(RenderBatch * batch, math::Rec2 * rec, math::Vec4 color) {
@@ -320,38 +319,61 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		basic_shader->color = glGetUniformLocation(basic_shader->id, "color");
 		basic_shader->tex0 = glGetUniformLocation(basic_shader->id, "tex0");
 
+		Shader * post_shader = &game_state->post_shader;
+		u32 post_vert = gl::compile_shader_from_source(SCREEN_QUAD_VERT_SRC, GL_VERTEX_SHADER);
+		u32 post_frag = gl::compile_shader_from_source(POST_FILTER_FRAG_SRC, GL_FRAGMENT_SHADER);
+		post_shader->id = gl::link_shader_program(post_vert, post_frag);
+		post_shader->i_position = glGetAttribLocation(post_shader->id, "i_position");
+		post_shader->tex0 = glGetUniformLocation(post_shader->id, "tex0");
+		post_shader->tex0_dim = glGetUniformLocation(post_shader->id, "tex0_dim");
+		post_shader->pixelate_scale = glGetUniformLocation(post_shader->id, "pixelate_scale");
+		post_shader->fade_amount = glGetUniformLocation(post_shader->id, "fade_amount");
+
+		game_state->frame_buffer = gl::create_frame_buffer(game_input->back_buffer_width, game_input->back_buffer_height, false);
+
+		f32 screen_quad_verts[] = {
+			-1.0f,-1.0f,
+			 1.0f, 1.0f,
+			-1.0f, 1.0f,
+			-1.0f,-1.0f,
+			 1.0f,-1.0f,
+			 1.0f, 1.0f,
+		};
+
+		game_state->screen_quad_v_buf = gl::create_vertex_buffer(screen_quad_verts, ARRAY_COUNT(screen_quad_verts), 2, GL_STATIC_DRAW);
+
 		f32 quad_verts[] = {
 			-0.5f,-0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 			 0.5f, 0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 			-0.5f, 0.5f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 			-0.5f,-0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			 0.5f, 0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 			 0.5f,-0.5f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+			 0.5f, 0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 		};
 
-		game_state->quad_v_buf = gl::create_vertex_buffer(quad_verts, ARRAY_COUNT(quad_verts), VERT_ELEM_COUNT, GL_STATIC_DRAW);
+		game_state->entity_v_buf = gl::create_vertex_buffer(quad_verts, ARRAY_COUNT(quad_verts), VERT_ELEM_COUNT, GL_STATIC_DRAW);
 
 		f32 bg_verts[] = {
 			-1.5f,-0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 			-0.5f, 0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 			-1.5f, 0.5f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 			-1.5f,-0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			-0.5f, 0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 			-0.5f,-0.5f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+			-0.5f, 0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 
 			-0.5f,-0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 			 0.5f, 0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 			-0.5f, 0.5f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 			-0.5f,-0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			 0.5f, 0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 			 0.5f,-0.5f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+			 0.5f, 0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 
 			 0.5f,-0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 			 1.5f, 0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 			 0.5f, 0.5f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 			 0.5f,-0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			 1.5f, 0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 			 1.5f,-0.5f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+			 1.5f, 0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 		};
 
 		game_state->bg_v_buf = gl::create_vertex_buffer(bg_verts, ARRAY_COUNT(bg_verts), VERT_ELEM_COUNT, GL_STATIC_DRAW);
@@ -429,6 +451,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		game_state->pitch = 1.0f;
 		game_state->score = 0;
 
+		glEnable(GL_CULL_FACE);
 		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	}
 
@@ -651,19 +674,24 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 	game_state->projection_matrix = math::orthographic_projection((f32)game_state->ideal_window_width, (f32)game_state->ideal_window_height);
 
-	glViewport(0, 0, game_input->back_buffer_width, game_input->back_buffer_height);
+	glBindFramebuffer(GL_FRAMEBUFFER, game_state->frame_buffer.id);
+	glViewport(0, 0, game_state->frame_buffer.width, game_state->frame_buffer.height);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	Shader * shader = &game_state->basic_shader;
-	
+	Shader * basic_shader = &game_state->basic_shader;
+	Shader * post_shader = &game_state->post_shader;
+
+	f32 pixelate_time = game_input->total_time * 1.5f;
+
 	{
-		Texture * tex = get_texture_asset(assets, AssetId_background, 0);
+		u32 asset_index = (u32)(pixelate_time * 0.5f) % get_asset_count(assets, AssetId_background);
+		Texture * tex = get_texture_asset(assets, AssetId_background, asset_index);
 		ASSERT(tex);
 
 		math::Vec2 dim = math::vec2(tex->width, tex->height);
 		math::Mat4 transform = game_state->projection_matrix * math::scale(dim.x, dim.y, 1.0f);
 
-		render_v_buf(&game_state->quad_v_buf, RenderMode_triangles, shader, &transform, tex);
+		render_v_buf(&game_state->entity_v_buf, RenderMode_triangles, basic_shader, &transform, tex);
 	}
 
 	glEnable(GL_BLEND);
@@ -674,8 +702,12 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		Camera * camera = &game_state->camera;
 
+#if 1
 		camera->letterboxed_height = game_state->ideal_window_height - math::max(game_state->d_time - 1.0f, 0.0f) * 20.0f;
 		camera->letterboxed_height = math::max(camera->letterboxed_height, game_state->ideal_window_height / 3.0f);
+#else
+		camera->letterboxed_height = game_state->ideal_window_height;
+#endif
 
 		f32 letterbox_pixels = (game_state->ideal_window_height - camera->letterboxed_height) * 0.5f;
 #if 0
@@ -695,6 +727,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		u32 null_batch_index = U32_MAX;
 		u32 current_batch_index = null_batch_index;
 
+#if 1
 		//TODO: Sorting!!
 		for(u32 i = 0; i < game_state->entity_count; i++) {
 			Entity * entity = game_state->entity_array + i;
@@ -706,15 +739,15 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			if(entity->asset_type == AssetType_texture) {
 				gl::Texture * tex = get_texture_asset(assets, entity->asset_id, entity->asset_index);
 
-				//TODO: Disable render culling on certain entities!!
+				//TODO: Disable render culling on certain entities??
 				// if(math::rec_overlap(camera_bounds, bounds)) {
 					if(current_batch_index != null_batch_index) {
-						render_and_clear_render_batch(game_state->sprite_batches[current_batch_index], shader, &game_state->projection_matrix);
+						render_and_clear_render_batch(game_state->sprite_batches[current_batch_index], basic_shader, &game_state->projection_matrix);
 						current_batch_index = null_batch_index;
 					}
 
 					math::Mat4 transform = game_state->projection_matrix * math::translate(pos.x, pos.y, 0.0f) * math::scale(dim.x, dim.y, 1.0f);
-					render_v_buf(entity->v_buf, RenderMode_triangles, shader, &transform, tex, entity->color);					
+					render_v_buf(entity->v_buf, RenderMode_triangles, basic_shader, &transform, tex, entity->color);					
 				// }
 			}
 			else {
@@ -723,7 +756,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 				if(math::rec_overlap(camera_bounds, bounds)) {
 					if(current_batch_index != sprite->atlas_index && current_batch_index != null_batch_index) {
-						render_and_clear_render_batch(game_state->sprite_batches[current_batch_index], shader, &game_state->projection_matrix);
+						render_and_clear_render_batch(game_state->sprite_batches[current_batch_index], basic_shader, &game_state->projection_matrix);
 					}
 
 					current_batch_index = sprite->atlas_index;
@@ -733,9 +766,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				}
 			}
 		}
+#endif
 		
 		for(u32 i = 0; i < game_state->sprite_batch_count; i++) {
-			render_and_clear_render_batch(game_state->sprite_batches[i], shader, &game_state->projection_matrix);
+			render_and_clear_render_batch(game_state->sprite_batches[i], basic_shader, &game_state->projection_matrix);
 		}
 
 		if(game_state->debug_render_entity_bounds) {
@@ -747,23 +781,61 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				render_quad_lines(game_state->debug_batch, &bounds, math::vec4(1.0f));
 			}
 
-			render_and_clear_render_batch(game_state->debug_batch, shader, &game_state->projection_matrix);
+			render_and_clear_render_batch(game_state->debug_batch, basic_shader, &game_state->projection_matrix);
 		}
 
 		camera->offset = math::vec2(0.0f);
+	}
 
-		{
-			Texture * tex = get_texture_asset(assets, AssetId_white, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glViewport(0, 0, game_input->back_buffer_width, game_input->back_buffer_height);
+	glClear(GL_COLOR_BUFFER_BIT);
 
-			math::Vec2 dim = math::vec2(game_state->ideal_window_width, game_state->ideal_window_height);
-			math::Mat4 scale = math::scale(dim.x, dim.y, 1.0f);
+	{
+		gl::VertexBuffer * v_buf = &game_state->screen_quad_v_buf;
 
-			math::Mat4 transform0 = game_state->projection_matrix * math::translate(0.0f, dim.y - letterbox_pixels, 0.0f) * scale;
-			render_v_buf(&game_state->quad_v_buf, RenderMode_triangles, shader, &transform0, tex, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+		glUseProgram(post_shader->id);
 
-			math::Mat4 transform1 = game_state->projection_matrix * math::translate(0.0f,-dim.y + letterbox_pixels, 0.0f) * scale;
-			render_v_buf(&game_state->quad_v_buf, RenderMode_triangles, shader, &transform1, tex, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+		glUniform2f(post_shader->tex0_dim, (f32)game_state->frame_buffer.width, (f32)game_state->frame_buffer.height);
+
+		f32 pixelate_scale = math::frac(pixelate_time);
+		if((u32)pixelate_time % 2 == 0) {
+			pixelate_scale = 1.0f - pixelate_scale;
 		}
+
+		pixelate_scale = 1.0f / math::pow(2.0f, (pixelate_scale * 8.0f));
+		glUniform1f(post_shader->pixelate_scale, pixelate_scale);
+
+		// f32 fade_amount = math::sin(game_input->total_time) * 0.5f + 0.5f;
+		glUniform1f(post_shader->fade_amount, 0.0f);
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, game_state->frame_buffer.texture_id);
+		glUniform1i(post_shader->tex0, 0);
+
+		glBindBuffer(GL_ARRAY_BUFFER, v_buf->id);
+
+		u32 stride = v_buf->vert_size * sizeof(f32);
+
+		glVertexAttribPointer(post_shader->i_position, 2, GL_FLOAT, 0, stride, 0);
+		glEnableVertexAttribArray(post_shader->i_position);
+
+		glDrawArrays(GL_TRIANGLES, 0, v_buf->vert_count);
+	}
+
+	{
+		Texture * tex = get_texture_asset(assets, AssetId_white, 0);
+
+		math::Vec2 dim = math::vec2(game_state->ideal_window_width, game_state->ideal_window_height);
+		math::Mat4 scale = math::scale(dim.x, dim.y, 1.0f);
+
+		f32 letterbox_pixels = (game_state->ideal_window_height - game_state->camera.letterboxed_height) * 0.5f;
+
+		math::Mat4 transform0 = game_state->projection_matrix * math::translate(0.0f, dim.y - letterbox_pixels, 0.0f) * scale;
+		render_v_buf(&game_state->entity_v_buf, RenderMode_triangles, basic_shader, &transform0, tex, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+
+		math::Mat4 transform1 = game_state->projection_matrix * math::translate(0.0f,-dim.y + letterbox_pixels, 0.0f) * scale;
+		render_v_buf(&game_state->entity_v_buf, RenderMode_triangles, basic_shader, &transform1, tex, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 	}
 
 	glViewport(0, 0, game_input->back_buffer_width, game_input->back_buffer_height);
@@ -780,12 +852,15 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		str_print(game_state->title_str, "DOLLY DOLLY DOLLY DAYS!\nDT: %f | D_TIME: %f | SCORE: %u | CLONES: %u\n\n", game_input->delta_time, game_state->d_time, game_state->score, game_state->player_clone_count);
 		render_str(font, game_state->title_str);
 
+#if 0
 		render_str(font, game_state->debug_str);
+#endif
 
-		render_and_clear_render_batch(batch, shader, &font->projection_matrix);
+		render_and_clear_render_batch(batch, basic_shader, &font->projection_matrix);
+
+		glDisable(GL_BLEND);
 	}
 
-	glDisable(GL_BLEND);
 }
 
 #if 0

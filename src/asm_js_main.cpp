@@ -11,10 +11,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
-#include <gl.hpp>
-#include <basic.vert>
-#include <basic.frag>
-
 #include <game.cpp>
 
 extern "C" {
@@ -163,6 +159,7 @@ void main_loop(void * user_ptr) {
 int main() {
 	ASSERT(SDL_Init(SDL_INIT_VIDEO) == 0);
 
+	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 0);
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 1);
 
@@ -174,6 +171,9 @@ int main() {
 	// u32 window_height = 720;
 
 	SDL_Surface * surface = SDL_SetVideoMode(window_width, window_height, 32, SDL_OPENGL);
+
+	//TODO: GL extensions!!
+	// emscripten_webgl_enable_extension(emscripten_webgl_get_current_context(), "OES_texture_float");
 
 	MainLoopArgs args = {};
 	args.game_memory.size = MEGABYTES(8);

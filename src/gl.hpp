@@ -130,8 +130,7 @@ namespace gl {
 		return vertex_buffer;
 	}
 
-#ifndef __EMSCRIPTEN__
-	FrameBuffer create_frame_buffer(u32 width, u32 height, GLint min_filter = GL_NEAREST, GLint mag_filter = GL_NEAREST) {
+	FrameBuffer create_frame_buffer(u32 width, u32 height, b32 use_depth, GLint min_filter = GL_NEAREST, GLint mag_filter = GL_NEAREST) {
 		FrameBuffer frame_buffer = {};
 		frame_buffer.width = width;
 		frame_buffer.height = height;
@@ -145,18 +144,20 @@ namespace gl {
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, min_filter);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, mag_filter);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
 		glBindTexture(GL_TEXTURE_2D, 0);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, frame_buffer.texture_id, 0);
 
-		glGenRenderbuffers(1, &frame_buffer.depth_buffer_id);
-		glBindRenderbuffer(GL_RENDERBUFFER, frame_buffer.depth_buffer_id);
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, width, height);
-		glBindRenderbuffer(GL_RENDERBUFFER, 0);
+		if(use_depth) {
+			glGenRenderbuffers(1, &frame_buffer.depth_buffer_id);
+			glBindRenderbuffer(GL_RENDERBUFFER, frame_buffer.depth_buffer_id);
+			glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, width, height);
+			glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
-		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, frame_buffer.depth_buffer_id);
+			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, frame_buffer.depth_buffer_id);			
+		}
 
 		ASSERT(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
@@ -164,6 +165,7 @@ namespace gl {
 		return frame_buffer;
 	}
 
+#ifndef __EMSCRIPTEN__
 	FrameBuffer create_msaa_frame_buffer(u32 width, u32 height, u32 sample_count) {
 		FrameBuffer frame_buffer = {};
 		frame_buffer.width = width;

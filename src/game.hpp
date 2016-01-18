@@ -2,6 +2,12 @@
 #ifndef GAME_HPP_INCLUDED
 #define GAME_HPP_INCLUDED
 
+#include <gl.hpp>
+#include <basic.vert>
+#include <basic.frag>
+#include <screen_quad.vert>
+#include <post_filter.frag>
+
 #include <audio.hpp>
 #include <asset.hpp>
 #include <debug.hpp>
@@ -11,6 +17,7 @@
 #define VERT_ELEM_COUNT 8
 #define QUAD_ELEM_COUNT (VERT_ELEM_COUNT * 6)
 
+//TODO: Automatically generate these structs for shaders!!
 struct Shader {
 	u32 id;
 
@@ -21,6 +28,10 @@ struct Shader {
 	u32 transform;
 	u32 color;
 	u32 tex0;
+	u32 tex0_dim;
+
+	u32 pixelate_scale;
+	u32 fade_amount;
 };
 
 enum RenderMode {
@@ -146,8 +157,12 @@ struct GameState {
 	AudioSource * music;
 
 	Shader basic_shader;
+	Shader post_shader;
 
-	gl::VertexBuffer quad_v_buf;
+	gl::FrameBuffer frame_buffer;
+	gl::VertexBuffer screen_quad_v_buf;
+
+	gl::VertexBuffer entity_v_buf;
 	gl::VertexBuffer bg_v_buf;
 
 	Font * font;
