@@ -26,8 +26,9 @@ enum AssetId {
 
 	AssetId_font,
 
-	AssetId_background,
-	AssetId_background_layer,
+	AssetId_city,
+	AssetId_space,
+	AssetId_clouds,
 
 	AssetId_atlas,
 
@@ -36,8 +37,8 @@ enum AssetId {
 	AssetId_teacup,
 	AssetId_telly,
 	AssetId_smiley,
-	AssetId_shuttle,
-	AssetId_large_shuttle,
+	AssetId_rocket,
+	AssetId_large_rocket,
 
 	//NOTE: Audio!!
 	AssetId_sin_440,

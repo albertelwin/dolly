@@ -42,6 +42,9 @@ Entity * push_entity(GameState * game_state, AssetId asset_id, u32 asset_index, 
 
 	//TODO: Should entities only be sprites??
 	Asset * asset = get_asset(&game_state->asset_state, asset_id, asset_index);
+	if(!asset) {
+		std::printf("LOG: %u, %u\n", asset_id, asset_index);
+	}
 	ASSERT(asset);
 	ASSERT(asset->type == AssetType_texture || asset->type == AssetType_sprite);
 
@@ -290,55 +293,56 @@ void pop_player_clone(GameState * game_state) {
 	}
 }
 
-void begin_shuttle_sequence(GameState * game_state) {
-	ShuttleSequence * seq = &game_state->shuttle_seq;
+void begin_rocket_sequence(GameState * game_state) {
+	RocketSequence * seq = &game_state->rocket_seq;
 
 	if(!seq->playing) {
 		seq->playing = true;
 		seq->time_ = 0.0f;
 
-		math::Rec2 render_bounds = get_entity_render_bounds(&game_state->asset_state, seq->shuttle, &game_state->camera);
+		math::Rec2 render_bounds = get_entity_render_bounds(&game_state->asset_state, seq->rocket, &game_state->camera);
 		f32 height = math::rec_dim(render_bounds).y;
 
-		Entity * shuttle = seq->shuttle;
-		shuttle->pos = game_state->player->pos;
-		shuttle->pos.y -= (game_state->ideal_window_height * 0.5f + height * 0.5f);
-		shuttle->d_pos = math::vec2(0.0f);
-		shuttle->speed = math::vec2(0.0f, 800.0f);
+		Entity * rocket = seq->rocket;
+		rocket->pos = game_state->player->pos;
+		rocket->pos.y -= (game_state->ideal_window_height * 0.5f + height * 0.5f);
+		rocket->d_pos = math::vec2(0.0f);
+		rocket->speed = math::vec2(0.0f, 1000.0f);
 	}
 }
 
-void play_shuttle_sequence(GameState * game_state, f32 dt) {
-	ShuttleSequence * seq = &game_state->shuttle_seq;
+void play_rocket_sequence(GameState * game_state, f32 dt) {
+	RocketSequence * seq = &game_state->rocket_seq;
 
-	if(game_state->shuttle_seq.playing) {
-		Entity * shuttle = seq->shuttle;
+	if(game_state->rocket_seq.playing) {
+		Entity * rocket = seq->rocket;
 		Entity * player = game_state->player;
 
-		shuttle->d_pos += shuttle->speed * dt;
-		math::Vec2 d_pos = shuttle->d_pos * dt;
-		shuttle->pos.xy += d_pos;
+		rocket->d_pos += rocket->speed * dt;
+		math::Vec2 d_pos = rocket->d_pos * dt;
+		rocket->pos.xy += d_pos;
 
-		math::Rec2 player_bounds = get_entity_collider_bounds(player);
-		math::Rec2 collider_bounds = get_entity_collider_bounds(shuttle);
-		if(math::rec_inside(collider_bounds, player_bounds)) {
-			player->pos.xy += d_pos;
-			player->d_pos = math::vec2(0.0f);
-			game_state->allow_player_input = false;
+		if(rocket->pos.y < game_state->location_y_offset) {
+			math::Rec2 player_bounds = get_entity_collider_bounds(player);
+			math::Rec2 collider_bounds = get_entity_collider_bounds(rocket);
+			if(math::rec_inside(collider_bounds, player_bounds)) {
+				player->pos.xy += d_pos;
+				player->d_pos = math::vec2(0.0f);
+				game_state->allow_player_input = false;
+			}			
+		}
+		else {
+			game_state->allow_player_input = true;
 		}
 
 		seq->time_ += dt;
-		if(seq->time_ > 3.0f) {
+
+		if(seq->time_ > 20.0f) {
 			f32 new_pixelate_time = game_state->pixelate_time + dt * 1.5f;
 			if(game_state->pixelate_time < 1.0f && new_pixelate_time >= 1.0f) {
-				game_state->area_id = (AreaId)(game_state->area_id + 1);
-				if(game_state->area_id >= AreaId_count) {
-					game_state->area_id = (AreaId)0;
-				}
-
 				game_state->d_time = 1.0f;
-
-				shuttle->pos = game_state->entity_null_pos;
+				rocket->pos = game_state->entity_null_pos;
+				player->d_pos = math::vec2(0.0f);
 				player->pos.xy = math::vec2(player->initial_x, 0.0f);
 				game_state->allow_player_input = true;
 			}
@@ -463,22 +467,29 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			game_state->sprite_batches[i] = allocate_render_batch(&game_state->memory_pool, get_texture_asset(assets, AssetId_atlas, i), batch_size);
 		}
 
-		game_state->entity_null_pos = math::vec3((f32)game_state->ideal_window_width, 0.0f, 0.0f);
+		game_state->entity_null_pos = math::vec3(F32_MAX, F32_MAX, 0.0f);
 		game_state->entity_gravity = math::vec2(0.0f, -10000.0f);
 
-		game_state->area_id = AreaId_city;
+		f32 location_z_offset = 2.5f;
+		f32 location_max_z = location_z_offset * PARALLAX_LAYER_COUNT;
+		f32 location_y_offset = (f32)game_state->ideal_window_height / (1.0f / (location_max_z + 1.0f));
+		game_state->location_y_offset = location_y_offset;
 
-		// game_state->bg_layer_count = get_asset_count(assets, AssetId_background_layer);
-		game_state->bg_layer_count = 4;
-		game_state->bg_layers = PUSH_ARRAY(&game_state->memory_pool, Entity *, game_state->bg_layer_count);
-		for(u32 i = 0; i < game_state->bg_layer_count - 1; i++) {
-			u32 asset_index = game_state->bg_layer_count * game_state->area_id + i;
-			Entity * bg_layer = push_entity(game_state, AssetId_background_layer, asset_index);
+		AssetId location_layer_ids[LocationId_count];
+		location_layer_ids[LocationId_city] = AssetId_city;
+		location_layer_ids[LocationId_space] = AssetId_space;
+		for(u32 i = 0; i < LocationId_count; i++) {
+			Location * location = game_state->locations + i;
+			AssetId asset_id = location_layer_ids[i];
 
-			bg_layer->pos.z = 2.5f * (game_state->bg_layer_count - i);
-			bg_layer->v_buf = &game_state->bg_v_buf;
+			for(u32 layer_index = 0; layer_index < ARRAY_COUNT(location->layers) - 1; layer_index++) {
+				Entity * entity = push_entity(game_state, asset_id, layer_index);
+				entity->pos.y = location_y_offset * i;
+				entity->pos.z = location_z_offset * (ARRAY_COUNT(location->layers) - layer_index);
+				entity->v_buf = &game_state->bg_v_buf;
 
-			game_state->bg_layers[i] = bg_layer;
+				location->layers[layer_index] = entity;
+			}
 		}
 
 		game_state->player_clone_index = 0;
@@ -491,6 +502,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		game_state->player = push_entity(game_state, AssetId_dolly, 0, math::vec3((f32)game_state->ideal_window_width * -0.25f, 0.0f, 0.0f));
 		game_state->player->speed = math::vec2(50.0f, 6000.0f);
+		// game_state->player->damp = 9.0f;
 		game_state->player->damp = 0.15f;
 		game_state->player->initial_x = game_state->player->pos.x;
 		game_state->allow_player_input = true;
@@ -504,23 +516,30 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			emitter->entity_array[i] = push_entity(game_state, AssetId_teacup, 0, emitter->pos);
 		}
 
-		ShuttleSequence * seq = &game_state->shuttle_seq;
-		seq->shuttle = push_entity(game_state, AssetId_large_shuttle, 0, game_state->entity_null_pos);
-		seq->shuttle->collider = math::rec_offset(seq->shuttle->collider, math::vec2(0.0f, -math::rec_dim(seq->shuttle->collider).y * 0.5f));
+		RocketSequence * seq = &game_state->rocket_seq;
+		seq->rocket = push_entity(game_state, AssetId_large_rocket, 0, game_state->entity_null_pos);
+		seq->rocket->collider = math::rec_offset(seq->rocket->collider, math::vec2(0.0f, -math::rec_dim(seq->rocket->collider).y * 0.5f));
 		seq->playing = false;
 		seq->time_ = 0.0f;
 
 		//TODO: Adding foreground layer at the end until we have sorting!!
-		{
-			u32 i = game_state->bg_layer_count - 1;
+		for(u32 i = 0; i < LocationId_count; i++) {
+			Location * location = game_state->locations + i;
+			AssetId asset_id = location_layer_ids[i];
 
-			u32 asset_index = game_state->bg_layer_count * game_state->area_id + i;
-			Entity * bg_layer = push_entity(game_state, AssetId_background_layer, asset_index);
+			u32 layer_index = ARRAY_COUNT(location->layers) - 1;
 
-			bg_layer->pos.z = -0.5f;
-			bg_layer->v_buf = &game_state->bg_v_buf;
-			game_state->bg_layers[i] = bg_layer;
+			Entity * entity = push_entity(game_state, asset_id, layer_index);
+			entity->pos.y = location_y_offset * i;
+			entity->pos.z = -0.5f;
+			entity->v_buf = &game_state->bg_v_buf;
+
+			location->layers[layer_index] = entity;
 		}
+
+		game_state->clouds = push_entity(game_state, AssetId_clouds, 0);
+		game_state->clouds->pos = math::vec3(0.0f, location_y_offset * 0.5f, -0.5f);
+		game_state->clouds->v_buf = &game_state->bg_v_buf;
 
 		game_state->camera.pos = math::vec2(0.0f, game_state->player->pos.y);
 		game_state->pixelate_time = 0.0f;
@@ -539,7 +558,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 	if(game_input->buttons[ButtonId_mute] & KEY_PRESSED) {
 		// game_state->audio_state.master_volume = game_state->audio_state.master_volume > 0.0f ? 0.0f : 1.0f;
-		begin_shuttle_sequence(game_state);
+		begin_rocket_sequence(game_state);
 	}
 
 	f32 dd_time = 0.0f;
@@ -626,6 +645,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	}
 
 	player->d_pos += player_dd_pos * game_input->delta_time;
+	// player->d_pos *= (1.0f - player->damp * game_input->delta_time);
 	player->d_pos *= (1.0f - player->damp);
 
 	player->pos.xy += player->d_pos * game_input->delta_time;
@@ -635,8 +655,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 	math::Rec2 player_bounds = get_entity_collider_bounds(player);
 
-	if(game_state->shuttle_seq.playing) {
-		play_shuttle_sequence(game_state, game_input->delta_time);
+	if(game_state->rocket_seq.playing) {
+		play_rocket_sequence(game_state, game_input->delta_time);
 	}
 
 	AssetId emitter_types[] = {
@@ -645,7 +665,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		AssetId_telly,
 		AssetId_dolly,
 		AssetId_dolly,
-		AssetId_shuttle,
+		AssetId_rocket,
 	};
 
 	EntityEmitter * emitter = &game_state->entity_emitter;
@@ -732,8 +752,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					break;
 				}
 
-				case AssetId_shuttle: {
-					begin_shuttle_sequence(game_state);
+				case AssetId_rocket: {
+					begin_rocket_sequence(game_state);
 					break;
 				}
 
@@ -755,9 +775,26 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		}
 	}
 
-	for(u32 i = 0; i < game_state->bg_layer_count; i++) {
-		Entity * entity = game_state->bg_layers[i];
-		entity->asset_index = game_state->bg_layer_count * game_state->area_id + i;
+	for(u32 i = 0; i < LocationId_count; i++) {
+		Location * location = game_state->locations + i;
+		for(u32 layer_index = 0; layer_index < ARRAY_COUNT(location->layers); layer_index++) {
+			Entity * entity = location->layers[layer_index];
+
+			entity->pos.x -= 500.0f * adjusted_dt;
+
+			math::Rec2 bounds = get_entity_render_bounds(assets, entity, &game_state->camera);
+			math::Vec2 screen_pos = math::rec_pos(bounds);
+			f32 width = math::rec_dim(bounds).x;
+
+			if(screen_pos.x < -(half_window_dim.x + width * 0.5f)) {
+				screen_pos.x += width * 2.0f;
+				entity->pos = unproject_pos(&game_state->camera, screen_pos, entity->pos.z);
+			}
+		}
+	}
+
+	{
+		Entity * entity = game_state->clouds;
 
 		entity->pos.x -= 500.0f * adjusted_dt;
 
@@ -768,7 +805,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		if(screen_pos.x < -(half_window_dim.x + width * 0.5f)) {
 			screen_pos.x += width * 2.0f;
 			entity->pos = unproject_pos(&game_state->camera, screen_pos, entity->pos.z);
-		}
+		}		
 	}
 
 	game_state->projection_matrix = math::orthographic_projection((f32)game_state->ideal_window_width, (f32)game_state->ideal_window_height);
@@ -779,16 +816,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 	Shader * basic_shader = &game_state->basic_shader;
 	Shader * post_shader = &game_state->post_shader;
-
-	{
-		Texture * tex = get_texture_asset(assets, AssetId_background, game_state->area_id);
-		ASSERT(tex);
-
-		math::Vec2 dim = math::vec2(tex->width, tex->height);
-		math::Mat4 transform = game_state->projection_matrix * math::scale(dim.x, dim.y, 1.0f);
-
-		render_v_buf(&game_state->entity_v_buf, RenderMode_triangles, basic_shader, &transform, tex);
-	}
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);

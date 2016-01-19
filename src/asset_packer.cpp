@@ -375,9 +375,8 @@ int main() {
 
 		{ AssetId_teacup, "teacup.png" },
 		{ AssetId_smiley, "smiley.png" },
-		{ AssetId_shuttle, "shuttle.png" },
-
-		{ AssetId_large_shuttle, "large_shuttle.png" },
+		{ AssetId_rocket, "rocket.png" },
+		{ AssetId_large_rocket, "large_rocket.png" },
 	};
 
 	push_packed_texture(&packer, sprite_files, ARRAY_COUNT(sprite_files));
@@ -388,18 +387,19 @@ int main() {
 
 		load_texture("font.png", AssetId_font, TextureSampling_point),
 
-		load_texture("city_background.png", AssetId_background),
-		load_texture("space_background.png", AssetId_background),
+		load_texture("city_layer0.png", AssetId_city),
+		load_texture("city_layer1.png", AssetId_city),
+		load_texture("city_layer2.png", AssetId_city),
+		load_texture("city_layer3.png", AssetId_city),
+		load_texture("city_layer4.png", AssetId_city),
 
-		load_texture("city_background_layer0.png", AssetId_background_layer),
-		load_texture("city_background_layer1.png", AssetId_background_layer),
-		load_texture("city_background_layer2.png", AssetId_background_layer),
-		load_texture("city_background_layer3.png", AssetId_background_layer),
+		load_texture("space_layer0.png", AssetId_space),
+		load_texture("space_layer1.png", AssetId_space),
+		load_texture("space_layer2.png", AssetId_space),
+		load_texture("space_layer3.png", AssetId_space),
+		load_texture("space_layer4.png", AssetId_space),
 
-		load_texture("space_background_layer0.png", AssetId_background_layer),
-		load_texture("space_background_layer1.png", AssetId_background_layer),
-		load_texture("space_background_layer2.png", AssetId_background_layer),
-		load_texture("space_background_layer3.png", AssetId_background_layer),
+		load_texture("clouds.png", AssetId_clouds),
 	};
 
 	packer.header.asset_count += ARRAY_COUNT(reg_tex_array);

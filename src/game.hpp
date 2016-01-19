@@ -17,6 +17,8 @@
 #define VERT_ELEM_COUNT 8
 #define QUAD_ELEM_COUNT (VERT_ELEM_COUNT * 6)
 
+#define PARALLAX_LAYER_COUNT 5
+
 //TODO: Automatically generate these structs for shaders!!
 struct Shader {
 	u32 id;
@@ -97,15 +99,19 @@ struct Camera {
 	f32 letterboxed_height;
 };
 
-enum AreaId {
-	AreaId_city,
-	AreaId_space,
+enum LocationId {
+	LocationId_city,
+	LocationId_space,
 
-	AreaId_count,
+	LocationId_count,
 };
 
-struct ShuttleSequence {
-	Entity * shuttle;
+struct Location {
+	Entity * layers[PARALLAX_LAYER_COUNT];
+};
+
+struct RocketSequence {
+	Entity * rocket;
 
 	b32 playing;
 	f32 time_;
@@ -200,10 +206,9 @@ struct GameState {
 	math::Vec3 entity_null_pos;
 	math::Vec2 entity_gravity;
 
-	AreaId area_id;
-
-	u32 bg_layer_count;
-	Entity ** bg_layers;
+	Location locations[LocationId_count];
+	Entity * clouds;
+	f32 location_y_offset;
 
 	Entity * player;
 	b32 allow_player_input;
@@ -214,7 +219,7 @@ struct GameState {
 	math::Vec2 player_clone_offset;
 
 	EntityEmitter entity_emitter;
-	ShuttleSequence shuttle_seq;
+	RocketSequence rocket_seq;
 
 	Camera camera;
 	f32 pixelate_time;
