@@ -16,7 +16,7 @@ void main() {
 	//TODO: Remove this if-statement!!
 	if(pixelate_scale < 1.0) {
 		vec2 low_res_dim = floor(tex0_dim * pixelate_scale);
-		tex0_tex_coord = floor(tex_coord * low_res_dim + 0.5) / low_res_dim;		
+		tex0_tex_coord = floor(tex_coord * low_res_dim + 0.5) / low_res_dim;
 	}
 
 	vec3 tex0_color = texture2D(tex0, tex0_tex_coord).rgb;

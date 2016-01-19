@@ -287,6 +287,10 @@ namespace math {
 		return { xy.x, xy.y, z };
 	}
 
+	b32 operator==(Vec3 const & x, Vec3 const & y) {
+		return (x.x == y.x && x.y == y.y && x.z == y.z);
+	}
+
 	Vec3 operator+(Vec3 const & x, Vec3 const & y) {
 		Vec3 tmp = x;
 		tmp.x += y.x;
@@ -793,6 +797,11 @@ namespace math {
 
 	b32 rec_overlap(Rec2 const & r0, Rec2 const & r1) {
 		return ((r0.min.x < r1.min.x && r0.max.x > r1.min.x) || (r0.min.x >= r1.min.x && r0.min.x < r1.max.x)) && ((r0.min.y < r1.min.y && r0.max.y > r1.min.y) || (r0.min.y >= r1.min.y && r0.min.y < r1.max.y));
+	}
+
+	b32 rec_inside(Rec2 const & r0, Rec2 const & r1) {
+		//TODO: Actually implement this!!
+		return rec_overlap(r0, r1);
 	}
 
 	struct Ray {

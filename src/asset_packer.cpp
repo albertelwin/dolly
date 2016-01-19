@@ -375,6 +375,9 @@ int main() {
 
 		{ AssetId_teacup, "teacup.png" },
 		{ AssetId_smiley, "smiley.png" },
+		{ AssetId_shuttle, "shuttle.png" },
+
+		{ AssetId_large_shuttle, "large_shuttle.png" },
 	};
 
 	push_packed_texture(&packer, sprite_files, ARRAY_COUNT(sprite_files));

@@ -97,6 +97,20 @@ struct Camera {
 	f32 letterboxed_height;
 };
 
+enum AreaId {
+	AreaId_city,
+	AreaId_space,
+
+	AreaId_count,
+};
+
+struct ShuttleSequence {
+	Entity * shuttle;
+
+	b32 playing;
+	f32 time_;
+};
+
 enum ButtonId {
 	ButtonId_left,
 	ButtonId_right,
@@ -186,10 +200,13 @@ struct GameState {
 	math::Vec3 entity_null_pos;
 	math::Vec2 entity_gravity;
 
+	AreaId area_id;
+
 	u32 bg_layer_count;
 	Entity ** bg_layers;
 
 	Entity * player;
+	b32 allow_player_input;
 
 	u32 player_clone_index;
 	u32 player_clone_count;
@@ -197,8 +214,10 @@ struct GameState {
 	math::Vec2 player_clone_offset;
 
 	EntityEmitter entity_emitter;
+	ShuttleSequence shuttle_seq;
 
 	Camera camera;
+	f32 pixelate_time;
 
 	f32 d_time;
 	f32 pitch;

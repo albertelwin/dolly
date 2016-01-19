@@ -36,6 +36,8 @@ enum AssetId {
 	AssetId_teacup,
 	AssetId_telly,
 	AssetId_smiley,
+	AssetId_shuttle,
+	AssetId_large_shuttle,
 
 	//NOTE: Audio!!
 	AssetId_sin_440,
