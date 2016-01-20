@@ -379,6 +379,29 @@ void play_rocket_sequence(GameState * game_state, f32 dt) {
 	}
 }
 
+b32 move_entity(GameState * game_state, Entity * entity, f32 dt, b32 loop = false) {
+	b32 off_screen = false;
+
+	//TODO: Move by player speed!!
+	entity->pos.x -= 500.0f * game_state->d_time * dt;
+
+	math::Rec2 bounds = get_entity_render_bounds(&game_state->assets, entity, &game_state->camera);
+	math::Vec2 screen_pos = math::rec_pos(bounds);
+	f32 width = math::rec_dim(bounds).x;
+
+	if(screen_pos.x < -(game_state->ideal_window_width * 0.5f + width * 0.5f)) {
+		off_screen = true;
+
+		//TODO: Loop arbitary sized entities??
+		if(loop) {
+			screen_pos.x += width * 2.0f;
+			entity->pos = unproject_pos(&game_state->camera, screen_pos, entity->pos.z);
+		}
+	}
+
+	return off_screen;
+}
+
 void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	ASSERT(sizeof(GameState) <= game_memory->size);
 	GameState * game_state = (GameState *)game_memory->ptr;
@@ -475,8 +498,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		//TODO: Adjust these to actual aspect ratio?
 		game_state->ideal_window_width = 1280;
 		game_state->ideal_window_height = 720;
-
-		game_state->projection_matrix = math::orthographic_projection((f32)game_state->ideal_window_width, (f32)game_state->ideal_window_height);
 
 		game_state->debug_batch = allocate_render_batch(&game_state->memory_pool, get_texture_asset(assets, AssetId_white, 0), 65536, RenderMode_lines);
 		game_state->debug_render_entity_bounds = false;
@@ -665,8 +686,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	}
 
 	if(game_input->buttons[ButtonId_mute] & KEY_PRESSED) {
-		game_state->audio_state.master_volume = game_state->audio_state.master_volume > 0.0f ? 0.0f : 1.0f;
-		// begin_rocket_sequence(game_state);
+		// game_state->audio_state.master_volume = game_state->audio_state.master_volume > 0.0f ? 0.0f : 1.0f;
+		begin_rocket_sequence(game_state);
 	}
 
 	f32 dd_time = 0.0f;
@@ -858,11 +879,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		b32 destroy = false;
 
 		if(!entity->hit) {
-			f32 dd_pos = -500.0f * adjusted_dt;
-			entity->pos.x += dd_pos;
-
-			math::Rec2 bounds = get_entity_render_bounds(assets, entity, &game_state->camera);
-			if(entity->pos.x < -(half_window_dim.x + math::rec_dim(bounds).x * 0.5f)) {
+			if(move_entity(game_state, entity, game_input->delta_time)) {
 				destroy = true;
 			}
 		}
@@ -929,37 +946,15 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	for(u32 i = 0; i < LocationId_count; i++) {
 		Location * location = game_state->locations + i;
 		for(u32 layer_index = 0; layer_index < ARRAY_COUNT(location->layers); layer_index++) {
-			Entity * entity = location->layers[layer_index];
-
-			entity->pos.x -= 500.0f * adjusted_dt;
-
-			math::Rec2 bounds = get_entity_render_bounds(assets, entity, &game_state->camera);
-			math::Vec2 screen_pos = math::rec_pos(bounds);
-			f32 width = math::rec_dim(bounds).x;
-
-			if(screen_pos.x < -(half_window_dim.x + width * 0.5f)) {
-				screen_pos.x += width * 2.0f;
-				entity->pos = unproject_pos(&game_state->camera, screen_pos, entity->pos.z);
-			}
+			move_entity(game_state, location->layers[layer_index], game_input->delta_time, true);
 		}
 	}
 
 	if(game_state->clouds) {
-		Entity * entity = game_state->clouds;
-
-		entity->pos.x -= 500.0f * adjusted_dt;
-
-		math::Rec2 bounds = get_entity_render_bounds(assets, entity, &game_state->camera);
-		math::Vec2 screen_pos = math::rec_pos(bounds);
-		f32 width = math::rec_dim(bounds).x;
-
-		if(screen_pos.x < -(half_window_dim.x + width * 0.5f)) {
-			screen_pos.x += width * 2.0f;
-			entity->pos = unproject_pos(&game_state->camera, screen_pos, entity->pos.z);
-		}
+		move_entity(game_state, game_state->clouds, game_input->delta_time, true);
 	}
 
-	game_state->projection_matrix = math::orthographic_projection((f32)game_state->ideal_window_width, (f32)game_state->ideal_window_height);
+	math::Mat4 projection_matrix = math::orthographic_projection((f32)game_state->ideal_window_width, (f32)game_state->ideal_window_height);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, game_state->frame_buffer.id);
 	glViewport(0, 0, game_state->frame_buffer.width, game_state->frame_buffer.height);
@@ -995,14 +990,14 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 #if 1
 				//TODO: Remove epsilon!!
-				f32 epsilon = 0.01f;
+				f32 epsilon = 0.1f;
 				if(math::rec_overlap(camera_bounds, math::rec_scale(bounds, 1.0f + epsilon))) {
 					if(current_batch_index != null_batch_index) {
-						render_and_clear_render_batch(game_state->sprite_batches[current_batch_index], basic_shader, &game_state->projection_matrix);
+						render_and_clear_render_batch(game_state->sprite_batches[current_batch_index], basic_shader, &projection_matrix);
 						current_batch_index = null_batch_index;
 					}
 
-					math::Mat4 transform = game_state->projection_matrix * math::translate(pos.x, pos.y, 0.0f) * math::scale(dim.x, dim.y, 1.0f);
+					math::Mat4 transform = projection_matrix * math::translate(pos.x, pos.y, 0.0f) * math::scale(dim.x, dim.y, 1.0f);
 					render_v_buf(entity->v_buf, RenderMode_triangles, basic_shader, &transform, tex, color);					
 				}
 #endif
@@ -1013,7 +1008,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 				if(math::rec_overlap(camera_bounds, bounds)) {
 					if(current_batch_index != sprite->atlas_index && current_batch_index != null_batch_index) {
-						render_and_clear_render_batch(game_state->sprite_batches[current_batch_index], basic_shader, &game_state->projection_matrix);
+						render_and_clear_render_batch(game_state->sprite_batches[current_batch_index], basic_shader, &projection_matrix);
 					}
 
 					current_batch_index = sprite->atlas_index;
@@ -1025,7 +1020,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		}
 		
 		for(u32 i = 0; i < game_state->sprite_batch_count; i++) {
-			render_and_clear_render_batch(game_state->sprite_batches[i], basic_shader, &game_state->projection_matrix);
+			render_and_clear_render_batch(game_state->sprite_batches[i], basic_shader, &projection_matrix);
 		}
 
 		if(game_state->debug_render_entity_bounds) {
@@ -1037,7 +1032,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				render_quad_lines(game_state->debug_batch, &bounds, math::vec4(1.0f));
 			}
 
-			render_and_clear_render_batch(game_state->debug_batch, basic_shader, &game_state->projection_matrix);
+			render_and_clear_render_batch(game_state->debug_batch, basic_shader, &projection_matrix);
 		}
 	}
 
@@ -1052,10 +1047,9 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		glUniform2f(post_shader->tex0_dim, (f32)game_state->frame_buffer.width, (f32)game_state->frame_buffer.height);
 
-		//TODO: Tidy this up!!
-		f32 pixelate_time = game_state->pixelate_time + 1.0f;
+		f32 pixelate_time = game_state->pixelate_time;
 		f32 pixelate_scale = math::frac(pixelate_time);
-		if((u32)pixelate_time % 2 == 0) {
+		if((u32)pixelate_time & 1) {
 			pixelate_scale = 1.0f - pixelate_scale;
 		}
 
@@ -1087,10 +1081,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		f32 letterbox_pixels = (game_state->ideal_window_height - game_state->camera.letterboxed_height) * 0.5f;
 
-		math::Mat4 transform0 = game_state->projection_matrix * math::translate(0.0f, dim.y - letterbox_pixels, 0.0f) * scale;
+		math::Mat4 transform0 = projection_matrix * math::translate(0.0f, dim.y - letterbox_pixels, 0.0f) * scale;
 		render_v_buf(&game_state->entity_v_buf, RenderMode_triangles, basic_shader, &transform0, tex, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
-		math::Mat4 transform1 = game_state->projection_matrix * math::translate(0.0f,-dim.y + letterbox_pixels, 0.0f) * scale;
+		math::Mat4 transform1 = projection_matrix * math::translate(0.0f,-dim.y + letterbox_pixels, 0.0f) * scale;
 		render_v_buf(&game_state->entity_v_buf, RenderMode_triangles, basic_shader, &transform1, tex, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 	}
 
@@ -1106,7 +1100,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		str_clear(game_state->title_str);
 		// str_print(game_state->title_str, "DOLLY DOLLY DOLLY DAYS!\nDT: %f | D_TIME: %f\n", game_input->delta_time, game_state->d_time);
-		str_print(game_state->title_str, "DISTANCE: %f | SCORE: %u | CLONES: %u\n", game_state->distance, game_state->score, player->clone_count);
+		str_print(game_state->title_str, "SPEED: %f | SCORE: %u | CLONES: %u\n", game_state->d_time, game_state->score, player->clone_count);
 		render_str(font, game_state->title_str);
 
 #if 0

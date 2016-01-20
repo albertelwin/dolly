@@ -213,8 +213,6 @@ struct GameState {
 	u32 ideal_window_width;
 	u32 ideal_window_height;
 
-	math::Mat4 projection_matrix;
-
 	b32 debug_render_entity_bounds;
 	RenderBatch * debug_batch;
 
