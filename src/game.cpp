@@ -41,10 +41,7 @@ Entity * push_entity(GameState * game_state, AssetId asset_id, u32 asset_index, 
 	ASSERT(game_state->entity_count < ARRAY_COUNT(game_state->entity_array));
 
 	//TODO: Should entities only be sprites??
-	Asset * asset = get_asset(&game_state->asset_state, asset_id, asset_index);
-	if(!asset) {
-		std::printf("LOG: %u, %u\n", asset_id, asset_index);
-	}
+	Asset * asset = get_asset(&game_state->assets, asset_id, asset_index);
 	ASSERT(asset);
 	ASSERT(asset->type == AssetType_texture || asset->type == AssetType_sprite);
 
@@ -62,7 +59,7 @@ Entity * push_entity(GameState * game_state, AssetId asset_id, u32 asset_index, 
 	entity->speed = math::vec2(500.0f);
 	entity->damp = 0.1f;
 	entity->use_gravity = false;
-	entity->collider = get_asset_bounds(&game_state->asset_state, entity->asset_id, entity->asset_index);
+	entity->collider = get_asset_bounds(&game_state->assets, entity->asset_id, entity->asset_index);
 
 	entity->anim_time = 0.0f;
 	entity->initial_x = pos.x;
@@ -217,7 +214,8 @@ Font * allocate_font(MemoryPool * pool, gl::Texture * tex, u32 v_len, u32 back_b
 	font->glyph_height = 5;
 	font->glyph_spacing = 1;
 
-	font->scale = 2.0f;
+	// font->scale = 2.0f;
+	font->scale = 4.0f;
 	font->anchor.x = -(f32)back_buffer_width * 0.5f + font->glyph_spacing * font->scale;
 	font->anchor.y = (f32)back_buffer_height * 0.5f - (font->glyph_height + font->glyph_spacing) * font->scale;
 	font->pos = font->anchor;
@@ -282,20 +280,18 @@ void render_c_str(Font * font, char const * c_str) {
 	render_str(font, &str);
 }
 
-void push_player_clone(GameState * game_state) {
-	if(game_state->player_clone_count < ARRAY_COUNT(game_state->player_clones)) {
-		game_state->player_clone_count++;
+void push_player_clone(Player * player) {
+	if(player->clone_count < ARRAY_COUNT(player->clones)) {
+		player->clone_count++;
 	}
 }
 
-void pop_player_clones(GameState * game_state, u32 count) {
-	while(count && game_state->player_clone_count > 0) {
-		u32 clone_index = --game_state->player_clone_count;
-		Entity * entity = game_state->player_clones[clone_index];
-
-		entity->pos = game_state->entity_null_pos;
-
-		count--;		
+void pop_player_clones(Player * player, u32 count) {
+	while(count && player->clone_count > 0) {
+		u32 clone_index = --player->clone_count;
+		Entity * entity = player->clones[clone_index];
+		entity->pos = ENTITY_NULL_POS;
+		count--;
 	}
 }
 
@@ -306,7 +302,7 @@ void begin_rocket_sequence(GameState * game_state) {
 		seq->playing = true;
 		seq->time_ = 0.0f;
 
-		math::Rec2 render_bounds = get_entity_render_bounds(&game_state->asset_state, seq->rocket, &game_state->camera);
+		math::Rec2 render_bounds = get_entity_render_bounds(&game_state->assets, seq->rocket, &game_state->camera);
 		f32 height = math::rec_dim(render_bounds).y;
 
 		Entity * rocket = seq->rocket;
@@ -360,7 +356,7 @@ void play_rocket_sequence(GameState * game_state, f32 dt) {
 		if(seq->time_ > seq_max_time) {
 			f32 new_pixelate_time = game_state->pixelate_time + dt * 1.5f;
 			if(game_state->pixelate_time < 1.0f && new_pixelate_time >= 1.0f) {
-				rocket->pos = game_state->entity_null_pos;
+				rocket->pos = ENTITY_NULL_POS;
 
 				game_state->d_time = 1.0f;
 				player->e->d_pos = math::vec2(0.0f);
@@ -386,7 +382,7 @@ void play_rocket_sequence(GameState * game_state, f32 dt) {
 void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	ASSERT(sizeof(GameState) <= game_memory->size);
 	GameState * game_state = (GameState *)game_memory->ptr;
-	AssetState * assets = &game_state->asset_state;
+	AssetState * assets = &game_state->assets;
 
 	if(!game_memory->initialized) {
 		game_memory->initialized = true;
@@ -492,7 +488,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			game_state->sprite_batches[i] = allocate_render_batch(&game_state->memory_pool, get_texture_asset(assets, AssetId_atlas, i), batch_size);
 		}
 
-		game_state->entity_null_pos = math::vec3(F32_MAX, F32_MAX, 0.0f);
+		ENTITY_NULL_POS = math::vec3(F32_MAX, F32_MAX, 0.0f);
 		game_state->entity_gravity = math::vec2(0.0f, -8000.0f);
 
 		game_state->current_location = LocationId_city;
@@ -507,6 +503,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		f32 location_max_z = location_z_offsets[0];
 		game_state->location_y_offset = (f32)game_state->ideal_window_height / (1.0f / (location_max_z + 1.0f));
+		game_state->ground_height = -(f32)game_state->ideal_window_height * 0.5f;
 
 		AssetId location_layer_ids[LocationId_count];
 		location_layer_ids[LocationId_city] = AssetId_city;
@@ -531,6 +528,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		//TODO: Collapse this!!
 		{
+			//TODO: Better probability generation!!
 			AssetId emitter_types[] = {
 				AssetId_smiley,
 				AssetId_smiley,
@@ -538,8 +536,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				AssetId_smiley,
 				AssetId_smiley,
 				AssetId_smiley,
-				// AssetId_smiley,
-				// AssetId_smiley,
+				AssetId_smiley,
+				AssetId_smiley,
 
 				AssetId_telly,
 				AssetId_telly,
@@ -553,10 +551,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				AssetId_telly,
 				AssetId_telly,
 				AssetId_telly,
-				// AssetId_telly,
-				// AssetId_telly,
-				// AssetId_telly,
-				// AssetId_telly,
+				AssetId_telly,
+				AssetId_telly,
+				AssetId_telly,
+				AssetId_telly,
 
 				AssetId_dolly,
 				AssetId_dolly,
@@ -570,10 +568,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				AssetId_dolly,
 				AssetId_dolly,
 				AssetId_dolly,
-				// AssetId_dolly,
-				// AssetId_dolly,
-				// AssetId_dolly,
-				// AssetId_dolly,
+				AssetId_dolly,
+				AssetId_dolly,
+				AssetId_dolly,
+				AssetId_dolly,
 
 				AssetId_rocket,
 			};
@@ -593,23 +591,23 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			game_state->locations[LocationId_space].emitter_types = PUSH_COPY_ARRAY(&game_state->memory_pool, AssetId, emitter_types, ARRAY_COUNT(emitter_types));
 		}
 
-		game_state->ground_height = -(f32)game_state->ideal_window_height * 0.5f;
+		Player * player = &game_state->player;
 
-		game_state->player_clone_index = 0;
-		game_state->player_clone_count = 0;
-		game_state->player_clone_offset = math::vec2(-5.0f, 0.0f);
-		for(u32 i = 0; i < ARRAY_COUNT(game_state->player_clones); i++) {
-			u32 asset_index = (i % (get_asset_count(&game_state->asset_state, AssetId_dolly) - 1)) + 1;
-			game_state->player_clones[i] = push_entity(game_state, AssetId_dolly, asset_index, game_state->entity_null_pos);
+		player->clone_index = 0;
+		player->clone_count = 0;
+		player->clone_offset = math::vec2(-5.0f, 0.0f);
+		for(u32 i = 0; i < ARRAY_COUNT(player->clones); i++) {
+			u32 asset_index = (i % (get_asset_count(&game_state->assets, AssetId_dolly) - 1)) + 1;
+			player->clones[i] = push_entity(game_state, AssetId_dolly, asset_index, ENTITY_NULL_POS);
 		}
 
-		game_state->player.e = push_entity(game_state, AssetId_dolly, 0, math::vec3((f32)game_state->ideal_window_width * -0.25f, 0.0f, 0.0f));
-		game_state->player.e->speed = math::vec2(50.0f, 6000.0f);
-		game_state->player.e->damp = 9.0f;
-		game_state->player.e->initial_x = game_state->player.e->pos.x;
-		game_state->player.grounded = false;
-		game_state->player.running = false;
-		game_state->player.allow_input = true;
+		player->e = push_entity(game_state, AssetId_dolly, 0, math::vec3((f32)game_state->ideal_window_width * -0.25f, 0.0f, 0.0f));
+		player->e->speed = math::vec2(50.0f, 6000.0f);
+		player->e->damp = 9.0f;
+		player->e->initial_x = player->e->pos.x;
+		player->grounded = false;
+		player->running = false;
+		player->allow_input = true;
 
 		EntityEmitter * emitter = &game_state->entity_emitter;
 		Sprite * emitter_sprite = get_sprite_asset(assets, AssetId_teacup, 0);
@@ -621,7 +619,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		}
 
 		RocketSequence * seq = &game_state->rocket_seq;
-		seq->rocket = push_entity(game_state, AssetId_large_rocket, 0, game_state->entity_null_pos);
+		seq->rocket = push_entity(game_state, AssetId_large_rocket, 0, ENTITY_NULL_POS);
 		seq->rocket->collider = math::rec_offset(seq->rocket->collider, math::vec2(0.0f, -math::rec_dim(seq->rocket->collider).y * 0.5f));
 		seq->playing = false;
 		seq->time_ = 0.0f;
@@ -654,10 +652,13 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		game_state->d_time = 1.0f;
 		game_state->pitch = 1.0f;
 		game_state->score = 0;
+		game_state->distance = 0.0f;
 
 		glEnable(GL_CULL_FACE);
 		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	}
+
+	Player * player = &game_state->player;
 
 	if(game_input->buttons[ButtonId_debug] & KEY_PRESSED) {
 		game_state->debug_render_entity_bounds = !game_state->debug_render_entity_bounds;
@@ -678,7 +679,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	}
 
 #if 0
-	game_state->d_time = 0.5f + (game_state->player_clone_count * 0.1f);
+	game_state->d_time = 0.5f + (player->clone_count * 0.1f);
 #else
 	game_state->d_time += dd_time;
 	//TODO: Disable this to go backwards in time!!
@@ -700,23 +701,23 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	f32 adjusted_dt = game_input->delta_time;
 #endif
 
+	game_state->distance += adjusted_dt;
+
 	math::Vec2 half_window_dim = math::vec2(game_state->ideal_window_width, game_state->ideal_window_height) * 0.5f;
 
-	Player * player = &game_state->player;
-
-	for(i32 i = game_state->player_clone_count - 1; i >= 0; i--) {
-		Entity * entity = game_state->player_clones[i];
+	for(i32 i = player->clone_count - 1; i >= 0; i--) {
+		Entity * entity = player->clones[i];
 
 		if(i == 0) {
-			entity->chain_pos = player->e->pos.xy;
+			entity->chain_pos = player->e->pos.xy + player->clone_offset * 4.0f;
 		}
 		else {
-			Entity * next_entity = game_state->player_clones[i - 1];
-			entity->chain_pos = next_entity->chain_pos;
+			Entity * next_entity = player->clones[i - 1];
+			entity->chain_pos = next_entity->chain_pos + player->clone_offset;
 		}
 
-		entity->chain_pos += game_state->player_clone_offset;
 		entity->pos.xy = entity->chain_pos;
+		entity->scale = 0.75f;
 
 		// f32 amplitude = math::max(50.0f / math::max(game_state->d_time, 1.0f), 0.0f);
 		f32 amplitude = 50.0f;
@@ -866,11 +867,12 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			}
 		}
 		else {
-			f32 dd_pos = 500.0f * adjusted_dt;
+			f32 dd_pos = 100.0f * adjusted_dt;
 			entity->pos.y += dd_pos;
 
-			entity->scale -= 4.0f * adjusted_dt;
-			if(entity->scale < 0.0f) {
+			entity->color.a -= 2.0f * adjusted_dt;
+			if(entity->color.a < 0.0f) {
+				entity->color.a = 0.0f;
 				destroy = true;
 			}
 		}
@@ -892,12 +894,12 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 			switch(entity->asset_id) {
 				case AssetId_dolly: {
-					push_player_clone(game_state);
+					push_player_clone(player);
 					break;
 				}
 
 				case AssetId_telly: {
-					pop_player_clones(game_state, 5);
+					pop_player_clones(player, 5);
 					break;
 				}
 
@@ -977,7 +979,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		u32 null_batch_index = U32_MAX;
 		u32 current_batch_index = null_batch_index;
 
-#if 1
 		//TODO: Sorting!!
 		for(u32 i = 0; i < game_state->entity_count; i++) {
 			Entity * entity = game_state->entity_array + i;
@@ -985,10 +986,14 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			math::Rec2 bounds = math::rec_offset(get_entity_render_bounds(assets, entity, camera), camera->offset);
 			math::Vec2 pos = math::rec_pos(bounds);
 			math::Vec2 dim = math::rec_dim(bounds);
+
+			math::Vec4 color = entity->color;
+			color.rgb *= color.a;
 			
 			if(entity->asset_type == AssetType_texture) {
 				gl::Texture * tex = get_texture_asset(assets, entity->asset_id, entity->asset_index);
 
+#if 1
 				//TODO: Remove epsilon!!
 				f32 epsilon = 0.01f;
 				if(math::rec_overlap(camera_bounds, math::rec_scale(bounds, 1.0f + epsilon))) {
@@ -998,8 +1003,9 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					}
 
 					math::Mat4 transform = game_state->projection_matrix * math::translate(pos.x, pos.y, 0.0f) * math::scale(dim.x, dim.y, 1.0f);
-					render_v_buf(entity->v_buf, RenderMode_triangles, basic_shader, &transform, tex, entity->color);					
+					render_v_buf(entity->v_buf, RenderMode_triangles, basic_shader, &transform, tex, color);					
 				}
+#endif
 			}
 			else {
 				Sprite * sprite = get_sprite_asset(assets, entity->asset_id, entity->asset_index);
@@ -1013,11 +1019,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					current_batch_index = sprite->atlas_index;
 
 					RenderBatch * batch = game_state->sprite_batches[sprite->atlas_index];
-					render_sprite(batch, sprite, pos, dim, entity->color);					
+					render_sprite(batch, sprite, pos, dim, color);					
 				}
 			}
 		}
-#endif
 		
 		for(u32 i = 0; i < game_state->sprite_batch_count; i++) {
 			render_and_clear_render_batch(game_state->sprite_batches[i], basic_shader, &game_state->projection_matrix);
@@ -1027,8 +1032,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			for(u32 i = 0; i < game_state->entity_count; i++) {
 				Entity * entity = game_state->entity_array + i;
 
-				math::Rec2 bounds = math::rec_offset(get_entity_render_bounds(assets, entity, camera), camera->offset);
-				// math::Rec2 bounds = math::rec_offset(math::rec_scale(entity->collider, entity->scale), project_pos(camera, entity->pos) + camera->offset);
+				// math::Rec2 bounds = math::rec_offset(get_entity_render_bounds(assets, entity, camera), camera->offset);
+				math::Rec2 bounds = math::rec_offset(math::rec_scale(entity->collider, entity->scale), project_pos(camera, entity->pos) + camera->offset);
 				render_quad_lines(game_state->debug_batch, &bounds, math::vec4(1.0f));
 			}
 
@@ -1100,7 +1105,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		RenderBatch * batch = font->batch;
 
 		str_clear(game_state->title_str);
-		str_print(game_state->title_str, "DOLLY DOLLY DOLLY DAYS!\nDT: %f | D_TIME: %f | SCORE: %u | CLONES: %u | GROUNDED: %u\n\n", game_input->delta_time, game_state->d_time, game_state->score, game_state->player_clone_count, game_state->player.grounded);
+		// str_print(game_state->title_str, "DOLLY DOLLY DOLLY DAYS!\nDT: %f | D_TIME: %f\n", game_input->delta_time, game_state->d_time);
+		str_print(game_state->title_str, "DISTANCE: %f | SCORE: %u | CLONES: %u\n", game_state->distance, game_state->score, player->clone_count);
 		render_str(font, game_state->title_str);
 
 #if 0

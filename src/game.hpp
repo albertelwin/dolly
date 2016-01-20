@@ -19,6 +19,8 @@
 
 #define PARALLAX_LAYER_COUNT 5
 
+#define ENTITY_NULL_POS math::vec3(F32_MAX, F32_MAX, 0.0f)
+
 //TODO: Automatically generate these structs for shaders!!
 struct Shader {
 	u32 id;
@@ -86,10 +88,16 @@ struct Entity {
 
 struct Player {
 	Entity * e;
+
 	b32 grounded;
 	b32 running;
 
 	b32 allow_input;
+
+	u32 clone_index;
+	u32 clone_count;
+	Entity * clones[50];
+	math::Vec2 clone_offset;
 };
 
 struct EntityEmitter {
@@ -184,8 +192,7 @@ struct GameInput {
 struct GameState {
 	MemoryPool memory_pool;
 
-	//TODO: Just rename this to assets!!
-	AssetState asset_state;
+	AssetState assets;
 
 	AudioState audio_state;
 	AudioSource * music;
@@ -222,18 +229,11 @@ struct GameState {
 
 	LocationId current_location;
 	f32 location_y_offset;
+	f32 ground_height;
 	Location locations[LocationId_count];
 	Entity * clouds;
 
-	f32 ground_height;
-
 	Player player;
-
-	//TODO: Move these into player struct!!
-	u32 player_clone_index;
-	u32 player_clone_count;
-	Entity * player_clones[64];
-	math::Vec2 player_clone_offset;
 
 	EntityEmitter entity_emitter;
 	RocketSequence rocket_seq;
@@ -245,6 +245,7 @@ struct GameState {
 	f32 d_time;
 	f32 pitch;
 	u32 score;
+	f32 distance;
 };
 
 #endif
