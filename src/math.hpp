@@ -799,11 +799,6 @@ namespace math {
 		return ((r0.min.x < r1.min.x && r0.max.x > r1.min.x) || (r0.min.x >= r1.min.x && r0.min.x < r1.max.x)) && ((r0.min.y < r1.min.y && r0.max.y > r1.min.y) || (r0.min.y >= r1.min.y && r0.min.y < r1.max.y));
 	}
 
-	b32 rec_inside(Rec2 const & r0, Rec2 const & r1) {
-		//TODO: Actually implement this!!
-		return rec_overlap(r0, r1);
-	}
-
 	struct Ray {
 		Vec3 o;
 		Vec3 d;

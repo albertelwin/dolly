@@ -84,6 +84,14 @@ struct Entity {
 	math::Vec2 chain_pos;
 };
 
+struct Player {
+	Entity * e;
+	b32 grounded;
+	b32 running;
+
+	b32 allow_input;
+};
+
 struct EntityEmitter {
 	math::Vec3 pos;
 	f32 time_until_next_spawn;
@@ -111,6 +119,9 @@ struct Location {
 
 	f32 min_y;
 	f32 max_y;
+
+	u32 emitter_type_count;
+	AssetId * emitter_types;
 };
 
 struct RocketSequence {
@@ -214,9 +225,11 @@ struct GameState {
 	Location locations[LocationId_count];
 	Entity * clouds;
 
-	Entity * player;
-	b32 allow_player_input;
+	f32 ground_height;
 
+	Player player;
+
+	//TODO: Move these into player struct!!
 	u32 player_clone_index;
 	u32 player_clone_count;
 	Entity * player_clones[64];
@@ -228,6 +241,7 @@ struct GameState {
 	Camera camera;
 	f32 pixelate_time;
 
+	//TODO: This should just be player speed!!
 	f32 d_time;
 	f32 pitch;
 	u32 score;

@@ -264,6 +264,21 @@ MemoryPool create_memory_pool(void * base_address, size_t size) {
 	return pool;
 }
 
+void zero_memory(void * ptr, size_t size) {
+	u8 * ptr_u8 = (u8 *)ptr;
+	for(u32 i = 0; i < size; i++) {
+		ptr_u8[i] = 0;
+	}
+}
+
+void copy_memory(void * dst, void * src, size_t size) {
+	u8 * dst_u8 = (u8 *)dst;
+	u8 * src_u8 = (u8 *)src;
+	for(u32 i = 0; i < size; i++) {
+		dst_u8[i] = src_u8[i];
+	}
+}
+
 #define PUSH_STRUCT(pool, type) (type *)push_memory_(pool, sizeof(type))
 #define PUSH_ARRAY(pool, type, length) (type *)push_memory_(pool, sizeof(type) * (length))
 #define PUSH_MEMORY(pool, type, size) (type *)push_memory_(pool, size)
@@ -273,6 +288,13 @@ void * push_memory_(MemoryPool * pool, size_t size) {
 	void * ptr = pool->base_address + pool->used;
 	pool->used += size;
 	return ptr;
+}
+
+#define PUSH_COPY_ARRAY(pool, type, array, length) (type *)push_copy_memory_(pool, array, sizeof(type) * (length))
+void * push_copy_memory_(MemoryPool * pool, void * src, size_t size) {
+	void * dst = push_memory_(pool, size);
+	copy_memory(dst, src, size);
+	return dst;
 }
 
 #define ALLOC_STRUCT(type) (type *)alloc_memory_(sizeof(type))
@@ -286,13 +308,6 @@ void * alloc_memory_(size_t size) {
 #define FREE_MEMORY(ptr) free_memory_(ptr)
 void free_memory_(void * ptr) {
 	std::free(ptr);
-}
-
-void zero_memory(void * ptr, size_t size) {
-	u8 * ptr_u8 = (u8 *)ptr;
-	for(u32 i = 0; i < size; i++) {
-		ptr_u8[i] = 0;
-	}
 }
 
 #define KEY_DOWN_BIT 0
