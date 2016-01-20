@@ -307,7 +307,10 @@ void begin_rocket_sequence(GameState * game_state) {
 		rocket->pos = game_state->player->pos;
 		rocket->pos.y -= (game_state->ideal_window_height * 0.5f + height * 0.5f);
 		rocket->d_pos = math::vec2(0.0f);
-		rocket->speed = math::vec2(0.0f, 1000.0f);
+		rocket->speed = math::vec2(0.0f, 8000.0f);
+		rocket->damp = 4.0f;
+
+		// game_state->entity_emitter.pos.y = game_state->location_y_offset;
 	}
 }
 
@@ -319,32 +322,48 @@ void play_rocket_sequence(GameState * game_state, f32 dt) {
 		Entity * player = game_state->player;
 
 		rocket->d_pos += rocket->speed * dt;
+		rocket->d_pos *= (1.0f - rocket->damp * dt);
+
 		math::Vec2 d_pos = rocket->d_pos * dt;
-		rocket->pos.xy += d_pos;
+		math::Vec2 new_pos = rocket->pos.xy + d_pos;
 
 		if(rocket->pos.y < game_state->location_y_offset) {
-			math::Rec2 player_bounds = get_entity_collider_bounds(player);
-			math::Rec2 collider_bounds = get_entity_collider_bounds(rocket);
-			if(math::rec_inside(collider_bounds, player_bounds)) {
-				player->pos.xy += d_pos;
-				player->d_pos = math::vec2(0.0f);
-				game_state->allow_player_input = false;
-			}			
-		}
-		else {
-			game_state->allow_player_input = true;
+			if(new_pos.y < game_state->location_y_offset) {
+				math::Rec2 player_bounds = get_entity_collider_bounds(player);
+				math::Rec2 collider_bounds = get_entity_collider_bounds(rocket);
+				if(math::rec_inside(collider_bounds, player_bounds)) {
+					player->pos.xy += d_pos;
+					player->d_pos = math::vec2(0.0f);
+					game_state->allow_player_input = false;
+				}
+
+				game_state->camera.offset = (math::rand_vec2() * 2.0f - 1.0f) * 10.0f;
+			}
+			else {
+				player->pos.y = game_state->location_y_offset;
+				game_state->allow_player_input = true;
+
+				game_state->current_location = LocationId_space;
+				game_state->entity_emitter.pos.y = game_state->location_y_offset;
+			}
 		}
 
+		rocket->pos.xy = new_pos;
 		seq->time_ += dt;
 
-		if(seq->time_ > 20.0f) {
+		f32 seq_max_time = 20.0f;
+		if(seq->time_ > seq_max_time) {
 			f32 new_pixelate_time = game_state->pixelate_time + dt * 1.5f;
 			if(game_state->pixelate_time < 1.0f && new_pixelate_time >= 1.0f) {
-				game_state->d_time = 1.0f;
 				rocket->pos = game_state->entity_null_pos;
+
+				game_state->d_time = 1.0f;
 				player->d_pos = math::vec2(0.0f);
 				player->pos.xy = math::vec2(player->initial_x, 0.0f);
 				game_state->allow_player_input = true;
+
+				game_state->entity_emitter.pos.y = 0.0f;
+				game_state->current_location = LocationId_city;
 			}
 
 			game_state->pixelate_time = new_pixelate_time;
@@ -470,10 +489,16 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		game_state->entity_null_pos = math::vec3(F32_MAX, F32_MAX, 0.0f);
 		game_state->entity_gravity = math::vec2(0.0f, -10000.0f);
 
-		f32 location_z_offset = 2.5f;
-		f32 location_max_z = location_z_offset * PARALLAX_LAYER_COUNT;
-		f32 location_y_offset = (f32)game_state->ideal_window_height / (1.0f / (location_max_z + 1.0f));
-		game_state->location_y_offset = location_y_offset;
+		f32 location_z_offsets[PARALLAX_LAYER_COUNT] = {
+			 10.0f,
+			 10.0f,
+			  7.5f,
+			  5.0f,
+			 -0.5f,
+		};
+
+		f32 location_max_z = location_z_offsets[0];
+		game_state->location_y_offset = (f32)game_state->ideal_window_height / (1.0f / (location_max_z + 1.0f));
 
 		AssetId location_layer_ids[LocationId_count];
 		location_layer_ids[LocationId_city] = AssetId_city;
@@ -482,10 +507,14 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			Location * location = game_state->locations + i;
 			AssetId asset_id = location_layer_ids[i];
 
+			location->min_y = game_state->location_y_offset * i;
+			location->max_y = location->min_y + game_state->location_y_offset * 0.5f;
+
 			for(u32 layer_index = 0; layer_index < ARRAY_COUNT(location->layers) - 1; layer_index++) {
 				Entity * entity = push_entity(game_state, asset_id, layer_index);
-				entity->pos.y = location_y_offset * i;
-				entity->pos.z = location_z_offset * (ARRAY_COUNT(location->layers) - layer_index);
+
+				entity->pos.y = game_state->location_y_offset * i;
+				entity->pos.z = location_z_offsets[layer_index];
 				entity->v_buf = &game_state->bg_v_buf;
 
 				location->layers[layer_index] = entity;
@@ -502,8 +531,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		game_state->player = push_entity(game_state, AssetId_dolly, 0, math::vec3((f32)game_state->ideal_window_width * -0.25f, 0.0f, 0.0f));
 		game_state->player->speed = math::vec2(50.0f, 6000.0f);
-		// game_state->player->damp = 9.0f;
-		game_state->player->damp = 0.15f;
+		game_state->player->damp = 9.0f;
 		game_state->player->initial_x = game_state->player->pos.x;
 		game_state->allow_player_input = true;
 
@@ -530,18 +558,21 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			u32 layer_index = ARRAY_COUNT(location->layers) - 1;
 
 			Entity * entity = push_entity(game_state, asset_id, layer_index);
-			entity->pos.y = location_y_offset * i;
-			entity->pos.z = -0.5f;
+			entity->pos.y = game_state->location_y_offset * i;
+			entity->pos.z = location_z_offsets[layer_index];
 			entity->v_buf = &game_state->bg_v_buf;
 
 			location->layers[layer_index] = entity;
 		}
 
+#if 0
 		game_state->clouds = push_entity(game_state, AssetId_clouds, 0);
 		game_state->clouds->pos = math::vec3(0.0f, location_y_offset * 0.5f, -0.5f);
 		game_state->clouds->v_buf = &game_state->bg_v_buf;
+#endif
 
 		game_state->camera.pos = math::vec2(0.0f, game_state->player->pos.y);
+		game_state->camera.letterboxed_height = (f32)game_state->ideal_window_height;
 		game_state->pixelate_time = 0.0f;
 
 		game_state->d_time = 1.0f;
@@ -557,8 +588,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	}
 
 	if(game_input->buttons[ButtonId_mute] & KEY_PRESSED) {
-		// game_state->audio_state.master_volume = game_state->audio_state.master_volume > 0.0f ? 0.0f : 1.0f;
-		begin_rocket_sequence(game_state);
+		game_state->audio_state.master_volume = game_state->audio_state.master_volume > 0.0f ? 0.0f : 1.0f;
 	}
 
 	f32 dd_time = 0.0f;
@@ -645,19 +675,33 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	}
 
 	player->d_pos += player_dd_pos * game_input->delta_time;
-	// player->d_pos *= (1.0f - player->damp * game_input->delta_time);
-	player->d_pos *= (1.0f - player->damp);
+	player->d_pos *= (1.0f - player->damp * game_input->delta_time);
 
 	player->pos.xy += player->d_pos * game_input->delta_time;
 
 	f32 max_dist_x = 20.0f;
 	player->pos.x = math::clamp(player->pos.x, player->initial_x - max_dist_x, player->initial_x + max_dist_x);
 
-	math::Rec2 player_bounds = get_entity_collider_bounds(player);
+	Camera * camera = &game_state->camera;
+	camera->offset = (math::rand_vec2() * 2.0f - 1.0f) * math::max(game_state->d_time - 2.0f, 0.0f);
 
 	if(game_state->rocket_seq.playing) {
 		play_rocket_sequence(game_state, game_input->delta_time);
 	}
+
+	Location * current_location = game_state->locations + game_state->current_location;
+
+#if 1
+	camera->letterboxed_height = game_state->ideal_window_height - math::max(game_state->d_time - 1.0f, 0.0f) * 20.0f;
+	camera->letterboxed_height = math::max(camera->letterboxed_height, game_state->ideal_window_height / 3.0f);
+#endif
+	camera->pos.x = 0.0f;
+	camera->pos.y = math::max(player->pos.y, 0.0f);
+	if(game_state->allow_player_input) {
+		camera->pos.y = math::clamp(camera->pos.y, current_location->min_y, current_location->max_y);
+	}
+
+	math::Rec2 player_bounds = get_entity_collider_bounds(player);
 
 	AssetId emitter_types[] = {
 		AssetId_smiley,
@@ -674,7 +718,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		if(emitter->entity_count < ARRAY_COUNT(emitter->entity_array)) {
 			Entity * entity = emitter->entity_array[emitter->entity_count++];
 
-			entity->pos = math::vec3(emitter->pos.x, emitter->pos.y + (math::rand_f32() * 2.0f - 1.0f) * 250.0f, 0.0f);
+			entity->pos = emitter->pos;
+			entity->pos.y += (math::rand_f32() * 2.0f - 1.0f) * 250.0f;;
 			entity->scale = 1.0f;
 			entity->color = math::vec4(1.0f);
 
@@ -793,20 +838,20 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		}
 	}
 
-	{
-		Entity * entity = game_state->clouds;
+#if 0
+	Entity * entity = game_state->clouds;
 
-		entity->pos.x -= 500.0f * adjusted_dt;
+	entity->pos.x -= 500.0f * adjusted_dt;
 
-		math::Rec2 bounds = get_entity_render_bounds(assets, entity, &game_state->camera);
-		math::Vec2 screen_pos = math::rec_pos(bounds);
-		f32 width = math::rec_dim(bounds).x;
+	math::Rec2 bounds = get_entity_render_bounds(assets, entity, &game_state->camera);
+	math::Vec2 screen_pos = math::rec_pos(bounds);
+	f32 width = math::rec_dim(bounds).x;
 
-		if(screen_pos.x < -(half_window_dim.x + width * 0.5f)) {
-			screen_pos.x += width * 2.0f;
-			entity->pos = unproject_pos(&game_state->camera, screen_pos, entity->pos.z);
-		}		
+	if(screen_pos.x < -(half_window_dim.x + width * 0.5f)) {
+		screen_pos.x += width * 2.0f;
+		entity->pos = unproject_pos(&game_state->camera, screen_pos, entity->pos.z);
 	}
+#endif
 
 	game_state->projection_matrix = math::orthographic_projection((f32)game_state->ideal_window_width, (f32)game_state->ideal_window_height);
 
@@ -822,28 +867,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 	{
 		DEBUG_TIME_BLOCK();
-
-		Camera * camera = &game_state->camera;
-
-#if 1
-		camera->letterboxed_height = game_state->ideal_window_height - math::max(game_state->d_time - 1.0f, 0.0f) * 20.0f;
-		camera->letterboxed_height = math::max(camera->letterboxed_height, game_state->ideal_window_height / 3.0f);
-#else
-		camera->letterboxed_height = game_state->ideal_window_height;
-#endif
-
-		f32 letterbox_pixels = (game_state->ideal_window_height - camera->letterboxed_height) * 0.5f;
-#if 0
-		f32 camera_min_y = -letterbox_pixels * 0.5f;
-#else
-		f32 camera_min_y = 1.0f;
-#endif
-
-		camera->pos.x = 0.0f;
-		camera->pos.y = math::max(player->pos.y, camera_min_y);
-#if 1
-		camera->offset = (math::rand_vec2() * 2.0f - 1.0f) * math::max(game_state->d_time - 2.0f, 0.0f);
-#endif
 
 		math::Rec2 camera_bounds = math::rec2_pos_dim(math::vec2(0.0f), math::vec2((f32)game_state->ideal_window_width, camera->letterboxed_height));
 
@@ -906,8 +929,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 			render_and_clear_render_batch(game_state->debug_batch, basic_shader, &game_state->projection_matrix);
 		}
-
-		camera->offset = math::vec2(0.0f);
 	}
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);

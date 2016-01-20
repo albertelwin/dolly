@@ -108,6 +108,9 @@ enum LocationId {
 
 struct Location {
 	Entity * layers[PARALLAX_LAYER_COUNT];
+
+	f32 min_y;
+	f32 max_y;
 };
 
 struct RocketSequence {
@@ -206,9 +209,10 @@ struct GameState {
 	math::Vec3 entity_null_pos;
 	math::Vec2 entity_gravity;
 
+	LocationId current_location;
+	f32 location_y_offset;
 	Location locations[LocationId_count];
 	Entity * clouds;
-	f32 location_y_offset;
 
 	Entity * player;
 	b32 allow_player_input;
