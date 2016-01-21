@@ -46,7 +46,7 @@ enum RenderMode {
 };
 
 struct RenderBatch {
-	gl::Texture * tex;
+	Texture * tex;
 
 	u32 v_len;
 	f32 * v_arr;

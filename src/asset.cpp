@@ -83,10 +83,14 @@ void load_assets(AssetState * assets, MemoryPool * pool) {
 					ASSERT(info->sampling == TextureSampling_bilinear);
 				}
 
-				Asset * asset = push_asset(assets, asset_info->id, AssetType_texture);
-				asset->texture = gl::create_texture(file_ptr, info->width, info->height, GL_RGBA, filter, GL_CLAMP_TO_EDGE);
+				gl::Texture gl_tex = gl::create_texture(file_ptr, info->width, info->height, GL_RGBA, filter, GL_CLAMP_TO_EDGE);
 
-				file_ptr += info->width * info->height * TEXTURE_CHANNELS;;
+				Asset * asset = push_asset(assets, asset_info->id, AssetType_texture);
+				asset->texture.dim = math::vec2(info->width, info->height);
+				asset->texture.offset = math::vec2(0.0f);
+				asset->texture.gl_id = gl_tex.id;
+
+				file_ptr += info->width * info->height * TEXTURE_CHANNELS;
 
 				break;
 			}
@@ -95,11 +99,11 @@ void load_assets(AssetState * assets, MemoryPool * pool) {
 				SpriteInfo * info = &asset_info->sprite;
 
 				Asset * asset = push_asset(assets, asset_info->id, AssetType_sprite);
-				asset->sprite.atlas_index = info->atlas_index;
-				asset->sprite.dim = info->dim;
+				asset->sprite.dim = math::vec2(info->width, info->height);
+				asset->sprite.offset = info->offset;
 				asset->sprite.tex_coords[0] = info->tex_coords[0];
 				asset->sprite.tex_coords[1] = info->tex_coords[1];
-				asset->sprite.offset = info->offset;
+				asset->sprite.atlas_index = info->atlas_index;
 
 				break;
 			}

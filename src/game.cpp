@@ -19,22 +19,9 @@ math::Vec3 unproject_pos(Camera * camera, math::Vec2 pos, f32 z) {
 }
 
 math::Rec2 get_asset_bounds(AssetState * assets, AssetId asset_id, u32 asset_index) {
-	math::Vec2 pos = math::vec2(0.0f);
-	math::Vec2 dim;
-
 	Asset * asset = get_asset(assets, asset_id, asset_index);
-	if(asset->type == AssetType_texture) {
-		dim = math::vec2(asset->texture.width, asset->texture.height);
-	}
-	else {
-		ASSERT(asset->type == AssetType_sprite);
-		Sprite * sprite = &asset->sprite;
-
-		pos += sprite->offset;
-		dim = sprite->dim;
-	}
-
-	return math::rec2_pos_dim(pos, dim);
+	ASSERT(asset->type == AssetType_texture || asset->type == AssetType_sprite);
+	return math::rec2_pos_dim(asset->texture.offset, asset->texture.dim);
 }
 
 Entity * push_entity(GameState * game_state, AssetId asset_id, u32 asset_index, math::Vec3 pos = math::vec3(0.0f)) {
@@ -82,7 +69,7 @@ math::Rec2 get_entity_collider_bounds(Entity * entity) {
 	return math::rec_scale(math::rec_offset(entity->collider, entity->pos.xy), entity->scale);
 }
 
-RenderBatch * allocate_render_batch(MemoryPool * pool, gl::Texture * tex, u32 v_len, RenderMode render_mode = RenderMode_triangles) {
+RenderBatch * allocate_render_batch(MemoryPool * pool, Texture * tex, u32 v_len, RenderMode render_mode = RenderMode_triangles) {
 	RenderBatch * batch = PUSH_STRUCT(pool, RenderBatch);
 
 	batch->tex = tex;
@@ -148,7 +135,7 @@ void render_quad_lines(RenderBatch * batch, math::Rec2 * rec, math::Vec4 color) 
 	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;	
 }
 
-void render_sprite(RenderBatch * batch, Sprite * sprite, math::Vec2 pos, math::Vec2 dim, math::Vec4 color) {
+void render_sprite(RenderBatch * batch, Texture * sprite, math::Vec2 pos, math::Vec2 dim, math::Vec4 color) {
 	math::Vec2 pos0 = pos - dim * 0.5f;
 	math::Vec2 pos1 = pos + dim * 0.5f;
 
@@ -158,7 +145,7 @@ void render_sprite(RenderBatch * batch, Sprite * sprite, math::Vec2 pos, math::V
 	render_quad(batch, pos0, pos1, uv0, uv1, color);
 }
 
-void render_v_buf(gl::VertexBuffer * v_buf, RenderMode render_mode, Shader * shader, math::Mat4 * transform, gl::Texture * tex0, math::Vec4 color = math::vec4(1.0f)) {
+void render_v_buf(gl::VertexBuffer * v_buf, RenderMode render_mode, Shader * shader, math::Mat4 * transform, Texture * tex0, math::Vec4 color = math::vec4(1.0f)) {
 	DEBUG_TIME_BLOCK();
 
 	glUseProgram(shader->id);
@@ -167,7 +154,7 @@ void render_v_buf(gl::VertexBuffer * v_buf, RenderMode render_mode, Shader * sha
 	glUniform4f(shader->color, color.r, color.g, color.b, color.a);
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, tex0->id);
+	glBindTexture(GL_TEXTURE_2D, tex0->gl_id);
 	glUniform1i(shader->tex0, 0);
 
 	glBindBuffer(GL_ARRAY_BUFFER, v_buf->id);
@@ -204,7 +191,7 @@ void render_and_clear_render_batch(RenderBatch * batch, Shader * shader, math::M
 	}
 }
  
-Font * allocate_font(MemoryPool * pool, gl::Texture * tex, u32 v_len, u32 back_buffer_width, u32 back_buffer_height) {
+Font * allocate_font(MemoryPool * pool, Texture * tex, u32 v_len, u32 back_buffer_width, u32 back_buffer_height) {
 	Font * font = PUSH_STRUCT(pool, Font);
 
 	font->batch = allocate_render_batch(pool, tex, v_len);
@@ -240,8 +227,8 @@ void render_str(Font * font, Str * str) {
 	f32 glyph_height = font->glyph_height * font->scale;
 	f32 glyph_spacing = font->glyph_spacing * font->scale;
 
-	u32 tex_size = batch->tex->width;
-	f32 r_tex_size = 1.0f / (f32)tex_size;
+	math::Vec2 tex_dim = batch->tex->dim;
+	math::Vec2 r_tex_dim = math::vec2(1.0f / tex_dim.x, 1.0f / tex_dim.y);
 
 	//TODO: Put these in the font struct??
 	u32 glyph_first_char = 24;
@@ -264,8 +251,8 @@ void render_str(Font * font, Str * str) {
 				u32 u = ((char_ - glyph_first_char) % glyphs_per_row) * (font->glyph_width + font->glyph_spacing * 2) + font->glyph_spacing;
 				u32 v = ((char_ - glyph_first_char) / glyphs_per_row) * (font->glyph_height + font->glyph_spacing * 2) + font->glyph_spacing;
 
-				math::Vec2 uv0 = math::vec2(u, tex_size - (v + font->glyph_height)) * r_tex_size;
-				math::Vec2 uv1 = math::vec2(u + font->glyph_width, tex_size - v) * r_tex_size;
+				math::Vec2 uv0 = math::vec2(u, (u32)tex_dim.y - (v + font->glyph_height)) * r_tex_dim;
+				math::Vec2 uv1 = math::vec2(u + font->glyph_width, (u32)tex_dim.y - v) * r_tex_dim;
 
 				render_quad(batch, pos0, pos1, uv0, uv1, color);
 			}
@@ -490,7 +477,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		game_state->bg_v_buf = gl::create_vertex_buffer(bg_verts, ARRAY_COUNT(bg_verts), VERT_ELEM_COUNT, GL_STATIC_DRAW);
 
-		gl::Texture * font_tex = get_texture_asset(assets, AssetId_font, 0);
+		Texture * font_tex = get_texture_asset(assets, AssetId_font, 0);
 		game_state->font = allocate_font(&game_state->memory_pool, font_tex, 65536, game_input->back_buffer_width, game_input->back_buffer_height);
 		game_state->debug_str = allocate_str(&game_state->memory_pool, 1024);
 		game_state->title_str = allocate_str(&game_state->memory_pool, 128);
@@ -631,7 +618,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		player->allow_input = true;
 
 		EntityEmitter * emitter = &game_state->entity_emitter;
-		Sprite * emitter_sprite = get_sprite_asset(assets, AssetId_teacup, 0);
+		Texture * emitter_sprite = get_sprite_asset(assets, AssetId_teacup, 0);
 		emitter->pos = math::vec3(game_state->ideal_window_width * 0.75f, 0.0f, 0.0f);
 		emitter->time_until_next_spawn = 0.0f;
 		emitter->entity_count = 0;
@@ -686,8 +673,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	}
 
 	if(game_input->buttons[ButtonId_mute] & KEY_PRESSED) {
-		// game_state->audio_state.master_volume = game_state->audio_state.master_volume > 0.0f ? 0.0f : 1.0f;
-		begin_rocket_sequence(game_state);
+		game_state->audio_state.master_volume = game_state->audio_state.master_volume > 0.0f ? 0.0f : 1.0f;
+		// begin_rocket_sequence(game_state);
 	}
 
 	f32 dd_time = 0.0f;
@@ -986,7 +973,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			color.rgb *= color.a;
 			
 			if(entity->asset_type == AssetType_texture) {
-				gl::Texture * tex = get_texture_asset(assets, entity->asset_id, entity->asset_index);
+				Texture * tex = get_texture_asset(assets, entity->asset_id, entity->asset_index);
 
 #if 1
 				//TODO: Remove epsilon!!
@@ -1003,7 +990,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 #endif
 			}
 			else {
-				Sprite * sprite = get_sprite_asset(assets, entity->asset_id, entity->asset_index);
+				Texture * sprite = get_sprite_asset(assets, entity->asset_id, entity->asset_index);
 				ASSERT(sprite->atlas_index < game_state->sprite_batch_count);
 
 				if(math::rec_overlap(camera_bounds, bounds)) {

@@ -157,6 +157,17 @@ void main_loop(void * user_ptr) {
 }
 
 int main() {
+#if 0
+	EM_ASM(
+		FS.mkdir('/dat');
+		FS.mount(IDFPS, {}, '/dat');
+		FS.syncfs(true, function(err) {
+			assert(!err);
+			ccall('check_file_system', 'v');
+		});
+	);
+#endif
+
 	ASSERT(SDL_Init(SDL_INIT_VIDEO) == 0);
 
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 0);

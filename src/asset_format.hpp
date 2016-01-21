@@ -21,7 +21,7 @@ enum TextureSampling {
 enum AssetId {
 	AssetId_null,
 
-	//NOTE: Textures!!
+	//NOTE: Textures
 	AssetId_white,
 
 	AssetId_font,
@@ -32,7 +32,7 @@ enum AssetId {
 
 	AssetId_atlas,
 
-	//NOTE: Sprites!!
+	//NOTE: Sprites
 	AssetId_dolly,
 	AssetId_teacup,
 	AssetId_telly,
@@ -40,7 +40,7 @@ enum AssetId {
 	AssetId_rocket,
 	AssetId_large_rocket,
 
-	//NOTE: Audio!!
+	//NOTE: Audio
 	AssetId_sin_440,
 	AssetId_beep,
 	AssetId_woosh,
@@ -54,7 +54,7 @@ enum AssetId {
 enum AssetType {
 #define ASSET_TYPE_NAME_STRUCT_X	\
 	X(texture, Texture)				\
-	X(sprite, Sprite)				\
+	X(sprite, Texture)				\
 	X(audio_clip, AudioClip)
 
 #define X(NAME, STRUCT) AssetType_##NAME,
@@ -72,17 +72,18 @@ struct AssetPackHeader {
 struct TextureInfo {
 	u32 width;
 	u32 height;
+	math::Vec2 offset;
 
 	TextureSampling sampling;
-	u32 sub_tex_count;
 };
 
 struct SpriteInfo {
-	//TODO: Share this info!!
-	u32 atlas_index;
-	math::Vec2 dim;
-	math::Vec2 tex_coords[2];
+	u32 width;
+	u32 height;
 	math::Vec2 offset;
+
+	u32 atlas_index;
+	math::Vec2 tex_coords[2];
 };
 
 struct AudioClipInfo {

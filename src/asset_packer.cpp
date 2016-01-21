@@ -308,10 +308,11 @@ void push_packed_texture(AssetPacker * packer, AssetFile * files, u32 file_count
 
 		SpriteInfo * sprite = &info->sprite;
 		sprite->atlas_index = atlas_index;
-		sprite->dim = blit_dim;
+		sprite->width = blit.width;
+		sprite->height = blit.height;
+		sprite->offset = math::rec_pos(sub_rec) - tex_dim * 0.5f;
 		sprite->tex_coords[0] = math::vec2(blit.u, blit.v) * r_tex_size;
 		sprite->tex_coords[1] = math::vec2(blit.u + blit.width, blit.v + blit.height) * r_tex_size;
-		sprite->offset = math::rec_pos(sub_rec) - tex_dim * 0.5f;
 	}
 
 	packer->header.asset_count++;
@@ -346,10 +347,11 @@ void push_sprite_sheet(AssetPacker * packer, char const * file_name, AssetId spr
 
 			SpriteInfo * sprite = &info->sprite;
 			sprite->atlas_index = atlas_index;
-			sprite->dim = sprite_dim;
+			sprite->width = sprite_width;
+			sprite->height = sprite_height;
+			sprite->offset = math::vec2(0.0f, 0.0f);
 			sprite->tex_coords[0] = math::vec2(u, tex_height - (v + sprite_height)) * r_tex_dim;
 			sprite->tex_coords[1] = math::vec2(u + sprite_width, tex_height - v) * r_tex_dim;
-			sprite->offset = math::vec2(0.0f, 0.0f);
 		}
 	}
 
@@ -432,8 +434,8 @@ int main() {
 		info.type = AssetType_texture;
 		info.texture.width = tex->width;
 		info.texture.height = tex->height;
+		info.texture.offset = math::vec2(0.0f);
 		info.texture.sampling = tex->sampling;
-		info.texture.sub_tex_count = atlas->sprite_count;
 
 		std::fwrite(&info, sizeof(AssetInfo), 1, file_ptr);
 		std::fwrite(tex->ptr, tex->size, 1, file_ptr);
@@ -453,7 +455,6 @@ int main() {
 		info.texture.width = tex->width;
 		info.texture.height = tex->height;
 		info.texture.sampling = tex->sampling;
-		info.texture.sub_tex_count = 0;
 
 		std::fwrite(&info, sizeof(AssetInfo), 1, file_ptr);
 		std::fwrite(tex->ptr, tex->size, 1, file_ptr);

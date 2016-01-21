@@ -4,13 +4,22 @@
 
 #include <asset_format.hpp>
 
-typedef gl::Texture Texture;
-
-struct Sprite {
-	u32 atlas_index;
+struct Texture {
 	math::Vec2 dim;
-	math::Vec2 tex_coords[2];
 	math::Vec2 offset;
+
+	//TODO: Should textures/sprites be in union like this??
+	union {
+		struct { 
+			u32 gl_id; 
+		};
+
+		//NOTE: Sprite
+		struct {
+			math::Vec2 tex_coords[2];
+			u32 atlas_index;
+		};
+	};
 };
 
 struct AudioClip {
