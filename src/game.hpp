@@ -2,6 +2,8 @@
 #ifndef GAME_HPP_INCLUDED
 #define GAME_HPP_INCLUDED
 
+#include <platform.hpp>
+
 #include <gl.hpp>
 #include <basic.vert>
 #include <basic.frag>
@@ -167,6 +169,20 @@ struct Font {
 	math::Vec2 pos;
 };
 
+// #define SAVE_FILE_CODE *(u32 *)"DLLY"
+#define SAVE_FILE_CODE 0x594C4C44
+//TODO: Can we inc this automatically somehow??
+#define SAVE_FILE_VERSION 2
+#pragma pack(push, 1)
+struct SaveFileHeader {
+	u32 code;
+	u32 version;
+
+	u32 plays;
+	u32 high_score;
+};
+#pragma pack(pop)
+
 struct GameMemory {
 	size_t size;
 	u8 * ptr;
@@ -193,6 +209,11 @@ struct GameState {
 	MemoryPool memory_pool;
 
 	AssetState assets;
+
+	PlatformAsyncFile * save_file;
+	SaveFileHeader save;
+	f32 auto_save_write_time;
+	f32 last_save_write_time;
 
 	AudioState audio_state;
 	AudioSource * music;

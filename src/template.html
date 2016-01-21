@@ -13,7 +13,20 @@
 			var log_elem = document.getElementById('log');
 
 			var Module = {
-				preRun: [],
+				preRun: [ function() {
+					FS.mkdir('/user_dat');
+					FS.mount(IDBFS, {}, '/user_dat');
+
+					Module.syncing_user_dat = true;
+					FS.syncfs(true, function(err) {
+						if(err) {
+							console.error("ERROR: " + err + "\n");
+						}
+						else {
+							Module.syncing_user_dat = false;
+						}
+					});
+				}],
 
 				postRun: [ function() {
 					log_elem.innerHTML = '';

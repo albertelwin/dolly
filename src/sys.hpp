@@ -319,20 +319,20 @@ void free_memory_(void * ptr) {
 #define KEY_RELEASED (1 << KEY_RELEASED_BIT)
 
 MemoryPtr read_file_to_memory(char const * file_name) {
+	MemoryPtr mem_ptr = {};
+
 	std::FILE * file_ptr = std::fopen(file_name, "rb");
-	ASSERT(file_ptr != 0);
+	if(file_ptr) {
+		std::fseek(file_ptr, 0, SEEK_END);
+		mem_ptr.size = (size_t)std::ftell(file_ptr);
+		std::rewind(file_ptr);
 
-	MemoryPtr mem_ptr;
+		mem_ptr.ptr = ALLOC_MEMORY(u8, mem_ptr.size);
+		size_t read_result = std::fread(mem_ptr.ptr, 1, mem_ptr.size, file_ptr);
+		ASSERT(read_result == mem_ptr.size);
 
-	std::fseek(file_ptr, 0, SEEK_END);
-	mem_ptr.size = (size_t)std::ftell(file_ptr);
-	std::rewind(file_ptr);
-
-	mem_ptr.ptr = ALLOC_MEMORY(u8, mem_ptr.size);
-	size_t read_result = std::fread(mem_ptr.ptr, 1, mem_ptr.size, file_ptr);
-	ASSERT(read_result == mem_ptr.size);
-
-	std::fclose(file_ptr);
+		std::fclose(file_ptr);		
+	}
 
 	return mem_ptr;
 }

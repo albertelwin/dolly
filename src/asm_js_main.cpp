@@ -37,6 +37,49 @@ struct MainLoopArgs {
 	f64 time_when_shown;
 };
 
+PlatformAsyncFile * platform_open_async_file(char const * file_name) {
+	PlatformAsyncFile * file = 0;
+	if(!emscripten_run_script_int("Module.syncing_user_dat")) {
+		file = ALLOC_STRUCT(PlatformAsyncFile);
+		file->memory = read_file_to_memory(file_name);
+	}
+
+	return file;
+}
+
+void platform_close_async_file(PlatformAsyncFile * file) {
+	FREE_MEMORY(file->memory.ptr);
+	FREE_MEMORY(file);
+}
+
+b32 platform_write_async_file(PlatformAsyncFile * file, void * ptr, size_t size) {
+	b32 written = false;
+
+	if(!emscripten_run_script_int("Module.syncing_user_dat")) {
+		//TODO: Store this in PlatformAsyncFile!!
+		char const * file_name = "/user_dat/save.dat";
+
+		std::FILE * file = std::fopen(file_name, "wb");
+		if(file) {
+			std::fwrite(ptr, size, 1, file);
+			std::fclose(file);
+
+			written = true;
+			std::printf("LOG: %s: saving!\n", file_name);
+
+			EM_ASM(
+				Module.syncing_user_dat = true;
+				FS.syncfs(function (err) {
+					assert(!err);
+					Module.syncing_user_dat = false;
+				});
+			);	
+		}
+	}
+
+	return written;
+}
+
 EM_BOOL visibility_callback(int event_type, EmscriptenVisibilityChangeEvent const * event, void * user_ptr) {
 	MainLoopArgs * args = (MainLoopArgs *)user_ptr;
 
@@ -157,17 +200,6 @@ void main_loop(void * user_ptr) {
 }
 
 int main() {
-#if 0
-	EM_ASM(
-		FS.mkdir('/dat');
-		FS.mount(IDFPS, {}, '/dat');
-		FS.syncfs(true, function(err) {
-			assert(!err);
-			ccall('check_file_system', 'v');
-		});
-	);
-#endif
-
 	ASSERT(SDL_Init(SDL_INIT_VIDEO) == 0);
 
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 0);

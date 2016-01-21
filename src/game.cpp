@@ -201,8 +201,8 @@ Font * allocate_font(MemoryPool * pool, Texture * tex, u32 v_len, u32 back_buffe
 	font->glyph_height = 5;
 	font->glyph_spacing = 1;
 
-	// font->scale = 2.0f;
-	font->scale = 4.0f;
+	font->scale = 2.0f;
+	// font->scale = 4.0f;
 	font->anchor.x = -(f32)back_buffer_width * 0.5f + font->glyph_spacing * font->scale;
 	font->anchor.y = (f32)back_buffer_height * 0.5f - (font->glyph_height + font->glyph_spacing) * font->scale;
 	font->pos = font->anchor;
@@ -400,6 +400,11 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		game_state->memory_pool = create_memory_pool((u8 *)game_memory->ptr + sizeof(GameState), game_memory->size - sizeof(GameState));
 
 		load_assets(assets, &game_state->memory_pool);
+
+		game_state->save.code = SAVE_FILE_CODE;
+		game_state->save.version = SAVE_FILE_VERSION;
+		game_state->save.plays = 0;
+		game_state->save.high_score = 0;
 
 		AudioState * audio_state = &game_state->audio_state;
 		load_audio(audio_state, &game_state->memory_pool, assets, game_input->audio_supported);
@@ -666,6 +671,30 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	}
 
+	if(!game_state->save_file) {
+		PlatformAsyncFile * file = platform_open_async_file("/user_dat/save.dat");
+		if(file) {
+			if(file->memory.size >= sizeof(SaveFileHeader)) {
+				SaveFileHeader * header = (SaveFileHeader *)file->memory.ptr;
+
+				if(header->code == SAVE_FILE_CODE && header->version == SAVE_FILE_VERSION) {
+					game_state->save.plays = header->plays + 1;
+					game_state->save.high_score = math::max(game_state->save.high_score, header->high_score);
+				}
+			}
+			
+			platform_write_async_file(file, (void *)&game_state->save, sizeof(SaveFileHeader));
+			game_state->save_file = file;
+		}
+	}
+	else {
+		if(game_input->total_time - game_state->last_save_write_time >= 10.0f) {
+			if(platform_write_async_file(game_state->save_file, (void *)&game_state->save, sizeof(SaveFileHeader))) {
+				game_state->last_save_write_time = game_input->total_time;
+			}
+		}
+	}
+
 	Player * player = &game_state->player;
 
 	if(game_input->buttons[ButtonId_debug] & KEY_PRESSED) {
@@ -674,7 +703,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 	if(game_input->buttons[ButtonId_mute] & KEY_PRESSED) {
 		game_state->audio_state.master_volume = game_state->audio_state.master_volume > 0.0f ? 0.0f : 1.0f;
-		// begin_rocket_sequence(game_state);
 	}
 
 	f32 dd_time = 0.0f;
@@ -941,6 +969,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		move_entity(game_state, game_state->clouds, game_input->delta_time, true);
 	}
 
+	game_state->save.high_score = math::max(game_state->save.high_score, game_state->score);
+
 	math::Mat4 projection_matrix = math::orthographic_projection((f32)game_state->ideal_window_width, (f32)game_state->ideal_window_height);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, game_state->frame_buffer.id);
@@ -1087,6 +1117,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		str_clear(game_state->title_str);
 		// str_print(game_state->title_str, "DOLLY DOLLY DOLLY DAYS!\nDT: %f | D_TIME: %f\n", game_input->delta_time, game_state->d_time);
+		str_print(game_state->title_str, "PLAYS: %u | HIGH_SCORE: %u\n", game_state->save.plays, game_state->save.high_score);
 		str_print(game_state->title_str, "SPEED: %f | SCORE: %u | CLONES: %u\n", game_state->d_time, game_state->score, player->clone_count);
 		render_str(font, game_state->title_str);
 
