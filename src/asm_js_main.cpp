@@ -204,7 +204,7 @@ int main() {
 
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 0);
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
-	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 1);
+	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 8);
 
 	// u32 window_width = 640;
 	// u32 window_height = 360;
@@ -231,6 +231,7 @@ int main() {
 		args.game_button_to_key_map[i] = null_key_code;
 	}
 
+	args.game_button_to_key_map[ButtonId_start] = SDLK_SPACE;
 	args.game_button_to_key_map[ButtonId_left] = SDLK_LEFT;
 	args.game_button_to_key_map[ButtonId_right] = SDLK_RIGHT;
 	args.game_button_to_key_map[ButtonId_up] = SDLK_UP;

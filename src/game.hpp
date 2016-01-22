@@ -82,24 +82,28 @@ struct Entity {
 	math::Rec2 collider;
 
 	f32 anim_time;
+	//TODO: Initial pos!!
 	f32 initial_x;
 	b32 hit;
 
 	math::Vec2 chain_pos;
+	b32 hidden;
 };
 
 struct Player {
 	Entity * e;
 
-	b32 grounded;
+	b32 dead;
+	f32 death_time;
+
 	b32 running;
+	b32 grounded;
 
 	b32 allow_input;
 
-	u32 clone_index;
-	u32 clone_count;
 	Entity * clones[50];
 	math::Vec2 clone_offset;
+	u32 active_clone_count;
 };
 
 struct EntityEmitter {
@@ -141,7 +145,20 @@ struct RocketSequence {
 	f32 time_;
 };
 
+enum MetaGame {
+	MetaGame_main,
+	MetaGame_end,
+
+	MetaGame_count,
+};
+
+//TODO: Fill this with "main" game variables/etc.
+// struct MainMetaGame {
+
+// };
+
 enum ButtonId {
+	ButtonId_start,
 	ButtonId_left,
 	ButtonId_right,
 	ButtonId_up,
@@ -172,7 +189,7 @@ struct Font {
 // #define SAVE_FILE_CODE *(u32 *)"DLLY"
 #define SAVE_FILE_CODE 0x594C4C44
 //TODO: Can we inc this automatically somehow??
-#define SAVE_FILE_VERSION 2
+#define SAVE_FILE_VERSION 3
 #pragma pack(push, 1)
 struct SaveFileHeader {
 	u32 code;
@@ -180,6 +197,7 @@ struct SaveFileHeader {
 
 	u32 plays;
 	u32 high_score;
+	f32 longest_run;
 };
 #pragma pack(pop)
 
@@ -212,8 +230,8 @@ struct GameState {
 
 	PlatformAsyncFile * save_file;
 	SaveFileHeader save;
-	f32 auto_save_write_time;
-	f32 last_save_write_time;
+	f32 auto_save_time;
+	f32 last_saved_time;
 
 	AudioState audio_state;
 	AudioSource * music;
@@ -227,7 +245,7 @@ struct GameState {
 	gl::VertexBuffer entity_v_buf;
 	gl::VertexBuffer bg_v_buf;
 
-	Font * font;
+	Font * debug_font;
 	Str * debug_str;
 	Str * title_str;
 
@@ -237,11 +255,14 @@ struct GameState {
 	b32 debug_render_entity_bounds;
 	RenderBatch * debug_batch;
 
+	//TODO: Do we need multiple batches?? We only use one at a time anyway!
 	u32 sprite_batch_count;
 	RenderBatch ** sprite_batches;
 
 	u32 entity_count;
 	Entity entity_array[256];
+
+	MetaGame meta_game;
 
 	math::Vec3 entity_null_pos;
 	math::Vec2 entity_gravity;
@@ -250,7 +271,6 @@ struct GameState {
 	f32 location_y_offset;
 	f32 ground_height;
 	Location locations[LocationId_count];
-	Entity * clouds;
 
 	Player player;
 
@@ -259,6 +279,7 @@ struct GameState {
 
 	Camera camera;
 	f32 pixelate_time;
+	f32 fade_amount;
 
 	//TODO: This should just be player speed!!
 	f32 d_time;
