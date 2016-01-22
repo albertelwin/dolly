@@ -43,7 +43,7 @@ struct AssetGroup {
 };
 
 struct AssetState {
-	MemoryPool * memory_pool;
+	MemoryArena * arena;
 
 	u32 asset_count;
 	Asset * assets;

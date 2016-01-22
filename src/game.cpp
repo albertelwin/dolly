@@ -29,15 +29,15 @@ math::Rec2 get_entity_collider_bounds(Entity * entity) {
 	return math::rec_scale(math::rec_offset(entity->collider, entity->pos.xy), entity->scale);
 }
 
-Entity * push_entity(GameState * game_state, AssetId asset_id, u32 asset_index, math::Vec3 pos = math::vec3(0.0f)) {
-	ASSERT(game_state->entity_count < ARRAY_COUNT(game_state->entity_array));
+Entity * push_entity(MainMetaState * main_state, AssetId asset_id, u32 asset_index, math::Vec3 pos = math::vec3(0.0f)) {
+	ASSERT(main_state->entity_count < ARRAY_COUNT(main_state->entity_array));
 
 	//TODO: Should entities only be sprites??
-	Asset * asset = get_asset(&game_state->assets, asset_id, asset_index);
+	Asset * asset = get_asset(main_state->assets, asset_id, asset_index);
 	ASSERT(asset);
 	ASSERT(asset->type == AssetType_texture || asset->type == AssetType_sprite);
 
-	Entity * entity = game_state->entity_array + game_state->entity_count++;
+	Entity * entity = main_state->entity_array + main_state->entity_count++;
 	entity->pos = pos;
 	entity->scale = 1.0f;
 	entity->color = math::vec4(1.0f);
@@ -45,13 +45,13 @@ Entity * push_entity(GameState * game_state, AssetId asset_id, u32 asset_index, 
 	entity->asset_type = asset->type;
 	entity->asset_id = asset_id;
 	entity->asset_index = asset_index;
-	entity->v_buf = &game_state->entity_v_buf;
+	entity->v_buf = main_state->entity_v_buf;
 
 	entity->d_pos = math::vec2(0.0f);
 	entity->speed = math::vec2(500.0f);
 	entity->damp = 0.0f;
 	entity->use_gravity = false;
-	entity->collider = get_entity_render_bounds(&game_state->assets, entity);
+	entity->collider = get_entity_render_bounds(main_state->assets, entity);
 
 	entity->anim_time = 0.0f;
 	entity->initial_x = pos.x;
@@ -60,13 +60,13 @@ Entity * push_entity(GameState * game_state, AssetId asset_id, u32 asset_index, 
 	return entity;
 }
 
-RenderBatch * allocate_render_batch(MemoryPool * pool, Texture * tex, u32 v_len, RenderMode render_mode = RenderMode_triangles) {
-	RenderBatch * batch = PUSH_STRUCT(pool, RenderBatch);
+RenderBatch * allocate_render_batch(MemoryArena * arena, Texture * tex, u32 v_len, RenderMode render_mode = RenderMode_triangles) {
+	RenderBatch * batch = PUSH_STRUCT(arena, RenderBatch);
 
 	batch->tex = tex;
 
 	batch->v_len = v_len;
-	batch->v_arr = PUSH_ARRAY(pool, f32, batch->v_len);
+	batch->v_arr = PUSH_ARRAY(arena, f32, batch->v_len);
 	batch->v_buf = gl::create_vertex_buffer(batch->v_arr, batch->v_len, VERT_ELEM_COUNT, GL_DYNAMIC_DRAW);
 	batch->e = 0;
 
@@ -182,10 +182,10 @@ void render_and_clear_render_batch(RenderBatch * batch, Shader * shader, math::M
 	}
 }
  
-Font * allocate_font(MemoryPool * pool, Texture * tex, u32 v_len, u32 back_buffer_width, u32 back_buffer_height) {
-	Font * font = PUSH_STRUCT(pool, Font);
+Font * allocate_font(MemoryArena * arena, Texture * tex, u32 v_len, u32 back_buffer_width, u32 back_buffer_height) {
+	Font * font = PUSH_STRUCT(arena, Font);
 
-	font->batch = allocate_render_batch(pool, tex, v_len);
+	font->batch = allocate_render_batch(arena, tex, v_len);
 
 	font->projection_matrix = math::orthographic_projection((f32)back_buffer_width, (f32)back_buffer_height);
 	font->glyph_width = 3;
@@ -201,11 +201,11 @@ Font * allocate_font(MemoryPool * pool, Texture * tex, u32 v_len, u32 back_buffe
 	return font;
 }
 
-Str * allocate_str(MemoryPool * pool, u32 max_len) {
-	Str * str = PUSH_STRUCT(pool, Str);
+Str * allocate_str(MemoryArena * arena, u32 max_len) {
+	Str * str = PUSH_STRUCT(arena, Str);
 	str->max_len = max_len;
 	str->len = 0;
-	str->ptr = PUSH_ARRAY(pool, char, max_len);	
+	str->ptr = PUSH_ARRAY(arena, char, max_len);	
 	return str;
 }
 
@@ -296,8 +296,8 @@ void pop_player_clones(Player * player, u32 count) {
 	}
 }
 
-void begin_rocket_sequence(GameState * game_state) {
-	RocketSequence * seq = &game_state->rocket_seq;
+void begin_rocket_sequence(GameState * game_state, MainMetaState * main_game) {
+	RocketSequence * seq = &main_game->rocket_seq;
 
 	if(!seq->playing) {
 		seq->playing = true;
@@ -314,10 +314,10 @@ void begin_rocket_sequence(GameState * game_state) {
 	}
 }
 
-void play_rocket_sequence(GameState * game_state, f32 dt) {
-	RocketSequence * seq = &game_state->rocket_seq;
+void play_rocket_sequence(GameState * game_state, MainMetaState * main_state, f32 dt) {
+	RocketSequence * seq = &main_state->rocket_seq;
 
-	if(game_state->rocket_seq.playing) {
+	if(seq->playing) {
 #if 0
 		Entity * rocket = seq->rocket;
 		Player * player = &game_state->player;
@@ -377,7 +377,7 @@ void play_rocket_sequence(GameState * game_state, f32 dt) {
 			}
 		}
 #else
-		Player * player = &game_state->player;
+		Player * player = &main_state->player;
 
 		f32 new_time = seq->time_ + dt;
 		f32 seq_max_time = 10.0f;
@@ -387,11 +387,11 @@ void play_rocket_sequence(GameState * game_state, f32 dt) {
 			if(game_state->pixelate_time < 1.0f && new_pixelate_time >= 1.0f) {
 				player->e->d_pos = math::vec2(0.0f);
 				player->e->pos.xy = math::vec2(player->e->initial_x, 0.0f);
-				player->e->pos.y += game_state->location_y_offset;
+				player->e->pos.y += main_state->location_y_offset;
 
-				game_state->current_location = LocationId_space;
-				game_state->entity_emitter.pos.y = game_state->location_y_offset;
-				game_state->entity_emitter.time_until_next_spawn = 0.0f;
+				main_state->current_location = LocationId_space;
+				main_state->entity_emitter.pos.y = main_state->location_y_offset;
+				main_state->entity_emitter.time_until_next_spawn = 0.0f;
 			}
 
 			game_state->pixelate_time = new_pixelate_time;
@@ -409,9 +409,9 @@ void play_rocket_sequence(GameState * game_state, f32 dt) {
 				player->e->d_pos = math::vec2(0.0f);
 				player->e->pos.xy = math::vec2(player->e->initial_x, 0.0f);
 
-				game_state->current_location = LocationId_city;
-				game_state->entity_emitter.pos.y = 0.0f;
-				game_state->entity_emitter.time_until_next_spawn = 0.0f;
+				main_state->current_location = LocationId_city;
+				main_state->entity_emitter.pos.y = 0.0f;
+				main_state->entity_emitter.time_until_next_spawn = 0.0f;
 			}
 
 			game_state->pixelate_time = new_pixelate_time;
@@ -427,11 +427,11 @@ void play_rocket_sequence(GameState * game_state, f32 dt) {
 	}
 }
 
-b32 move_entity(GameState * game_state, Entity * entity, f32 dt, b32 loop = false) {
+b32 move_entity(GameState * game_state, MainMetaState * main_state, Entity * entity, f32 dt, b32 loop = false) {
 	b32 off_screen = false;
 
 	//TODO: Move by player speed!!
-	entity->pos.x -= 500.0f * game_state->d_time * dt;
+	entity->pos.x -= 500.0f * main_state->d_time * dt;
 
 	math::Rec2 bounds = get_entity_render_bounds(&game_state->assets, entity);
 	math::Vec2 screen_pos = project_pos(&game_state->camera, entity->pos + math::vec3(math::rec_pos(bounds), 0.0f));
@@ -449,42 +449,180 @@ b32 move_entity(GameState * game_state, Entity * entity, f32 dt, b32 loop = fals
 	return off_screen;
 }
 
-void game_init(GameState * game_state) {
-	game_state->entity_gravity = math::vec2(0.0f, -6000.0f);
+void init_main_meta_state(GameState * game_state, MainMetaState * main_state) {
+	MemoryArena arena = main_state->arena;
+	if(!arena.size) {
+		arena = allocate_sub_arena(&game_state->memory_arena, MEGABYTES(2));
 
-	game_state->current_location = LocationId_city;
+		//TODO: Stop audio when main state ends!!
+		main_state->music = play_audio_clip(&game_state->audio_state, AssetId_music, true);
+		change_volume(main_state->music, math::vec2(0.0f), 0.0f);
+	}
+	else {
+		zero_memory(main_state, sizeof(MainMetaState));
+	}
 
-	Player * player = &game_state->player;
+	change_volume(main_state->music, math::vec2(1.0f), 1.0f);
+
+	main_state->arena = arena;
+	clear_memory_arena(&main_state->arena);
+
+	main_state->assets = &game_state->assets;
+
+	main_state->entity_gravity = math::vec2(0.0f, -6000.0f);
+	main_state->entity_v_buf = &game_state->entity_v_buf;
+
+	main_state->current_location = LocationId_city;
+
+	f32 location_z_offsets[PARALLAX_LAYER_COUNT] = {
+		 10.0f,
+		 10.0f,
+		  7.5f,
+		  5.0f,
+		 -0.5f,
+	};
+
+	f32 location_max_z = location_z_offsets[0];
+	main_state->location_y_offset = (f32)game_state->ideal_window_height / (1.0f / (location_max_z + 1.0f));
+	main_state->ground_height = -(f32)game_state->ideal_window_height * 0.5f;
+
+	AssetId location_layer_ids[LocationId_count];
+	location_layer_ids[LocationId_city] = AssetId_city;
+	location_layer_ids[LocationId_space] = AssetId_space;
+	for(u32 i = 0; i < LocationId_count; i++) {
+		Location * location = main_state->locations + i;
+		AssetId asset_id = location_layer_ids[i];
+
+		location->min_y = main_state->location_y_offset * i;
+		location->max_y = location->min_y + main_state->location_y_offset * 0.5f;
+
+		for(u32 layer_index = 0; layer_index < ARRAY_COUNT(location->layers) - 1; layer_index++) {
+			Entity * entity = push_entity(main_state, asset_id, layer_index);
+
+			entity->pos.y = main_state->location_y_offset * i;
+			entity->pos.z = location_z_offsets[layer_index];
+			entity->v_buf = &game_state->bg_v_buf;
+
+			location->layers[layer_index] = entity;
+		}
+	}
+
+	//TODO: Collapse this!!
+	{
+		//TODO: Better probability generation!!
+		AssetId emitter_types[] = {
+			AssetId_smiley,
+			AssetId_smiley,
+			AssetId_smiley,
+			AssetId_smiley,
+			AssetId_smiley,
+			AssetId_smiley,
+			AssetId_smiley,
+			AssetId_smiley,
+
+			AssetId_telly,
+			AssetId_telly,
+			AssetId_telly,
+			AssetId_telly,
+			AssetId_telly,
+			AssetId_telly,
+			AssetId_telly,
+			AssetId_telly,
+			AssetId_telly,
+			AssetId_telly,
+			AssetId_telly,
+			AssetId_telly,
+			AssetId_telly,
+			AssetId_telly,
+			AssetId_telly,
+			AssetId_telly,
+
+			AssetId_dolly,
+			AssetId_dolly,
+			AssetId_dolly,
+			AssetId_dolly,
+			AssetId_dolly,
+			AssetId_dolly,
+			AssetId_dolly,
+			AssetId_dolly,
+			AssetId_dolly,
+			AssetId_dolly,
+			AssetId_dolly,
+			AssetId_dolly,
+			AssetId_dolly,
+			AssetId_dolly,
+			AssetId_dolly,
+			AssetId_dolly,
+
+			AssetId_rocket,
+		};
+
+		main_state->locations[LocationId_city].emitter_type_count = ARRAY_COUNT(emitter_types);
+		main_state->locations[LocationId_city].emitter_types = PUSH_COPY_ARRAY(&main_state->arena, AssetId, emitter_types, ARRAY_COUNT(emitter_types));
+	}
+
+	{
+		AssetId emitter_types[] = {
+			AssetId_smiley,
+			AssetId_dolly,
+			AssetId_dolly,
+		};
+
+		main_state->locations[LocationId_space].emitter_type_count = ARRAY_COUNT(emitter_types);
+		main_state->locations[LocationId_space].emitter_types = PUSH_COPY_ARRAY(&main_state->arena, AssetId, emitter_types, ARRAY_COUNT(emitter_types));
+	}
+
+	Player * player = &main_state->player;
+	player->e = push_entity(main_state, AssetId_dolly, 0, math::vec3(0.0f));
 	player->e->pos = math::vec3((f32)game_state->ideal_window_width * -0.25f, 0.0f, 0.0f);
-	player->e->d_pos = math::vec2(0.0f);
 	player->e->initial_x = player->e->pos.x;
 	player->e->speed = math::vec2(50.0f, 6000.0f);
 	player->e->damp = 0.15f;
-	player->e->use_gravity = false;
-
-	player->dead = false;
-	player->death_time = 0.0f;
-	player->running = false;
-	player->grounded = false;
 	player->allow_input = true;
 
 	player->clone_offset = math::vec2(-5.0f, 0.0f);
 	for(u32 i = 0; i < ARRAY_COUNT(player->clones); i++) {
-		Entity * entity = player->clones[i];
-
-		ASSERT(entity->asset_id == AssetId_dolly);
-		entity->asset_index = (i % (get_asset_count(&game_state->assets, AssetId_dolly) - 1)) + 1;
-
+		u32 asset_index = (i % (get_asset_count(main_state->assets, AssetId_dolly) - 1)) + 1;
+		Entity * entity = push_entity(main_state, AssetId_dolly, asset_index, ENTITY_NULL_POS);
 		entity->color.a = 0.0f;
 		entity->hidden = true;
+
+		player->clones[i] = entity;
+	}
+	
+	EntityEmitter * emitter = &main_state->entity_emitter;
+	Texture * emitter_sprite = get_sprite_asset(main_state->assets, AssetId_teacup, 0);
+	emitter->pos = math::vec3(game_state->ideal_window_width * 0.75f, 0.0f, 0.0f);
+	emitter->time_until_next_spawn = 0.0f;
+	emitter->entity_count = 0;
+	for(u32 i = 0; i < ARRAY_COUNT(emitter->entity_array); i++) {
+		emitter->entity_array[i] = push_entity(main_state, AssetId_teacup, 0, emitter->pos);
 	}
 
-	game_state->d_time = 1.0f;
-	game_state->pitch = 1.0f;
-	game_state->score = 0;
-	game_state->distance = 0.0f;
+	RocketSequence * seq = &main_state->rocket_seq;
+	seq->rocket = push_entity(main_state, AssetId_large_rocket, 0, ENTITY_NULL_POS);
+	seq->rocket->collider = math::rec_offset(seq->rocket->collider, math::vec2(0.0f, -math::rec_dim(seq->rocket->collider).y * 0.5f));
+	seq->playing = false;
+	seq->time_ = 0.0f;
 
-	change_volume(game_state->music, math::vec2(1.0f), 1.0f);
+	//TODO: Adding foreground layer at the end until we have sorting!!
+	for(u32 i = 0; i < LocationId_count; i++) {
+		Location * location = main_state->locations + i;
+		AssetId asset_id = location_layer_ids[i];
+
+		u32 layer_index = ARRAY_COUNT(location->layers) - 1;
+
+		Entity * entity = push_entity(main_state, asset_id, layer_index);
+		entity->pos.y = main_state->location_y_offset * i;
+		entity->pos.z = location_z_offsets[layer_index];
+		entity->v_buf = &game_state->bg_v_buf;
+
+		location->layers[layer_index] = entity;
+	}
+
+	main_state->d_time = 1.0f;
+	main_state->score = 0;
+	main_state->distance = 0.0f;
 }
 
 void game_tick(GameMemory * game_memory, GameInput * game_input) {
@@ -495,23 +633,19 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	if(!game_memory->initialized) {
 		game_memory->initialized = true;
 
-		game_state->memory_pool = create_memory_pool((u8 *)game_memory->ptr + sizeof(GameState), game_memory->size - sizeof(GameState));
+		game_state->memory_arena = create_memory_arena((u8 *)game_memory->ptr + sizeof(GameState), game_memory->size - sizeof(GameState));
 
-		load_assets(assets, &game_state->memory_pool);
+		load_assets(assets, &game_state->memory_arena);
 
 		game_state->auto_save_time = 10.0f;
-		game_state->last_saved_time = 0.0f;
-
 		game_state->save.code = SAVE_FILE_CODE;
 		game_state->save.version = SAVE_FILE_VERSION;
 		game_state->save.plays = 0;
 		game_state->save.high_score = 0;
 
 		AudioState * audio_state = &game_state->audio_state;
-		load_audio(audio_state, &game_state->memory_pool, assets, game_input->audio_supported);
+		load_audio(audio_state, &game_state->memory_arena, assets, game_input->audio_supported);
 		// audio_state->master_volume = 0.0f;
-
-		game_state->music = play_audio_clip(audio_state, AssetId_music, true);
 
 		Shader * basic_shader = &game_state->basic_shader;
 		u32 basic_vert = gl::compile_shader_from_source(BASIC_VERT_SRC, GL_VERTEX_SHADER);
@@ -583,164 +717,30 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		game_state->bg_v_buf = gl::create_vertex_buffer(bg_verts, ARRAY_COUNT(bg_verts), VERT_ELEM_COUNT, GL_STATIC_DRAW);
 
-		game_state->debug_font = allocate_font(&game_state->memory_pool, get_texture_asset(assets, AssetId_font, 0), 65536, game_input->back_buffer_width, game_input->back_buffer_height);
-		game_state->debug_str = allocate_str(&game_state->memory_pool, 1024);
-		game_state->title_str = allocate_str(&game_state->memory_pool, 128);
+		game_state->debug_font = allocate_font(&game_state->memory_arena, get_texture_asset(assets, AssetId_font, 0), 65536, game_input->back_buffer_width, game_input->back_buffer_height);
+		game_state->debug_str = allocate_str(&game_state->memory_arena, 1024);
+		game_state->str = allocate_str(&game_state->memory_arena, 128);
 
 		//TODO: Adjust these to actual aspect ratio?
 		game_state->ideal_window_width = 1280;
 		game_state->ideal_window_height = 720;
 
-		game_state->debug_batch = allocate_render_batch(&game_state->memory_pool, get_texture_asset(assets, AssetId_white, 0), 65536, RenderMode_lines);
+		game_state->debug_batch = allocate_render_batch(&game_state->memory_arena, get_texture_asset(assets, AssetId_white, 0), 65536, RenderMode_lines);
 		game_state->debug_render_entity_bounds = false;
 
 		game_state->sprite_batch_count = get_asset_count(assets, AssetId_atlas);
-		game_state->sprite_batches = PUSH_ARRAY(&game_state->memory_pool, RenderBatch *, game_state->sprite_batch_count);
+		game_state->sprite_batches = PUSH_ARRAY(&game_state->memory_arena, RenderBatch *, game_state->sprite_batch_count);
 		for(u32 i = 0; i < game_state->sprite_batch_count; i++) {
 			u32 batch_size = QUAD_ELEM_COUNT * 128;
-			game_state->sprite_batches[i] = allocate_render_batch(&game_state->memory_pool, get_texture_asset(assets, AssetId_atlas, i), batch_size);
-		}
-
-		game_state->meta_game = MetaGame_main;
-
-		f32 location_z_offsets[PARALLAX_LAYER_COUNT] = {
-			 10.0f,
-			 10.0f,
-			  7.5f,
-			  5.0f,
-			 -0.5f,
-		};
-
-		f32 location_max_z = location_z_offsets[0];
-		game_state->location_y_offset = (f32)game_state->ideal_window_height / (1.0f / (location_max_z + 1.0f));
-		game_state->ground_height = -(f32)game_state->ideal_window_height * 0.5f;
-
-		AssetId location_layer_ids[LocationId_count];
-		location_layer_ids[LocationId_city] = AssetId_city;
-		location_layer_ids[LocationId_space] = AssetId_space;
-		for(u32 i = 0; i < LocationId_count; i++) {
-			Location * location = game_state->locations + i;
-			AssetId asset_id = location_layer_ids[i];
-
-			location->min_y = game_state->location_y_offset * i;
-			location->max_y = location->min_y + game_state->location_y_offset * 0.5f;
-
-			for(u32 layer_index = 0; layer_index < ARRAY_COUNT(location->layers) - 1; layer_index++) {
-				Entity * entity = push_entity(game_state, asset_id, layer_index);
-
-				entity->pos.y = game_state->location_y_offset * i;
-				entity->pos.z = location_z_offsets[layer_index];
-				entity->v_buf = &game_state->bg_v_buf;
-
-				location->layers[layer_index] = entity;
-			}
-		}
-
-		//TODO: Collapse this!!
-		{
-			//TODO: Better probability generation!!
-			AssetId emitter_types[] = {
-				AssetId_smiley,
-				AssetId_smiley,
-				AssetId_smiley,
-				AssetId_smiley,
-				AssetId_smiley,
-				AssetId_smiley,
-				AssetId_smiley,
-				AssetId_smiley,
-
-				AssetId_telly,
-				AssetId_telly,
-				AssetId_telly,
-				AssetId_telly,
-				AssetId_telly,
-				AssetId_telly,
-				AssetId_telly,
-				AssetId_telly,
-				AssetId_telly,
-				AssetId_telly,
-				AssetId_telly,
-				AssetId_telly,
-				AssetId_telly,
-				AssetId_telly,
-				AssetId_telly,
-				AssetId_telly,
-
-				AssetId_dolly,
-				AssetId_dolly,
-				AssetId_dolly,
-				AssetId_dolly,
-				AssetId_dolly,
-				AssetId_dolly,
-				AssetId_dolly,
-				AssetId_dolly,
-				AssetId_dolly,
-				AssetId_dolly,
-				AssetId_dolly,
-				AssetId_dolly,
-				AssetId_dolly,
-				AssetId_dolly,
-				AssetId_dolly,
-				AssetId_dolly,
-
-				AssetId_rocket,
-			};
-
-			game_state->locations[LocationId_city].emitter_type_count = ARRAY_COUNT(emitter_types);
-			game_state->locations[LocationId_city].emitter_types = PUSH_COPY_ARRAY(&game_state->memory_pool, AssetId, emitter_types, ARRAY_COUNT(emitter_types));
-		}
-
-		{
-			AssetId emitter_types[] = {
-				AssetId_smiley,
-				AssetId_dolly,
-				AssetId_dolly,
-			};
-
-			game_state->locations[LocationId_space].emitter_type_count = ARRAY_COUNT(emitter_types);
-			game_state->locations[LocationId_space].emitter_types = PUSH_COPY_ARRAY(&game_state->memory_pool, AssetId, emitter_types, ARRAY_COUNT(emitter_types));
-		}
-
-		game_state->player.e = push_entity(game_state, AssetId_dolly, 0, math::vec3(0.0f));
-		for(u32 i = 0; i < ARRAY_COUNT(game_state->player.clones); i++) {
-			game_state->player.clones[i] = push_entity(game_state, AssetId_dolly, 0, ENTITY_NULL_POS);
-		}
-		
-		EntityEmitter * emitter = &game_state->entity_emitter;
-		Texture * emitter_sprite = get_sprite_asset(assets, AssetId_teacup, 0);
-		emitter->pos = math::vec3(game_state->ideal_window_width * 0.75f, 0.0f, 0.0f);
-		emitter->time_until_next_spawn = 0.0f;
-		emitter->entity_count = 0;
-		for(u32 i = 0; i < ARRAY_COUNT(emitter->entity_array); i++) {
-			emitter->entity_array[i] = push_entity(game_state, AssetId_teacup, 0, emitter->pos);
-		}
-
-		RocketSequence * seq = &game_state->rocket_seq;
-		seq->rocket = push_entity(game_state, AssetId_large_rocket, 0, ENTITY_NULL_POS);
-		seq->rocket->collider = math::rec_offset(seq->rocket->collider, math::vec2(0.0f, -math::rec_dim(seq->rocket->collider).y * 0.5f));
-		seq->playing = false;
-		seq->time_ = 0.0f;
-
-		//TODO: Adding foreground layer at the end until we have sorting!!
-		for(u32 i = 0; i < LocationId_count; i++) {
-			Location * location = game_state->locations + i;
-			AssetId asset_id = location_layer_ids[i];
-
-			u32 layer_index = ARRAY_COUNT(location->layers) - 1;
-
-			Entity * entity = push_entity(game_state, asset_id, layer_index);
-			entity->pos.y = game_state->location_y_offset * i;
-			entity->pos.z = location_z_offsets[layer_index];
-			entity->v_buf = &game_state->bg_v_buf;
-
-			location->layers[layer_index] = entity;
+			game_state->sprite_batches[i] = allocate_render_batch(&game_state->memory_arena, get_texture_asset(assets, AssetId_atlas, i), batch_size);
 		}
 
 		game_state->camera.pos = math::vec2(0.0f);
 		game_state->camera.letterboxed_height = (f32)game_state->ideal_window_height;
 		game_state->pixelate_time = 0.0f;
 
-		game_init(game_state);
+		game_state->meta_state = MetaState_main;
+		init_main_meta_state(game_state, &game_state->main_state);
 
 		glEnable(GL_CULL_FACE);
 		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -764,12 +764,17 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		}
 	}
 	else {
-		if(game_input->total_time - game_state->last_saved_time >= game_state->auto_save_time) {
+		game_state->time_until_next_save -= game_input->delta_time;
+		if(game_state->time_until_next_save <= 0.0f) {
 			if(platform_write_async_file(game_state->save_file, (void *)&game_state->save, sizeof(SaveFileHeader))) {
-				game_state->last_saved_time = game_input->total_time;
+				game_state->time_until_next_save = game_state->auto_save_time;
 			}
 		}
 	}
+
+	str_clear(game_state->str);
+	str_print(game_state->str, "DOLLY DOLLY DOLLY DAYS!\nDT: %f\n\n", game_input->delta_time, game_state->main_state.d_time);
+	str_print(game_state->str, "PLAYS: %u | HIGH_SCORE: %u | LONGEST_RUN: %f\n", game_state->save.plays, game_state->save.high_score, game_state->save.longest_run);
 
 	if(game_input->buttons[ButtonId_debug] & KEY_PRESSED) {
 		game_state->debug_render_entity_bounds = !game_state->debug_render_entity_bounds;
@@ -779,7 +784,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		game_state->audio_state.master_volume = game_state->audio_state.master_volume > 0.0f ? 0.0f : 1.0f;
 	}
 
-	Player * player = &game_state->player;
+
 	Camera * camera = &game_state->camera;
 
 	math::Mat4 projection_matrix = math::orthographic_projection((f32)game_state->ideal_window_width, (f32)game_state->ideal_window_height);
@@ -787,23 +792,26 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	Shader * basic_shader = &game_state->basic_shader;
 	Shader * post_shader = &game_state->post_shader;
 
-	switch(game_state->meta_game) {
-		case MetaGame_main: {
+	switch(game_state->meta_state) {
+		case MetaState_main: {
+			MainMetaState * main_state = &game_state->main_state;
+
+			Player * player = &main_state->player;
+
 			if(!player->dead) {
-				game_state->d_time += 0.02f * game_input->delta_time;
-				game_state->d_time = math::clamp(game_state->d_time, 0.0f, 2.75f);
+				main_state->d_time += 0.02f * game_input->delta_time;
+				main_state->d_time = math::clamp(main_state->d_time, 0.0f, 2.75f);
 
-				if(game_state->d_time < 1.0f) {
-					game_state->pitch = game_state->d_time;
-				}
-				else {
-					game_state->pitch = 1.0f + (game_state->d_time - 1.0f) * 0.02f;
+				f32 pitch = main_state->d_time;
+				if(main_state->d_time >= 1.0f) {
+					pitch = 1.0f + (main_state->d_time - 1.0f) * 0.02f;
+					
 				}
 
-				change_pitch(game_state->music, game_state->pitch);
+				change_pitch(main_state->music, pitch);
 			}
 
-			f32 adjusted_dt = game_state->d_time * game_input->delta_time;
+			f32 adjusted_dt = main_state->d_time * game_input->delta_time;
 
 			math::Vec2 half_window_dim = math::vec2(game_state->ideal_window_width, game_state->ideal_window_height) * 0.5f;
 
@@ -822,7 +830,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				entity->pos.xy = entity->chain_pos;
 				entity->scale = 0.75f;
 
-				// f32 amplitude = math::max(50.0f / math::max(game_state->d_time, 1.0f), 0.0f);
+				// f32 amplitude = math::max(50.0f / math::max(main_state->d_time, 1.0f), 0.0f);
 				f32 amplitude = 50.0f;
 				entity->pos.y += math::sin((game_input->total_time * 0.25f + i * (3.0f / 13.0f)) * math::TAU) * amplitude;
 
@@ -893,26 +901,29 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					}
 				}
 
-				game_state->distance += adjusted_dt;
+				main_state->distance += adjusted_dt;
 			}
 			else {
 				if(player->e->pos.y <= camera->pos.y - game_state->ideal_window_height * 0.5f) {
 					if(player->death_time < 1.0f) {
 						if(player->death_time == 0.0f) {
-							change_volume(game_state->music, math::vec2(0.0f), 1.0f);
+							change_volume(main_state->music, math::vec2(0.0f), 1.0f);
 						}
 
 						player->death_time += game_input->delta_time;
 						game_state->fade_amount = player->death_time;
 					}
 					else {
-						game_state->meta_game = MetaGame_end;
+						//TODO: Should we defer this??
+						game_state->meta_state = MetaState_gameover;
+						game_state->time_until_next_save = 0.0f;
 					}
 				}
 			}
 
 			if(player->e->use_gravity) {
-				player_dd_pos += game_state->entity_gravity;
+				ASSERT(player->e->damp == 0.0f);
+				player_dd_pos += main_state->entity_gravity;
 			}
 
 			player->e->d_pos += player_dd_pos * game_input->delta_time;
@@ -922,7 +933,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			player->e->pos.xy += player->e->d_pos * game_input->delta_time;
 
 			if(player->running) {
-				f32 ground_height = game_state->ground_height + math::rec_dim(get_entity_collider_bounds(player->e)).y * 0.5f;
+				f32 ground_height = main_state->ground_height + math::rec_dim(get_entity_collider_bounds(player->e)).y * 0.5f;
 				if(player->e->pos.y <= ground_height) {
 					player->e->pos.y = ground_height;
 					player->e->d_pos.y = 0.0f;
@@ -936,16 +947,16 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			f32 max_dist_x = 20.0f;
 			player->e->pos.x = math::clamp(player->e->pos.x, player->e->initial_x - max_dist_x, player->e->initial_x + max_dist_x);
 
-			camera->offset = (math::rand_vec2() * 2.0f - 1.0f) * math::max(game_state->d_time - 2.0f, 0.0f);
+			camera->offset = (math::rand_vec2() * 2.0f - 1.0f) * math::max(main_state->d_time - 2.0f, 0.0f);
 
-			if(game_state->rocket_seq.playing) {
-				play_rocket_sequence(game_state, game_input->delta_time);
+			if(main_state->rocket_seq.playing) {
+				play_rocket_sequence(game_state, main_state, game_input->delta_time);
 			}
 
-			Location * current_location = game_state->locations + game_state->current_location;
+			Location * current_location = main_state->locations + main_state->current_location;
 
 #if 1
-			camera->letterboxed_height = game_state->ideal_window_height - math::max(game_state->d_time - 1.0f, 0.0f) * 20.0f;
+			camera->letterboxed_height = game_state->ideal_window_height - math::max(main_state->d_time - 1.0f, 0.0f) * 20.0f;
 			camera->letterboxed_height = math::max(camera->letterboxed_height, game_state->ideal_window_height / 3.0f);
 #endif
 			camera->pos.x = 0.0f;
@@ -956,7 +967,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 			math::Rec2 player_bounds = get_entity_collider_bounds(player->e);
 
-			EntityEmitter * emitter = &game_state->entity_emitter;
+			EntityEmitter * emitter = &main_state->entity_emitter;
 			emitter->time_until_next_spawn -= adjusted_dt;
 			if(emitter->time_until_next_spawn <= 0.0f) {
 				if(emitter->entity_count < ARRAY_COUNT(emitter->entity_array)) {
@@ -999,7 +1010,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				b32 destroy = false;
 
 				if(!entity->hit) {
-					if(move_entity(game_state, entity, game_input->delta_time)) {
+					if(move_entity(game_state, main_state, entity, game_input->delta_time)) {
 						destroy = true;
 					}
 				}
@@ -1032,7 +1043,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					switch(entity->asset_id) {
 						case AssetId_dolly: {
 							push_player_clone(player);
-							game_state->score++;
+							main_state->score++;
 							break;
 						}
 
@@ -1042,12 +1053,12 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 						}
 
 						case AssetId_rocket: {
-							begin_rocket_sequence(game_state);
+							begin_rocket_sequence(game_state, main_state);
 							break;
 						}
 
 						default: {
-							game_state->score++;
+							main_state->score++;
 							break;
 						}
 					}
@@ -1065,14 +1076,16 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			}
 
 			for(u32 i = 0; i < LocationId_count; i++) {
-				Location * location = game_state->locations + i;
+				Location * location = main_state->locations + i;
 				for(u32 layer_index = 0; layer_index < ARRAY_COUNT(location->layers); layer_index++) {
-					move_entity(game_state, location->layers[layer_index], game_input->delta_time, true);
+					move_entity(game_state, main_state, location->layers[layer_index], game_input->delta_time, true);
 				}
 			}
 
-			game_state->save.high_score = math::max(game_state->save.high_score, game_state->score);
-			game_state->save.longest_run = math::max(game_state->save.longest_run, game_state->distance);
+			game_state->save.high_score = math::max(game_state->save.high_score, main_state->score);
+			game_state->save.longest_run = math::max(game_state->save.longest_run, main_state->distance);
+
+			str_print(game_state->str, "SPEED: %f | SCORE: %u | CLONES: %u\n", main_state->d_time, main_state->score, main_state->player.active_clone_count);
 
 			glBindFramebuffer(GL_FRAMEBUFFER, game_state->frame_buffer.id);
 			glViewport(0, 0, game_state->frame_buffer.width, game_state->frame_buffer.height);
@@ -1090,8 +1103,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				u32 current_batch_index = null_batch_index;
 
 				//TODO: Sorting!!
-				for(u32 i = 0; i < game_state->entity_count; i++) {
-					Entity * entity = game_state->entity_array + i;
+				for(u32 i = 0; i < main_state->entity_count; i++) {
+					Entity * entity = main_state->entity_array + i;
 
 					//TODO: Collapse this!!
 					math::Rec2 bounds = get_entity_render_bounds(assets, entity);
@@ -1143,8 +1156,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				}
 
 				if(game_state->debug_render_entity_bounds) {
-					for(u32 i = 0; i < game_state->entity_count; i++) {
-						Entity * entity = game_state->entity_array + i;
+					for(u32 i = 0; i < main_state->entity_count; i++) {
+						Entity * entity = main_state->entity_array + i;
 
 						// math::Rec2 bounds = get_entity_render_bounds(assets, entity);
 						math::Rec2 bounds = math::rec_scale(entity->collider, entity->scale);
@@ -1163,13 +1176,17 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			break;
 		}
 
-		case MetaGame_end: {
+		case MetaState_gameover: {
 			if(game_input->buttons[ButtonId_start] & KEY_PRESSED) {
-				game_state->meta_game = MetaGame_main;
-				game_init(game_state);
+				game_state->meta_state = MetaState_main;
+				game_state->save.plays++;
+
+				init_main_meta_state(game_state, &game_state->main_state);
 
 				game_state->fade_amount = 0.0f;
 			}
+
+			str_print(game_state->str, "\nGAMEOVER!\nPRESS SPACE TO RESTART\n");
 
 			glBindFramebuffer(GL_FRAMEBUFFER, game_state->frame_buffer.id);
 			glViewport(0, 0, game_state->frame_buffer.width, game_state->frame_buffer.height);
@@ -1254,11 +1271,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		RenderBatch * batch = font->batch;
 
-		str_clear(game_state->title_str);
-		str_print(game_state->title_str, "DOLLY DOLLY DOLLY DAYS!\nDT: %f\n\n", game_input->delta_time, game_state->d_time);
-		str_print(game_state->title_str, "PLAYS: %u | HIGH_SCORE: %u | LONGEST_RUN: %f\n", game_state->save.plays, game_state->save.high_score, game_state->save.longest_run);
-		str_print(game_state->title_str, "SPEED: %f | SCORE: %u | CLONES: %u\n", game_state->d_time, game_state->score, player->active_clone_count);
-		render_str(font, game_state->title_str);
+		render_str(font, game_state->str);
 
 #if 0
 		render_str(font, game_state->debug_str);

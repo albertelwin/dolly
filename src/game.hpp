@@ -145,18 +145,6 @@ struct RocketSequence {
 	f32 time_;
 };
 
-enum MetaGame {
-	MetaGame_main,
-	MetaGame_end,
-
-	MetaGame_count,
-};
-
-//TODO: Fill this with "main" game variables/etc.
-// struct MainMetaGame {
-
-// };
-
 enum ButtonId {
 	ButtonId_start,
 	ButtonId_left,
@@ -201,6 +189,40 @@ struct SaveFileHeader {
 };
 #pragma pack(pop)
 
+enum MetaState {
+	MetaState_main,
+	MetaState_gameover,
+
+	MetaState_count,
+};
+
+struct MainMetaState {
+	MemoryArena arena;
+	AssetState * assets;
+
+	AudioSource * music;
+
+	u32 entity_count;
+	Entity entity_array[256];
+	gl::VertexBuffer * entity_v_buf;
+	math::Vec2 entity_gravity;
+
+	LocationId current_location;
+	f32 location_y_offset;
+	f32 ground_height;
+	Location locations[LocationId_count];
+
+	Player player;
+
+	EntityEmitter entity_emitter;
+	RocketSequence rocket_seq;
+
+	//TODO: This should just be player speed!!
+	f32 d_time;
+	u32 score;
+	f32 distance;
+};
+
 struct GameMemory {
 	size_t size;
 	u8 * ptr;
@@ -224,17 +246,16 @@ struct GameInput {
 };
 
 struct GameState {
-	MemoryPool memory_pool;
+	MemoryArena memory_arena;
 
 	AssetState assets;
 
 	PlatformAsyncFile * save_file;
 	SaveFileHeader save;
 	f32 auto_save_time;
-	f32 last_saved_time;
+	f32 time_until_next_save;
 
 	AudioState audio_state;
-	AudioSource * music;
 
 	Shader basic_shader;
 	Shader post_shader;
@@ -247,7 +268,7 @@ struct GameState {
 
 	Font * debug_font;
 	Str * debug_str;
-	Str * title_str;
+	Str * str;
 
 	u32 ideal_window_width;
 	u32 ideal_window_height;
@@ -259,33 +280,12 @@ struct GameState {
 	u32 sprite_batch_count;
 	RenderBatch ** sprite_batches;
 
-	u32 entity_count;
-	Entity entity_array[256];
-
-	MetaGame meta_game;
-
-	math::Vec3 entity_null_pos;
-	math::Vec2 entity_gravity;
-
-	LocationId current_location;
-	f32 location_y_offset;
-	f32 ground_height;
-	Location locations[LocationId_count];
-
-	Player player;
-
-	EntityEmitter entity_emitter;
-	RocketSequence rocket_seq;
+	MetaState meta_state;
+	MainMetaState main_state;
 
 	Camera camera;
 	f32 pixelate_time;
 	f32 fade_amount;
-
-	//TODO: This should just be player speed!!
-	f32 d_time;
-	f32 pitch;
-	u32 score;
-	f32 distance;
 };
 
 #endif

@@ -55,8 +55,8 @@ Asset * push_asset(AssetState * assets, AssetId id, AssetType type) {
 	return asset;
 }
 
-void load_assets(AssetState * assets, MemoryPool * pool) {
-	assets->memory_pool = pool;
+void load_assets(AssetState * assets, MemoryArena * arena) {
+	assets->arena = arena;
 
 	MemoryPtr file_buf; 
 	file_buf.ptr = (u8 *)mz_zip_extract_archive_file_to_heap("asset.zip", "asset.pak", &file_buf.size, 0);
@@ -65,7 +65,7 @@ void load_assets(AssetState * assets, MemoryPool * pool) {
 	AssetPackHeader * pack = (AssetPackHeader *)file_ptr;
 	file_ptr += sizeof(AssetPackHeader);
 
-	assets->assets = PUSH_ARRAY(assets->memory_pool, Asset, pack->asset_count);
+	assets->assets = PUSH_ARRAY(assets->arena, Asset, pack->asset_count);
  
 	for(u32 i = 0; i < pack->asset_count; i++) {
 		AssetInfo * asset_info = (AssetInfo *)file_ptr;

@@ -219,7 +219,7 @@ int main() {
 	// emscripten_webgl_enable_extension(emscripten_webgl_get_current_context(), "OES_texture_float");
 
 	MainLoopArgs args = {};
-	args.game_memory.size = MEGABYTES(8);
+	args.game_memory.size = MEGABYTES(16);
 	args.game_memory.ptr = ALLOC_MEMORY(u8, args.game_memory.size);
 	zero_memory(args.game_memory.ptr, args.game_memory.size);
 

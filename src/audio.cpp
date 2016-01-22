@@ -20,7 +20,7 @@ AudioSource * play_audio_clip(AudioState * audio_state, AudioClip * clip, b32 lo
 	AudioSource * source = 0;
 	if(audio_state->supported && clip) {
 		if(!audio_state->source_free_list) {
-			audio_state->source_free_list = PUSH_STRUCT(audio_state->memory_pool, AudioSource);
+			audio_state->source_free_list = PUSH_STRUCT(audio_state->arena, AudioSource);
 			audio_state->source_free_list->next = 0;
 		}
 
@@ -186,9 +186,9 @@ void audio_output_samples(AudioState * audio_state, i16 * sample_memory_ptr, u32
 	}
 }
 
-void load_audio(AudioState * audio_state, MemoryPool * pool, AssetState * assets, b32 supported) {
+void load_audio(AudioState * audio_state, MemoryArena * arena, AssetState * assets, b32 supported) {
 	//TODO: Allocate sub-pool!!
-	audio_state->memory_pool = pool;
+	audio_state->arena = arena;
 	audio_state->assets = assets;
 	audio_state->supported = supported;
 	audio_state->master_volume = 1.0f;

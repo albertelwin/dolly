@@ -27,7 +27,7 @@ struct AudioSource {
 };
 
 struct AudioState {
-	MemoryPool * memory_pool;
+	MemoryArena * arena;
 	AssetState * assets;
 
 	AudioSource * sources;

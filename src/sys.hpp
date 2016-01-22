@@ -249,19 +249,23 @@ struct MemoryPtr {
 	u8 * ptr;
 };
 
-struct MemoryPool {
+struct MemoryArena {
 	size_t size;
 	size_t used;
 
 	u8 * base_address;
 };
 
-MemoryPool create_memory_pool(void * base_address, size_t size) {
-	MemoryPool pool = {};
-	pool.size = size;
-	pool.used = 0;
-	pool.base_address = (u8 *)base_address;
-	return pool;
+MemoryArena create_memory_arena(void * base_address, size_t size) {
+	MemoryArena arena = {};
+	arena.size = size;
+	arena.used = 0;
+	arena.base_address = (u8 *)base_address;
+	return arena;
+}
+
+void clear_memory_arena(MemoryArena * arena) {
+	arena->used = 0;
 }
 
 void zero_memory(void * ptr, size_t size) {
@@ -279,20 +283,31 @@ void copy_memory(void * dst, void * src, size_t size) {
 	}
 }
 
-#define PUSH_STRUCT(pool, type) (type *)push_memory_(pool, sizeof(type))
-#define PUSH_ARRAY(pool, type, length) (type *)push_memory_(pool, sizeof(type) * (length))
-#define PUSH_MEMORY(pool, type, size) (type *)push_memory_(pool, size)
-void * push_memory_(MemoryPool * pool, size_t size) {
-	ASSERT((pool->used + size) <= pool->size);
+#define PUSH_STRUCT(arena, type) (type *)push_memory_(arena, sizeof(type))
+#define PUSH_ARRAY(arena, type, length) (type *)push_memory_(arena, sizeof(type) * (length))
+#define PUSH_MEMORY(arena, type, size) (type *)push_memory_(arena, size)
+void * push_memory_(MemoryArena * arena, size_t size) {
+	ASSERT((arena->used + size) <= arena->size);
 	
-	void * ptr = pool->base_address + pool->used;
-	pool->used += size;
+	void * ptr = arena->base_address + arena->used;
+	arena->used += size;
+
+	std::printf("LOG: used: %u\n", arena->used);
+
 	return ptr;
 }
 
-#define PUSH_COPY_ARRAY(pool, type, array, length) (type *)push_copy_memory_(pool, array, sizeof(type) * (length))
-void * push_copy_memory_(MemoryPool * pool, void * src, size_t size) {
-	void * dst = push_memory_(pool, size);
+MemoryArena allocate_sub_arena(MemoryArena * arena, size_t size) {
+	MemoryArena sub_arena = {};
+	sub_arena.size = size;
+	sub_arena.used = 0;
+	sub_arena.base_address = PUSH_MEMORY(arena, u8, size);
+	return sub_arena;
+}
+
+#define PUSH_COPY_ARRAY(arena, type, array, length) (type *)push_copy_memory_(arena, array, sizeof(type) * (length))
+void * push_copy_memory_(MemoryArena * arena, void * src, size_t size) {
+	void * dst = push_memory_(arena, size);
 	copy_memory(dst, src, size);
 	return dst;
 }
