@@ -4,59 +4,16 @@
 
 #include <platform.hpp>
 
-#include <gl.hpp>
-#include <basic.vert>
-#include <basic.frag>
-#include <screen_quad.vert>
-#include <post_filter.frag>
-
 #include <audio.hpp>
 #include <asset.hpp>
 #include <debug.hpp>
 #include <math.hpp>
+#include <render.hpp>
 
 #define ANIMATION_FRAMES_PER_SEC 30
-#define VERT_ELEM_COUNT 8
-#define QUAD_ELEM_COUNT (VERT_ELEM_COUNT * 6)
-
 #define PARALLAX_LAYER_COUNT 5
 
 #define ENTITY_NULL_POS math::vec3(F32_MAX, F32_MAX, 0.0f)
-
-//TODO: Automatically generate these structs for shaders!!
-struct Shader {
-	u32 id;
-
-	u32 i_position;
-	u32 i_tex_coord;
-	u32 i_color;
-
-	u32 transform;
-	u32 color;
-	u32 tex0;
-	u32 tex0_dim;
-
-	u32 pixelate_scale;
-	u32 fade_amount;
-};
-
-enum RenderMode {
-	RenderMode_triangles = GL_TRIANGLES,
-
-	RenderMode_lines = GL_LINES,
-	RenderMode_line_strip = GL_LINE_STRIP,
-};
-
-struct RenderBatch {
-	Texture * tex;
-
-	u32 v_len;
-	f32 * v_arr;
-	gl::VertexBuffer v_buf;
-	u32 e;
-
-	RenderMode mode;
-};
 
 //TODO: Formalise sprite animation!!
 // struct SpriteAnimation {
@@ -68,12 +25,11 @@ struct Entity {
 	math::Vec3 pos;
 	f32 scale;
 	math::Vec4 color;
+	b32 scrollable;
 
 	AssetType asset_type;
 	AssetId asset_id;
 	u32 asset_index;
-
-	gl::VertexBuffer * v_buf;
 
 	math::Vec2 d_pos;
 	math::Vec2 speed;
@@ -112,13 +68,6 @@ struct EntityEmitter {
 
 	u32 entity_count;
 	Entity * entity_array[16];
-};
-
-struct Camera {
-	math::Vec2 pos;
-	math::Vec2 offset;
-
-	f32 letterboxed_height;
 };
 
 enum LocationId {
@@ -160,20 +109,6 @@ enum ButtonId {
 	ButtonId_count,
 };
 
-struct Font {
-	RenderBatch * batch;
-
-	math::Mat4 projection_matrix;
-
-	u32 glyph_width;
-	u32 glyph_height;
-	u32 glyph_spacing;
-
-	f32 scale;
-	math::Vec2 anchor;
-	math::Vec2 pos;
-};
-
 // #define SAVE_FILE_CODE *(u32 *)"DLLY"
 #define SAVE_FILE_CODE 0x594C4C44
 //TODO: Can we inc this automatically somehow??
@@ -199,8 +134,12 @@ enum MetaState {
 struct MainMetaState {
 	MemoryArena arena;
 	AssetState * assets;
+	AudioState * audio_state;
+	RenderState * render_state;
 
 	AudioSource * music;
+
+	Camera * camera;
 
 	u32 entity_count;
 	Entity entity_array[256];
@@ -249,43 +188,19 @@ struct GameState {
 	MemoryArena memory_arena;
 
 	AssetState assets;
+	AudioState audio_state;
+	RenderState render_state;
+
+	MetaState meta_state;
+	MainMetaState * main_state;
 
 	PlatformAsyncFile * save_file;
 	SaveFileHeader save;
 	f32 auto_save_time;
 	f32 time_until_next_save;
 
-	AudioState audio_state;
-
-	Shader basic_shader;
-	Shader post_shader;
-
-	gl::FrameBuffer frame_buffer;
-	gl::VertexBuffer screen_quad_v_buf;
-
-	gl::VertexBuffer entity_v_buf;
-	gl::VertexBuffer bg_v_buf;
-
-	Font * debug_font;
 	Str * debug_str;
 	Str * str;
-
-	u32 ideal_window_width;
-	u32 ideal_window_height;
-
-	b32 debug_render_entity_bounds;
-	RenderBatch * debug_batch;
-
-	//TODO: Do we need multiple batches?? We only use one at a time anyway!
-	u32 sprite_batch_count;
-	RenderBatch ** sprite_batches;
-
-	MetaState meta_state;
-	MainMetaState main_state;
-
-	Camera camera;
-	f32 pixelate_time;
-	f32 fade_amount;
 };
 
 #endif

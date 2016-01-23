@@ -4,19 +4,7 @@
 #include <asset.cpp>
 #include <audio.cpp>
 #include <math.cpp>
-
-math::Vec2 project_pos(Camera * camera, math::Vec3 pos) {
-	math::Vec2 projected_pos = pos.xy - camera->pos;
-	projected_pos *= 1.0f / (pos.z + 1.0f);
-	return projected_pos + camera->offset;
-}
-
-math::Vec3 unproject_pos(Camera * camera, math::Vec2 pos, f32 z) {
-	math::Vec3 unprojected_pos = math::vec3(pos - camera->offset, z);
-	unprojected_pos.xy *= (z + 1.0f);
-	unprojected_pos.xy += camera->pos;
-	return unprojected_pos;
-}
+#include <render.cpp>
 
 math::Rec2 get_entity_render_bounds(AssetState * assets, Entity * entity) {
 	Asset * asset = get_asset(assets, entity->asset_id, entity->asset_index);
@@ -45,7 +33,6 @@ Entity * push_entity(MainMetaState * main_state, AssetId asset_id, u32 asset_ind
 	entity->asset_type = asset->type;
 	entity->asset_id = asset_id;
 	entity->asset_index = asset_index;
-	entity->v_buf = main_state->entity_v_buf;
 
 	entity->d_pos = math::vec2(0.0f);
 	entity->speed = math::vec2(500.0f);
@@ -60,202 +47,12 @@ Entity * push_entity(MainMetaState * main_state, AssetId asset_id, u32 asset_ind
 	return entity;
 }
 
-RenderBatch * allocate_render_batch(MemoryArena * arena, Texture * tex, u32 v_len, RenderMode render_mode = RenderMode_triangles) {
-	RenderBatch * batch = PUSH_STRUCT(arena, RenderBatch);
-
-	batch->tex = tex;
-
-	batch->v_len = v_len;
-	batch->v_arr = PUSH_ARRAY(arena, f32, batch->v_len);
-	batch->v_buf = gl::create_vertex_buffer(batch->v_arr, batch->v_len, VERT_ELEM_COUNT, GL_DYNAMIC_DRAW);
-	batch->e = 0;
-
-	batch->mode = render_mode;
-
-	return batch;
-}
-
-void render_quad(RenderBatch * batch, math::Vec2 pos0, math::Vec2 pos1, math::Vec2 uv0, math::Vec2 uv1, math::Vec4 color) {
-	ASSERT(batch->e <= (batch->v_len - QUAD_ELEM_COUNT));
-	f32 * v = batch->v_arr;
-
-	v[batch->e++] =  pos0.x; v[batch->e++] =  pos0.y; v[batch->e++] =   uv0.x; v[batch->e++] =   uv0.y;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
-
-	v[batch->e++] =  pos1.x; v[batch->e++] =  pos1.y; v[batch->e++] =   uv1.x; v[batch->e++] =   uv1.y;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
-
-	v[batch->e++] =  pos0.x; v[batch->e++] =  pos1.y; v[batch->e++] =   uv0.x; v[batch->e++] =   uv1.y;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
-
-	v[batch->e++] =  pos0.x; v[batch->e++] =  pos0.y; v[batch->e++] =   uv0.x; v[batch->e++] =   uv0.y;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
-
-	v[batch->e++] =  pos1.x; v[batch->e++] =  pos0.y; v[batch->e++] =   uv1.x; v[batch->e++] =   uv0.y;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;	
-
-	v[batch->e++] =  pos1.x; v[batch->e++] =  pos1.y; v[batch->e++] =   uv1.x; v[batch->e++] =   uv1.y;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
-}
-
-void render_quad_lines(RenderBatch * batch, math::Rec2 * rec, math::Vec4 color) {
-	ASSERT(batch->e <= (batch->v_len - QUAD_ELEM_COUNT));
-	f32 * v = batch->v_arr;
-
-	math::Vec2 pos0 = rec->min;
-	math::Vec2 pos1 = rec->max;
-
-	v[batch->e++] =  pos0.x; v[batch->e++] =  pos0.y; v[batch->e++] =    0.0f; v[batch->e++] =    0.0f;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
-	v[batch->e++] =  pos1.x; v[batch->e++] =  pos0.y; v[batch->e++] =    0.0f; v[batch->e++] =    0.0f;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
-
-	v[batch->e++] =  pos1.x; v[batch->e++] =  pos0.y; v[batch->e++] =    0.0f; v[batch->e++] =    0.0f;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
-	v[batch->e++] =  pos1.x; v[batch->e++] =  pos1.y; v[batch->e++] =    0.0f; v[batch->e++] =    0.0f;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
-
-	v[batch->e++] =  pos1.x; v[batch->e++] =  pos1.y; v[batch->e++] =    0.0f; v[batch->e++] =    0.0f;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
-	v[batch->e++] =  pos0.x; v[batch->e++] =  pos1.y; v[batch->e++] =    0.0f; v[batch->e++] =    0.0f;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;	
-
-	v[batch->e++] =  pos0.x; v[batch->e++] =  pos1.y; v[batch->e++] =    0.0f; v[batch->e++] =    0.0f;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
-	v[batch->e++] =  pos0.x; v[batch->e++] =  pos0.y; v[batch->e++] =    0.0f; v[batch->e++] =    0.0f;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;	
-}
-
-void render_sprite(RenderBatch * batch, Texture * sprite, math::Vec2 pos, math::Vec2 dim, math::Vec4 color) {
-	math::Vec2 pos0 = pos - dim * 0.5f;
-	math::Vec2 pos1 = pos + dim * 0.5f;
-
-	math::Vec2 uv0 = sprite->tex_coords[0];
-	math::Vec2 uv1 = sprite->tex_coords[1];
-
-	render_quad(batch, pos0, pos1, uv0, uv1, color);
-}
-
-void render_v_buf(gl::VertexBuffer * v_buf, RenderMode render_mode, Shader * shader, math::Mat4 * transform, Texture * tex0, math::Vec4 color = math::vec4(1.0f)) {
-	DEBUG_TIME_BLOCK();
-
-	glUseProgram(shader->id);
-
-	glUniformMatrix4fv(shader->transform, 1, GL_FALSE, transform->v);
-	glUniform4f(shader->color, color.r, color.g, color.b, color.a);
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, tex0->gl_id);
-	glUniform1i(shader->tex0, 0);
-
-	glBindBuffer(GL_ARRAY_BUFFER, v_buf->id);
-
-	u32 stride = v_buf->vert_size * sizeof(f32);
-
-	glVertexAttribPointer(shader->i_position, 2, GL_FLOAT, 0, stride, 0);
-	glEnableVertexAttribArray(shader->i_position);
-
-	glVertexAttribPointer(shader->i_tex_coord, 2, GL_FLOAT, 0, stride, (void *)(2 * sizeof(f32)));
-	glEnableVertexAttribArray(shader->i_tex_coord);
-
-	glVertexAttribPointer(shader->i_color, 4, GL_FLOAT, 0, stride, (void *)(4 * sizeof(f32)));
-	glEnableVertexAttribArray(shader->i_color);
-
-	glDrawArrays(render_mode, 0, v_buf->vert_count);
-}
-
-void render_and_clear_render_batch(RenderBatch * batch, Shader * shader, math::Mat4 * transform) {
-	DEBUG_TIME_BLOCK();
-
-	if(batch->e > 0) {
-		for(u32 i = batch->e; i < batch->v_len; i++) {
-			batch->v_arr[i] = 0.0f;
-		}
-
-		glBindBuffer(GL_ARRAY_BUFFER, batch->v_buf.id);
-		glBufferSubData(GL_ARRAY_BUFFER, 0, batch->v_buf.size_in_bytes, batch->v_arr);
-
-		render_v_buf(&batch->v_buf, batch->mode, shader, transform, batch->tex);
-
-		// zero_memory((u8 *)batch->v_arr, batch->v_len * sizeof(f32));
-		batch->e = 0;		
-	}
-}
- 
-Font * allocate_font(MemoryArena * arena, Texture * tex, u32 v_len, u32 back_buffer_width, u32 back_buffer_height) {
-	Font * font = PUSH_STRUCT(arena, Font);
-
-	font->batch = allocate_render_batch(arena, tex, v_len);
-
-	font->projection_matrix = math::orthographic_projection((f32)back_buffer_width, (f32)back_buffer_height);
-	font->glyph_width = 3;
-	font->glyph_height = 5;
-	font->glyph_spacing = 1;
-
-	font->scale = 2.0f;
-	// font->scale = 4.0f;
-	font->anchor.x = -(f32)back_buffer_width * 0.5f + font->glyph_spacing * font->scale;
-	font->anchor.y = (f32)back_buffer_height * 0.5f - (font->glyph_height + font->glyph_spacing) * font->scale;
-	font->pos = font->anchor;
-
-	return font;
-}
-
 Str * allocate_str(MemoryArena * arena, u32 max_len) {
 	Str * str = PUSH_STRUCT(arena, Str);
 	str->max_len = max_len;
 	str->len = 0;
 	str->ptr = PUSH_ARRAY(arena, char, max_len);	
 	return str;
-}
-
-void render_str(Font * font, Str * str) {
-	DEBUG_TIME_BLOCK();
-
-	RenderBatch * batch = font->batch;
-
-	f32 glyph_width = font->glyph_width * font->scale;
-	f32 glyph_height = font->glyph_height * font->scale;
-	f32 glyph_spacing = font->glyph_spacing * font->scale;
-
-	math::Vec2 tex_dim = batch->tex->dim;
-	math::Vec2 r_tex_dim = math::vec2(1.0f / tex_dim.x, 1.0f / tex_dim.y);
-
-	//TODO: Put these in the font struct??
-	u32 glyph_first_char = 24;
-	u32 glyphs_per_row = 12;
-
-	math::Vec4 color = math::vec4(1.0f);
-
-	for(u32 i = 0; i < str->len; i++) {
-		char char_ = str->ptr[i];
-		if(char_ == '\n') {
-			font->pos.x = font->anchor.x;
-			font->pos.y -= (glyph_height + glyph_spacing);
-		}
-		else {
-			math::Vec2 pos0 = font->pos;
-			math::Vec2 pos1 = math::vec2(pos0.x + glyph_width, pos0.y + glyph_height);
-
-			font->pos.x += (glyph_width + glyph_spacing);
-			if(char_ != ' ') {
-				u32 u = ((char_ - glyph_first_char) % glyphs_per_row) * (font->glyph_width + font->glyph_spacing * 2) + font->glyph_spacing;
-				u32 v = ((char_ - glyph_first_char) / glyphs_per_row) * (font->glyph_height + font->glyph_spacing * 2) + font->glyph_spacing;
-
-				math::Vec2 uv0 = math::vec2(u, (u32)tex_dim.y - (v + font->glyph_height)) * r_tex_dim;
-				math::Vec2 uv1 = math::vec2(u + font->glyph_width, (u32)tex_dim.y - v) * r_tex_dim;
-
-				render_quad(batch, pos0, pos1, uv0, uv1, color);
-			}
-		}
-	}
-}
-
-void render_c_str(Font * font, char const * c_str) {
-	Str str;
-	str.max_len = str.len = c_str_len(c_str);
-	str.ptr = (char *)c_str;
-	render_str(font, &str);
 }
 
 void push_player_clone(Player * player) {
@@ -296,40 +93,43 @@ void pop_player_clones(Player * player, u32 count) {
 	}
 }
 
-void begin_rocket_sequence(GameState * game_state, MainMetaState * main_game) {
-	RocketSequence * seq = &main_game->rocket_seq;
+void begin_rocket_sequence(MainMetaState * main_state) {
+	RocketSequence * seq = &main_state->rocket_seq;
 
 	if(!seq->playing) {
 		seq->playing = true;
 		seq->time_ = 0.0f;
 
-		math::Rec2 render_bounds = get_entity_render_bounds(&game_state->assets, seq->rocket);
+		math::Rec2 render_bounds = get_entity_render_bounds(main_state->assets, seq->rocket);
 		f32 height = math::rec_dim(render_bounds).y;
 
 		Entity * rocket = seq->rocket;
-		rocket->pos = math::vec3(0.0f, -(game_state->ideal_window_height * 0.5f + height * 0.5f), 0.0f);
+		rocket->pos = math::vec3(main_state->player.e->pos.x, -(main_state->render_state->screen_height * 0.5f + height * 0.5f), 0.0f);
 		rocket->d_pos = math::vec2(0.0f);
-		rocket->speed = math::vec2(0.0f, 8000.0f);
-		rocket->damp = 0.65f;
+		rocket->speed = math::vec2(0.0f, 10000.0f);
+		rocket->damp = 0.065f;
 	}
 }
 
-void play_rocket_sequence(GameState * game_state, MainMetaState * main_state, f32 dt) {
+void play_rocket_sequence(MainMetaState * main_state, f32 dt) {
 	RocketSequence * seq = &main_state->rocket_seq;
 
 	if(seq->playing) {
+		RenderState * render_state = main_state->render_state;
+
+		Player * player = &main_state->player;
+		Camera * camera = main_state->camera;
 #if 0
 		Entity * rocket = seq->rocket;
-		Player * player = &game_state->player;
 
 		rocket->d_pos += rocket->speed * dt;
-		rocket->d_pos *= (1.0f - rocket->damp * dt);
+		rocket->d_pos *= (1.0f - rocket->damp);
 
 		math::Vec2 d_pos = rocket->d_pos * dt;
 		math::Vec2 new_pos = rocket->pos.xy + d_pos;
 
-		if(rocket->pos.y < game_state->location_y_offset) {
-			if(new_pos.y < game_state->location_y_offset) {
+		if(rocket->pos.y < main_state->location_y_offset) {
+			if(new_pos.y < main_state->location_y_offset) {
 				math::Rec2 player_bounds = get_entity_collider_bounds(player->e);
 				math::Rec2 collider_bounds = get_entity_collider_bounds(rocket);
 				if(math::rec_overlap(collider_bounds, player_bounds)) {
@@ -338,15 +138,15 @@ void play_rocket_sequence(GameState * game_state, MainMetaState * main_state, f3
 					player->allow_input = false;
 				}
 
-				game_state->camera.offset = (math::rand_vec2() * 2.0f - 1.0f) * 10.0f;
+				main_state->camera->offset = (math::rand_vec2() * 2.0f - 1.0f) * 10.0f;
 			}
 			else {
-				player->e->pos.y = game_state->location_y_offset;
+				player->e->pos.y = main_state->location_y_offset;
 				player->allow_input = true;
 
-				game_state->current_location = LocationId_space;
-				game_state->entity_emitter.pos.y = game_state->location_y_offset;
-				game_state->entity_emitter.time_until_next_spawn = 0.0f;
+				main_state->current_location = LocationId_space;
+				main_state->entity_emitter.pos.y = main_state->location_y_offset;
+				main_state->entity_emitter.time_until_next_spawn = 0.0f;
 			}
 		}
 
@@ -355,36 +155,34 @@ void play_rocket_sequence(GameState * game_state, MainMetaState * main_state, f3
 
 		f32 seq_max_time = 20.0f;
 		if(seq->time_ > seq_max_time) {
-			f32 new_pixelate_time = game_state->pixelate_time + dt * 1.5f;
-			if(game_state->pixelate_time < 1.0f && new_pixelate_time >= 1.0f) {
+			f32 new_pixelate_time = camera->pixelate_time + dt * 1.5f;
+			if(camera->pixelate_time < 1.0f && new_pixelate_time >= 1.0f) {
 				rocket->pos = ENTITY_NULL_POS;
 
 				player->e->d_pos = math::vec2(0.0f);
 				player->e->pos.xy = math::vec2(player->e->initial_x, 0.0f);
 				player->allow_input = true;
 
-				game_state->current_location = LocationId_city;
-				game_state->entity_emitter.pos.y = 0.0f;
-				game_state->entity_emitter.time_until_next_spawn = 0.0f;
+				main_state->current_location = LocationId_city;
+				main_state->entity_emitter.pos.y = 0.0f;
+				main_state->entity_emitter.time_until_next_spawn = 0.0f;
 			}
 
-			game_state->pixelate_time = new_pixelate_time;
-			if(game_state->pixelate_time >= 2.0f) {
-				game_state->pixelate_time = 0.0f;
+			camera->pixelate_time = new_pixelate_time;
+			if(camera->pixelate_time >= 2.0f) {
+				camera->pixelate_time = 0.0f;
 
 				seq->playing = false;
 				seq->time_ = 0.0f;
 			}
 		}
 #else
-		Player * player = &main_state->player;
-
 		f32 new_time = seq->time_ + dt;
 		f32 seq_max_time = 10.0f;
 
 		if(seq->time_ < seq_max_time) {
-			f32 new_pixelate_time = game_state->pixelate_time + dt * 1.5f;
-			if(game_state->pixelate_time < 1.0f && new_pixelate_time >= 1.0f) {
+			f32 new_pixelate_time = render_state->pixelate_time + dt * 1.5f;
+			if(render_state->pixelate_time < 1.0f && new_pixelate_time >= 1.0f) {
 				player->e->d_pos = math::vec2(0.0f);
 				player->e->pos.xy = math::vec2(player->e->initial_x, 0.0f);
 				player->e->pos.y += main_state->location_y_offset;
@@ -394,18 +192,18 @@ void play_rocket_sequence(GameState * game_state, MainMetaState * main_state, f3
 				main_state->entity_emitter.time_until_next_spawn = 0.0f;
 			}
 
-			game_state->pixelate_time = new_pixelate_time;
-			if(game_state->pixelate_time >= 2.0f) {
-				game_state->pixelate_time = 2.0f;
+			render_state->pixelate_time = new_pixelate_time;
+			if(render_state->pixelate_time >= 2.0f) {
+				render_state->pixelate_time = 2.0f;
 			}
 
 			if(new_time >= seq_max_time) {
-				game_state->pixelate_time = 0.0f;
+				render_state->pixelate_time = 0.0f;
 			}
 		}
 		else {
-			f32 new_pixelate_time = game_state->pixelate_time + dt * 1.5f;
-			if(game_state->pixelate_time < 1.0f && new_pixelate_time >= 1.0f) {
+			f32 new_pixelate_time = render_state->pixelate_time + dt * 1.5f;
+			if(render_state->pixelate_time < 1.0f && new_pixelate_time >= 1.0f) {
 				player->e->d_pos = math::vec2(0.0f);
 				player->e->pos.xy = math::vec2(player->e->initial_x, 0.0f);
 
@@ -414,9 +212,9 @@ void play_rocket_sequence(GameState * game_state, MainMetaState * main_state, f3
 				main_state->entity_emitter.time_until_next_spawn = 0.0f;
 			}
 
-			game_state->pixelate_time = new_pixelate_time;
-			if(game_state->pixelate_time >= 2.0f) {
-				game_state->pixelate_time = 0.0f;
+			render_state->pixelate_time = new_pixelate_time;
+			if(render_state->pixelate_time >= 2.0f) {
+				render_state->pixelate_time = 0.0f;
 
 				seq->playing = false;
 			}
@@ -427,50 +225,59 @@ void play_rocket_sequence(GameState * game_state, MainMetaState * main_state, f3
 	}
 }
 
-b32 move_entity(GameState * game_state, MainMetaState * main_state, Entity * entity, f32 dt, b32 loop = false) {
+b32 move_entity(MainMetaState * main_state, Entity * entity, f32 dt) {
 	b32 off_screen = false;
+
+	Camera * camera = main_state->camera;
 
 	//TODO: Move by player speed!!
 	entity->pos.x -= 500.0f * main_state->d_time * dt;
 
-	math::Rec2 bounds = get_entity_render_bounds(&game_state->assets, entity);
-	math::Vec2 screen_pos = project_pos(&game_state->camera, entity->pos + math::vec3(math::rec_pos(bounds), 0.0f));
+	math::Rec2 bounds = get_entity_render_bounds(main_state->assets, entity);
+	math::Vec2 screen_pos = project_pos(camera, entity->pos + math::vec3(math::rec_pos(bounds), 0.0f));
 	f32 width = math::rec_dim(bounds).x;
 
-	if(screen_pos.x < -(game_state->ideal_window_width * 0.5f + width * 0.5f)) {
+	if(screen_pos.x < -(main_state->render_state->screen_width * 0.5f + width * 0.5f)) {
 		off_screen = true;
 
-		if(loop) {
+		if(entity->scrollable) {
 			screen_pos.x += width * 2.0f;
-			entity->pos = unproject_pos(&game_state->camera, screen_pos, entity->pos.z);
+			entity->pos = unproject_pos(camera, screen_pos, entity->pos.z);
 		}
 	}
 
 	return off_screen;
 }
 
+MainMetaState * allocate_main_meta_state(MemoryArena * arena) {
+	MainMetaState * main_state = PUSH_STRUCT(arena, MainMetaState);
+	main_state->arena = allocate_sub_arena(arena, MEGABYTES(2));
+	return main_state;
+}
+
 void init_main_meta_state(GameState * game_state, MainMetaState * main_state) {
-	MemoryArena arena = main_state->arena;
-	if(!arena.size) {
-		arena = allocate_sub_arena(&game_state->memory_arena, MEGABYTES(2));
+	MemoryArena arena_ = main_state->arena;
+	AudioSource * music_ = main_state->music;
 
-		//TODO: Stop audio when main state ends!!
-		main_state->music = play_audio_clip(&game_state->audio_state, AssetId_music, true);
-		change_volume(main_state->music, math::vec2(0.0f), 0.0f);
-	}
-	else {
-		zero_memory(main_state, sizeof(MainMetaState));
-	}
+	zero_memory(main_state, sizeof(MainMetaState));
 
-	change_volume(main_state->music, math::vec2(1.0f), 1.0f);
-
-	main_state->arena = arena;
-	clear_memory_arena(&main_state->arena);
+	main_state->arena = arena_;
 
 	main_state->assets = &game_state->assets;
+	main_state->audio_state = &game_state->audio_state;
+	main_state->render_state = &game_state->render_state;
+
+	u32 screen_width = main_state->render_state->screen_width;
+	u32 screen_height = main_state->render_state->screen_height;
+
+	main_state->music = !music_ ? play_audio_clip(main_state->audio_state, AssetId_music, true) : music_;
+	change_volume(main_state->music, math::vec2(0.0f), 0.0f);
+	change_volume(main_state->music, math::vec2(1.0f), 1.0f);
+
+	Camera * camera = &main_state->render_state->camera;
+	main_state->camera = camera;
 
 	main_state->entity_gravity = math::vec2(0.0f, -6000.0f);
-	main_state->entity_v_buf = &game_state->entity_v_buf;
 
 	main_state->current_location = LocationId_city;
 
@@ -483,8 +290,8 @@ void init_main_meta_state(GameState * game_state, MainMetaState * main_state) {
 	};
 
 	f32 location_max_z = location_z_offsets[0];
-	main_state->location_y_offset = (f32)game_state->ideal_window_height / (1.0f / (location_max_z + 1.0f));
-	main_state->ground_height = -(f32)game_state->ideal_window_height * 0.5f;
+	main_state->location_y_offset = (f32)screen_height / (1.0f / (location_max_z + 1.0f));
+	main_state->ground_height = -(f32)screen_height * 0.5f;
 
 	AssetId location_layer_ids[LocationId_count];
 	location_layer_ids[LocationId_city] = AssetId_city;
@@ -501,7 +308,7 @@ void init_main_meta_state(GameState * game_state, MainMetaState * main_state) {
 
 			entity->pos.y = main_state->location_y_offset * i;
 			entity->pos.z = location_z_offsets[layer_index];
-			entity->v_buf = &game_state->bg_v_buf;
+			entity->scrollable = true;
 
 			location->layers[layer_index] = entity;
 		}
@@ -574,7 +381,7 @@ void init_main_meta_state(GameState * game_state, MainMetaState * main_state) {
 
 	Player * player = &main_state->player;
 	player->e = push_entity(main_state, AssetId_dolly, 0, math::vec3(0.0f));
-	player->e->pos = math::vec3((f32)game_state->ideal_window_width * -0.25f, 0.0f, 0.0f);
+	player->e->pos = math::vec3((f32)screen_width * -0.25f, 0.0f, 0.0f);
 	player->e->initial_x = player->e->pos.x;
 	player->e->speed = math::vec2(50.0f, 6000.0f);
 	player->e->damp = 0.15f;
@@ -592,7 +399,7 @@ void init_main_meta_state(GameState * game_state, MainMetaState * main_state) {
 	
 	EntityEmitter * emitter = &main_state->entity_emitter;
 	Texture * emitter_sprite = get_sprite_asset(main_state->assets, AssetId_teacup, 0);
-	emitter->pos = math::vec3(game_state->ideal_window_width * 0.75f, 0.0f, 0.0f);
+	emitter->pos = math::vec3(screen_width * 0.75f, 0.0f, 0.0f);
 	emitter->time_until_next_spawn = 0.0f;
 	emitter->entity_count = 0;
 	for(u32 i = 0; i < ARRAY_COUNT(emitter->entity_array); i++) {
@@ -615,7 +422,7 @@ void init_main_meta_state(GameState * game_state, MainMetaState * main_state) {
 		Entity * entity = push_entity(main_state, asset_id, layer_index);
 		entity->pos.y = main_state->location_y_offset * i;
 		entity->pos.z = location_z_offsets[layer_index];
-		entity->v_buf = &game_state->bg_v_buf;
+		entity->scrollable = true;
 
 		location->layers[layer_index] = entity;
 	}
@@ -628,14 +435,21 @@ void init_main_meta_state(GameState * game_state, MainMetaState * main_state) {
 void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	ASSERT(sizeof(GameState) <= game_memory->size);
 	GameState * game_state = (GameState *)game_memory->ptr;
-	AssetState * assets = &game_state->assets;
 
 	if(!game_memory->initialized) {
 		game_memory->initialized = true;
 
 		game_state->memory_arena = create_memory_arena((u8 *)game_memory->ptr + sizeof(GameState), game_memory->size - sizeof(GameState));
 
-		load_assets(assets, &game_state->memory_arena);
+		load_assets(&game_state->assets, &game_state->memory_arena);
+		load_audio(&game_state->audio_state, &game_state->memory_arena, &game_state->assets, game_input->audio_supported);
+		load_render(&game_state->render_state, &game_state->memory_arena, &game_state->assets, game_input->back_buffer_width, game_input->back_buffer_height);
+
+		// audio_state->master_volume = 0.0f;
+
+		game_state->meta_state = MetaState_main;
+		game_state->main_state = allocate_main_meta_state(&game_state->memory_arena);
+		init_main_meta_state(game_state, game_state->main_state);
 
 		game_state->auto_save_time = 10.0f;
 		game_state->save.code = SAVE_FILE_CODE;
@@ -643,107 +457,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		game_state->save.plays = 0;
 		game_state->save.high_score = 0;
 
-		AudioState * audio_state = &game_state->audio_state;
-		load_audio(audio_state, &game_state->memory_arena, assets, game_input->audio_supported);
-		// audio_state->master_volume = 0.0f;
-
-		Shader * basic_shader = &game_state->basic_shader;
-		u32 basic_vert = gl::compile_shader_from_source(BASIC_VERT_SRC, GL_VERTEX_SHADER);
-		u32 basic_frag = gl::compile_shader_from_source(BASIC_FRAG_SRC, GL_FRAGMENT_SHADER);
-		basic_shader->id = gl::link_shader_program(basic_vert, basic_frag);
-		basic_shader->i_position = glGetAttribLocation(basic_shader->id, "i_position");
-		basic_shader->i_tex_coord = glGetAttribLocation(basic_shader->id, "i_tex_coord");
-		basic_shader->i_color = glGetAttribLocation(basic_shader->id, "i_color");
-		basic_shader->transform = glGetUniformLocation(basic_shader->id, "transform");
-		basic_shader->color = glGetUniformLocation(basic_shader->id, "color");
-		basic_shader->tex0 = glGetUniformLocation(basic_shader->id, "tex0");
-
-		Shader * post_shader = &game_state->post_shader;
-		u32 post_vert = gl::compile_shader_from_source(SCREEN_QUAD_VERT_SRC, GL_VERTEX_SHADER);
-		u32 post_frag = gl::compile_shader_from_source(POST_FILTER_FRAG_SRC, GL_FRAGMENT_SHADER);
-		post_shader->id = gl::link_shader_program(post_vert, post_frag);
-		post_shader->i_position = glGetAttribLocation(post_shader->id, "i_position");
-		post_shader->tex0 = glGetUniformLocation(post_shader->id, "tex0");
-		post_shader->tex0_dim = glGetUniformLocation(post_shader->id, "tex0_dim");
-		post_shader->pixelate_scale = glGetUniformLocation(post_shader->id, "pixelate_scale");
-		post_shader->fade_amount = glGetUniformLocation(post_shader->id, "fade_amount");
-
-		game_state->frame_buffer = gl::create_frame_buffer(game_input->back_buffer_width, game_input->back_buffer_height, false);
-
-		f32 screen_quad_verts[] = {
-			-1.0f,-1.0f,
-			 1.0f, 1.0f,
-			-1.0f, 1.0f,
-			-1.0f,-1.0f,
-			 1.0f,-1.0f,
-			 1.0f, 1.0f,
-		};
-
-		game_state->screen_quad_v_buf = gl::create_vertex_buffer(screen_quad_verts, ARRAY_COUNT(screen_quad_verts), 2, GL_STATIC_DRAW);
-
-		f32 quad_verts[] = {
-			-0.5f,-0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			 0.5f, 0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			-0.5f, 0.5f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			-0.5f,-0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			 0.5f,-0.5f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			 0.5f, 0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-		};
-
-		game_state->entity_v_buf = gl::create_vertex_buffer(quad_verts, ARRAY_COUNT(quad_verts), VERT_ELEM_COUNT, GL_STATIC_DRAW);
-
-		f32 bg_verts[] = {
-			-1.5f,-0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			-0.5f, 0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			-1.5f, 0.5f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			-1.5f,-0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			-0.5f,-0.5f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			-0.5f, 0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-
-			-0.5f,-0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			 0.5f, 0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			-0.5f, 0.5f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			-0.5f,-0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			 0.5f,-0.5f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			 0.5f, 0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-
-			 0.5f,-0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			 1.5f, 0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			 0.5f, 0.5f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			 0.5f,-0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			 1.5f,-0.5f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			 1.5f, 0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-		};
-
-		game_state->bg_v_buf = gl::create_vertex_buffer(bg_verts, ARRAY_COUNT(bg_verts), VERT_ELEM_COUNT, GL_STATIC_DRAW);
-
-		game_state->debug_font = allocate_font(&game_state->memory_arena, get_texture_asset(assets, AssetId_font, 0), 65536, game_input->back_buffer_width, game_input->back_buffer_height);
 		game_state->debug_str = allocate_str(&game_state->memory_arena, 1024);
 		game_state->str = allocate_str(&game_state->memory_arena, 128);
-
-		//TODO: Adjust these to actual aspect ratio?
-		game_state->ideal_window_width = 1280;
-		game_state->ideal_window_height = 720;
-
-		game_state->debug_batch = allocate_render_batch(&game_state->memory_arena, get_texture_asset(assets, AssetId_white, 0), 65536, RenderMode_lines);
-		game_state->debug_render_entity_bounds = false;
-
-		game_state->sprite_batch_count = get_asset_count(assets, AssetId_atlas);
-		game_state->sprite_batches = PUSH_ARRAY(&game_state->memory_arena, RenderBatch *, game_state->sprite_batch_count);
-		for(u32 i = 0; i < game_state->sprite_batch_count; i++) {
-			u32 batch_size = QUAD_ELEM_COUNT * 128;
-			game_state->sprite_batches[i] = allocate_render_batch(&game_state->memory_arena, get_texture_asset(assets, AssetId_atlas, i), batch_size);
-		}
-
-		game_state->camera.pos = math::vec2(0.0f);
-		game_state->camera.letterboxed_height = (f32)game_state->ideal_window_height;
-		game_state->pixelate_time = 0.0f;
-
-		game_state->meta_state = MetaState_main;
-		init_main_meta_state(game_state, &game_state->main_state);
-
-		glEnable(GL_CULL_FACE);
-		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	}
 
 	if(!game_state->save_file) {
@@ -772,29 +487,30 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		}
 	}
 
+	AssetState * assets = &game_state->assets;
+	AudioState * audio_state = &game_state->audio_state;
+	RenderState * render_state = &game_state->render_state;
+
 	str_clear(game_state->str);
-	str_print(game_state->str, "DOLLY DOLLY DOLLY DAYS!\nDT: %f\n\n", game_input->delta_time, game_state->main_state.d_time);
+	str_print(game_state->str, "DOLLY DOLLY DOLLY DAYS!\nDT: %f\n\n", game_input->delta_time);
 	str_print(game_state->str, "PLAYS: %u | HIGH_SCORE: %u | LONGEST_RUN: %f\n", game_state->save.plays, game_state->save.high_score, game_state->save.longest_run);
 
 	if(game_input->buttons[ButtonId_debug] & KEY_PRESSED) {
-		game_state->debug_render_entity_bounds = !game_state->debug_render_entity_bounds;
+		render_state->debug_render_entity_bounds = !render_state->debug_render_entity_bounds;
 	}
 
 	if(game_input->buttons[ButtonId_mute] & KEY_PRESSED) {
 		game_state->audio_state.master_volume = game_state->audio_state.master_volume > 0.0f ? 0.0f : 1.0f;
 	}
 
+	Camera * camera = &render_state->camera;
 
-	Camera * camera = &game_state->camera;
-
-	math::Mat4 projection_matrix = math::orthographic_projection((f32)game_state->ideal_window_width, (f32)game_state->ideal_window_height);
-
-	Shader * basic_shader = &game_state->basic_shader;
-	Shader * post_shader = &game_state->post_shader;
+	Shader * basic_shader = &render_state->basic_shader;
+	Shader * post_shader = &render_state->post_shader;
 
 	switch(game_state->meta_state) {
 		case MetaState_main: {
-			MainMetaState * main_state = &game_state->main_state;
+			MainMetaState * main_state = game_state->main_state;
 
 			Player * player = &main_state->player;
 
@@ -812,8 +528,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			}
 
 			f32 adjusted_dt = main_state->d_time * game_input->delta_time;
-
-			math::Vec2 half_window_dim = math::vec2(game_state->ideal_window_width, game_state->ideal_window_height) * 0.5f;
 
 			player->active_clone_count = 0;
 			for(i32 i = ARRAY_COUNT(player->clones) - 1; i >= 0; i--) {
@@ -904,19 +618,20 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				main_state->distance += adjusted_dt;
 			}
 			else {
-				if(player->e->pos.y <= camera->pos.y - game_state->ideal_window_height * 0.5f) {
+				if(player->e->pos.y <= camera->pos.y - main_state->render_state->screen_height * 0.5f) {
 					if(player->death_time < 1.0f) {
 						if(player->death_time == 0.0f) {
 							change_volume(main_state->music, math::vec2(0.0f), 1.0f);
 						}
 
 						player->death_time += game_input->delta_time;
-						game_state->fade_amount = player->death_time;
+						render_state->fade_amount = player->death_time;
 					}
 					else {
-						//TODO: Should we defer this??
 						game_state->meta_state = MetaState_gameover;
 						game_state->time_until_next_save = 0.0f;
+
+						render_state->fade_amount = 0.0f;
 					}
 				}
 			}
@@ -950,14 +665,14 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			camera->offset = (math::rand_vec2() * 2.0f - 1.0f) * math::max(main_state->d_time - 2.0f, 0.0f);
 
 			if(main_state->rocket_seq.playing) {
-				play_rocket_sequence(game_state, main_state, game_input->delta_time);
+				play_rocket_sequence(main_state, game_input->delta_time);
 			}
 
 			Location * current_location = main_state->locations + main_state->current_location;
 
 #if 1
-			camera->letterboxed_height = game_state->ideal_window_height - math::max(main_state->d_time - 1.0f, 0.0f) * 20.0f;
-			camera->letterboxed_height = math::max(camera->letterboxed_height, game_state->ideal_window_height / 3.0f);
+			render_state->letterboxed_height = render_state->screen_height - math::max(main_state->d_time - 1.0f, 0.0f) * 20.0f;
+			render_state->letterboxed_height = math::max(render_state->letterboxed_height, render_state->screen_height / 3.0f);
 #endif
 			camera->pos.x = 0.0f;
 			camera->pos.y = math::max(player->e->pos.y, 0.0f);
@@ -1010,7 +725,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				b32 destroy = false;
 
 				if(!entity->hit) {
-					if(move_entity(game_state, main_state, entity, game_input->delta_time)) {
+					if(move_entity(main_state, entity, game_input->delta_time)) {
 						destroy = true;
 					}
 				}
@@ -1053,7 +768,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 						}
 
 						case AssetId_rocket: {
-							begin_rocket_sequence(game_state, main_state);
+							begin_rocket_sequence(main_state);
 							break;
 						}
 
@@ -1078,7 +793,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			for(u32 i = 0; i < LocationId_count; i++) {
 				Location * location = main_state->locations + i;
 				for(u32 layer_index = 0; layer_index < ARRAY_COUNT(location->layers); layer_index++) {
-					move_entity(game_state, main_state, location->layers[layer_index], game_input->delta_time, true);
+					move_entity(main_state, location->layers[layer_index], game_input->delta_time);
 				}
 			}
 
@@ -1086,92 +801,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			game_state->save.longest_run = math::max(game_state->save.longest_run, main_state->distance);
 
 			str_print(game_state->str, "SPEED: %f | SCORE: %u | CLONES: %u\n", main_state->d_time, main_state->score, main_state->player.active_clone_count);
-
-			glBindFramebuffer(GL_FRAMEBUFFER, game_state->frame_buffer.id);
-			glViewport(0, 0, game_state->frame_buffer.width, game_state->frame_buffer.height);
-			glClear(GL_COLOR_BUFFER_BIT);
-
-			glEnable(GL_BLEND);
-			glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-
-			{
-				DEBUG_TIME_BLOCK();
-
-				math::Rec2 camera_bounds = math::rec2_pos_dim(math::vec2(0.0f), math::vec2((f32)game_state->ideal_window_width, camera->letterboxed_height));
-
-				u32 null_batch_index = U32_MAX;
-				u32 current_batch_index = null_batch_index;
-
-				//TODO: Sorting!!
-				for(u32 i = 0; i < main_state->entity_count; i++) {
-					Entity * entity = main_state->entity_array + i;
-
-					//TODO: Collapse this!!
-					math::Rec2 bounds = get_entity_render_bounds(assets, entity);
-					math::Vec2 pos = project_pos(camera, entity->pos + math::vec3(math::rec_pos(bounds), 0.0f));
-					math::Vec2 dim = math::rec_dim(bounds);
-
-					math::Vec4 color = entity->color;
-					color.rgb *= color.a;
-					
-					if(entity->asset_type == AssetType_texture) {
-						Texture * tex = get_texture_asset(assets, entity->asset_id, entity->asset_index);
-
-#if 1
-						//TODO: Remove epsilon!!
-						f32 epsilon = 0.1f;
-						if(math::rec_overlap(camera_bounds, math::rec2_pos_dim(pos, dim * 1.0f + epsilon))) {
-							if(current_batch_index != null_batch_index) {
-								render_and_clear_render_batch(game_state->sprite_batches[current_batch_index], basic_shader, &projection_matrix);
-								current_batch_index = null_batch_index;
-							}
-
-							math::Mat4 transform = projection_matrix * math::translate(pos.x, pos.y, 0.0f) * math::scale(dim.x, dim.y, 1.0f);
-							render_v_buf(entity->v_buf, RenderMode_triangles, basic_shader, &transform, tex, color);					
-						}
-#endif
-					}
-					else {
-						Texture * sprite = get_sprite_asset(assets, entity->asset_id, entity->asset_index);
-						ASSERT(sprite->atlas_index < game_state->sprite_batch_count);
-
-						if(math::rec_overlap(camera_bounds, math::rec2_pos_dim(pos, dim))) {
-							if(current_batch_index != null_batch_index) {
-								RenderBatch * current_batch = game_state->sprite_batches[current_batch_index];
-								if(current_batch_index != sprite->atlas_index || current_batch->e < current_batch->v_len) {
-									render_and_clear_render_batch(game_state->sprite_batches[current_batch_index], basic_shader, &projection_matrix);
-								}
-							}
-
-							current_batch_index = sprite->atlas_index;
-
-							RenderBatch * batch = game_state->sprite_batches[sprite->atlas_index];
-							render_sprite(batch, sprite, pos, dim, color);					
-						}
-					}
-				}
-				
-				for(u32 i = 0; i < game_state->sprite_batch_count; i++) {
-					render_and_clear_render_batch(game_state->sprite_batches[i], basic_shader, &projection_matrix);
-				}
-
-				if(game_state->debug_render_entity_bounds) {
-					for(u32 i = 0; i < main_state->entity_count; i++) {
-						Entity * entity = main_state->entity_array + i;
-
-						// math::Rec2 bounds = get_entity_render_bounds(assets, entity);
-						math::Rec2 bounds = math::rec_scale(entity->collider, entity->scale);
-						math::Vec2 pos = project_pos(camera, entity->pos + math::vec3(math::rec_pos(bounds), 0.0f));
-						bounds = math::rec2_pos_dim(pos, math::rec_dim(bounds));
-
-						render_quad_lines(game_state->debug_batch, &bounds, math::vec4(1.0f));
-					}
-
-					render_and_clear_render_batch(game_state->debug_batch, basic_shader, &projection_matrix);
-				}
-			}
-
-			glDisable(GL_BLEND);
 
 			break;
 		}
@@ -1181,107 +810,44 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				game_state->meta_state = MetaState_main;
 				game_state->save.plays++;
 
-				init_main_meta_state(game_state, &game_state->main_state);
-
-				game_state->fade_amount = 0.0f;
+				init_main_meta_state(game_state, game_state->main_state);
 			}
 
 			str_print(game_state->str, "\nGAMEOVER!\nPRESS SPACE TO RESTART\n");
 
-			glBindFramebuffer(GL_FRAMEBUFFER, game_state->frame_buffer.id);
-			glViewport(0, 0, game_state->frame_buffer.width, game_state->frame_buffer.height);
-			glClear(GL_COLOR_BUFFER_BIT);
-
-			glEnable(GL_BLEND);
-			glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-
-			glDisable(GL_BLEND);
-
 			break;
 		}
 
-		default: {
-			ASSERT(false);
-			break;
-		}
+		INVALID_CASE();
 	}
 
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glViewport(0, 0, game_input->back_buffer_width, game_input->back_buffer_height);
-	glClear(GL_COLOR_BUFFER_BIT);
+	Font * debug_font = render_state->debug_font;
+	debug_font->pos = debug_font->anchor;
 
-	{
-		gl::VertexBuffer * v_buf = &game_state->screen_quad_v_buf;
-
-		glUseProgram(post_shader->id);
-
-		glUniform2f(post_shader->tex0_dim, (f32)game_state->frame_buffer.width, (f32)game_state->frame_buffer.height);
-
-		f32 pixelate_time = game_state->pixelate_time;
-		f32 pixelate_scale = math::frac(pixelate_time);
-		if((u32)pixelate_time & 1) {
-			pixelate_scale = 1.0f - pixelate_scale;
-		}
-
-		pixelate_scale = 1.0f / math::pow(2.0f, (pixelate_scale * 8.0f));
-		glUniform1f(post_shader->pixelate_scale, pixelate_scale);
-
-		f32 fade_amount = math::clamp01(game_state->fade_amount);
-		glUniform1f(post_shader->fade_amount, fade_amount);
-
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, game_state->frame_buffer.texture_id);
-		glUniform1i(post_shader->tex0, 0);
-
-		glBindBuffer(GL_ARRAY_BUFFER, v_buf->id);
-
-		u32 stride = v_buf->vert_size * sizeof(f32);
-
-		glVertexAttribPointer(post_shader->i_position, 2, GL_FLOAT, 0, stride, 0);
-		glEnableVertexAttribArray(post_shader->i_position);
-
-		glDrawArrays(GL_TRIANGLES, 0, v_buf->vert_count);
-	}
-
-	{
-		Texture * tex = get_texture_asset(assets, AssetId_white, 0);
-
-		math::Vec2 dim = math::vec2(game_state->ideal_window_width, game_state->ideal_window_height);
-		math::Mat4 scale = math::scale(dim.x, dim.y, 1.0f);
-
-		f32 letterbox_pixels = (game_state->ideal_window_height - game_state->camera.letterboxed_height) * 0.5f;
-
-		math::Mat4 transform0 = projection_matrix * math::translate(0.0f, dim.y - letterbox_pixels, 0.0f) * scale;
-		render_v_buf(&game_state->entity_v_buf, RenderMode_triangles, basic_shader, &transform0, tex, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-
-		math::Mat4 transform1 = projection_matrix * math::translate(0.0f,-dim.y + letterbox_pixels, 0.0f) * scale;
-		render_v_buf(&game_state->entity_v_buf, RenderMode_triangles, basic_shader, &transform1, tex, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-	}
-
-	glViewport(0, 0, game_input->back_buffer_width, game_input->back_buffer_height);
-
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-
-	{
-		DEBUG_TIME_BLOCK();
-
-		Font * font = game_state->debug_font;
-		font->pos = font->anchor;
-
-		RenderBatch * batch = font->batch;
-
-		render_str(font, game_state->str);
-
-#if 0
-		render_str(font, game_state->debug_str);
+	push_str(debug_font, game_state->str);
+	push_c_str(debug_font, "\n");
+#if 1
+	push_str(debug_font, game_state->debug_str);
 #endif
 
-		render_and_clear_render_batch(batch, basic_shader, &font->projection_matrix);
+	begin_render(render_state);
 
+	switch(game_state->meta_state) {
+		case MetaState_main: {
+			render_entities(render_state, game_state->main_state->entity_array, game_state->main_state->entity_count);
+
+			break;
+		}
+
+		case MetaState_gameover: {
+
+			break;
+		}
+
+		INVALID_CASE();
 	}
 
-	glDisable(GL_BLEND);
+	end_render(render_state);
 }
 
 #if 0

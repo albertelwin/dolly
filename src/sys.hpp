@@ -35,6 +35,8 @@ void __assert_func(bool expression, char const * message) {
 }
 
 #define ASSERT(x) __ASSERT(x)
+#define INVALID_CASE() default: { ASSERT(!"Invalid case"); break; }
+
 #define ARRAY_COUNT(x) (sizeof((x)) / sizeof((x)[0]))
 
 #define KILOBYTES(x) (1024 * (x))

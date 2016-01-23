@@ -63,10 +63,7 @@ namespace gl {
 				break;
 			}
 
-			default: {
-				ASSERT("Invalid GL error code!");
-				break;
-			}
+			INVALID_CASE();
 		}
 
 		return (char *)str;
