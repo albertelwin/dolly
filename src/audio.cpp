@@ -47,6 +47,30 @@ AudioSource * play_audio_clip(AudioState * audio_state, AssetId clip_id, b32 loo
 	return play_audio_clip(audio_state, clip, loop);
 }
 
+void stop_audio_clip(AudioState * audio_state, AudioSource * source) {
+	//TODO: Remove audio source without iterating over entire list??
+	if(source) {
+		AudioSource ** source_ptr = &audio_state->sources;
+		while(*source_ptr) {
+			AudioSource * source_ = *source_ptr;
+
+			if(source == source_) {
+				*source_ptr = source->next;
+				source->next = audio_state->source_free_list;
+				audio_state->source_free_list = source_;
+
+				source = 0;
+				break;
+			}
+			else {
+				source_ptr = &source->next;
+			}
+		}
+
+		ASSERT(!source);
+	}	
+}
+
 void change_volume(AudioSource * source, math::Vec2 volume, f32 time_) {
 	if(source) {
 		math::Vec2 clamped_volume = math::clamp01(volume);

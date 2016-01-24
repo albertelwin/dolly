@@ -266,7 +266,11 @@ MemoryArena create_memory_arena(void * base_address, size_t size) {
 	return arena;
 }
 
-void clear_memory_arena(MemoryArena * arena) {
+void zero_memory_arena(MemoryArena * arena) {
+	for(u32 i = 0; i < arena->size; i++) {
+		arena->base_address[i] = 0;
+	}
+
 	arena->used = 0;
 }
 

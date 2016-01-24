@@ -256,11 +256,11 @@ MainMetaState * allocate_main_meta_state(MemoryArena * arena) {
 }
 
 void init_main_meta_state(GameState * game_state, MainMetaState * main_state) {
+	ASSERT(!main_state->music);
+
 	MemoryArena arena_ = main_state->arena;
-	AudioSource * music_ = main_state->music;
-
 	zero_memory(main_state, sizeof(MainMetaState));
-
+	zero_memory_arena(&arena_);
 	main_state->arena = arena_;
 
 	main_state->assets = &game_state->assets;
@@ -270,7 +270,7 @@ void init_main_meta_state(GameState * game_state, MainMetaState * main_state) {
 	u32 screen_width = main_state->render_state->screen_width;
 	u32 screen_height = main_state->render_state->screen_height;
 
-	main_state->music = !music_ ? play_audio_clip(main_state->audio_state, AssetId_music, true) : music_;
+	main_state->music = play_audio_clip(main_state->audio_state, AssetId_music, true);
 	change_volume(main_state->music, math::vec2(0.0f), 0.0f);
 	change_volume(main_state->music, math::vec2(1.0f), 1.0f);
 
@@ -451,14 +451,14 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		game_state->main_state = allocate_main_meta_state(&game_state->memory_arena);
 		init_main_meta_state(game_state, game_state->main_state);
 
-		game_state->auto_save_time = 10.0f;
+		game_state->auto_save_time = 5.0f;
 		game_state->save.code = SAVE_FILE_CODE;
 		game_state->save.version = SAVE_FILE_VERSION;
 		game_state->save.plays = 0;
 		game_state->save.high_score = 0;
 
 		game_state->debug_str = allocate_str(&game_state->memory_arena, 1024);
-		game_state->str = allocate_str(&game_state->memory_arena, 128);
+		game_state->str = allocate_str(&game_state->memory_arena, 256);
 	}
 
 	if(!game_state->save_file) {
@@ -516,7 +516,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 			if(!player->dead) {
 				main_state->d_time += 0.02f * game_input->delta_time;
-				main_state->d_time = math::clamp(main_state->d_time, 0.0f, 2.75f);
+				main_state->d_time = math::clamp(main_state->d_time, 0.0f, 2.0f);
 
 				f32 pitch = main_state->d_time;
 				if(main_state->d_time >= 1.0f) {
@@ -621,7 +621,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				if(player->e->pos.y <= camera->pos.y - main_state->render_state->screen_height * 0.5f) {
 					if(player->death_time < 1.0f) {
 						if(player->death_time == 0.0f) {
-							change_volume(main_state->music, math::vec2(0.0f), 1.0f);
+							change_volume(main_state->music, math::vec2(0.0f), 1.0f);							
 						}
 
 						player->death_time += game_input->delta_time;
@@ -632,6 +632,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 						game_state->time_until_next_save = 0.0f;
 
 						render_state->fade_amount = 0.0f;
+						stop_audio_clip(main_state->audio_state, main_state->music);
+						main_state->music = 0;
 					}
 				}
 			}
@@ -708,10 +710,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					entity->collider = get_entity_render_bounds(assets, entity);
 					if(entity->asset_id == AssetId_telly) {
 						entity->collider = math::rec_scale(entity->collider, 0.5f);
-					}
-
-					if(entity->asset_id == AssetId_dolly) {
-						entity->scale = 0.75f;
 					}
 
 					entity->hit = false;
@@ -800,7 +798,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			game_state->save.high_score = math::max(game_state->save.high_score, main_state->score);
 			game_state->save.longest_run = math::max(game_state->save.longest_run, main_state->distance);
 
-			str_print(game_state->str, "SPEED: %f | SCORE: %u | CLONES: %u\n", main_state->d_time, main_state->score, main_state->player.active_clone_count);
+			str_print(game_state->str, "SPEED: %f | SCORE: %u | CLONES: %u\n\n", main_state->d_time, main_state->score, main_state->player.active_clone_count);
 
 			break;
 		}
@@ -813,7 +811,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				init_main_meta_state(game_state, game_state->main_state);
 			}
 
-			str_print(game_state->str, "\nGAMEOVER!\nPRESS SPACE TO RESTART\n");
+			str_print(game_state->str, "\nGAMEOVER!\nPRESS SPACE TO RESTART\n\n");
 
 			break;
 		}
@@ -825,8 +823,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	debug_font->pos = debug_font->anchor;
 
 	push_str(debug_font, game_state->str);
-	push_c_str(debug_font, "\n");
-#if 1
+#if 0
 	push_str(debug_font, game_state->debug_str);
 #endif
 
