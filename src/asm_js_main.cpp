@@ -200,6 +200,10 @@ void main_loop(void * user_ptr) {
 }
 
 int main() {
+	for(u32 i = 0; i < 50; i++) {
+		std::printf("LOG: %u, %u\n", i, ALIGN4(i));
+	}
+
 	ASSERT(SDL_Init(SDL_INIT_VIDEO) == 0);
 
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 0);

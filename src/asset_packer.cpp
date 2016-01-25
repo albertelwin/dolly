@@ -286,7 +286,7 @@ void push_packed_texture(AssetPacker * packer, AssetFile * files, u32 file_count
 
 	u32 atlas_index = packer->atlas_count++;
 	TextureAtlas * atlas = packer->atlases + atlas_index;
-	atlas->tex = allocate_texture(512, 512, AssetId_atlas);
+	atlas->tex = allocate_texture(1024, 1024, AssetId_atlas);
 
 	f32 r_tex_size = 1.0f / (f32)atlas->tex.width;
 
@@ -379,6 +379,7 @@ int main() {
 		{ AssetId_smiley, "smiley.png" },
 		{ AssetId_rocket, "rocket.png" },
 		{ AssetId_large_rocket, "large_rocket.png" },
+		{ AssetId_car, "car.png" },
 	};
 
 	push_packed_texture(&packer, sprite_files, ARRAY_COUNT(sprite_files));
@@ -416,6 +417,14 @@ int main() {
 		load_audio_clip("explosion0.wav", AssetId_explosion),
 		load_audio_clip("explosion1.wav", AssetId_explosion),
 		load_audio_clip("music.wav", AssetId_music),
+
+		load_audio_clip("baa0.wav", AssetId_baa),
+		load_audio_clip("baa1.wav", AssetId_baa),
+		load_audio_clip("baa2.wav", AssetId_baa),
+		load_audio_clip("baa3.wav", AssetId_baa),
+		load_audio_clip("baa4.wav", AssetId_baa),
+		load_audio_clip("baa5.wav", AssetId_baa),
+		load_audio_clip("baa6.wav", AssetId_baa),
 	};
 
 	packer.header.asset_count += ARRAY_COUNT(clips);

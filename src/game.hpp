@@ -46,6 +46,11 @@ struct Entity {
 	b32 hidden;
 };
 
+struct EntityArray {
+	u32 count;
+	Entity elems[256];
+};
+
 struct Player {
 	Entity * e;
 
@@ -124,26 +129,25 @@ struct SaveFileHeader {
 };
 #pragma pack(pop)
 
-enum MetaState {
-	MetaState_main,
-	MetaState_gameover,
+enum MetaStateType {
+	MetaStateType_menu,
+	MetaStateType_main,
+	MetaStateType_game_over,
 
-	MetaState_count,
+	MetaStateType_count,
+	MetaStateType_null = MetaStateType_count,
+};
+
+struct MenuMetaState {
+	
 };
 
 struct MainMetaState {
-	MemoryArena arena;
-	AssetState * assets;
-	AudioState * audio_state;
-	RenderState * render_state;
-
 	AudioSource * music;
 
 	Camera * camera;
 
-	u32 entity_count;
-	Entity entity_array[256];
-	gl::VertexBuffer * entity_v_buf;
+	EntityArray entities;
 	math::Vec2 entity_gravity;
 
 	LocationId current_location;
@@ -160,6 +164,24 @@ struct MainMetaState {
 	f32 d_time;
 	u32 score;
 	f32 distance;
+};
+
+struct GameOverMetaState {
+	EntityArray entities;
+};
+
+struct MetaState {
+	MemoryArena arena;
+	AssetState * assets;
+	AudioState * audio_state;
+	RenderState * render_state;
+
+	MetaStateType type;
+	union {
+		MenuMetaState * menu;
+		MainMetaState * main;
+		GameOverMetaState * game_over;
+	};
 };
 
 struct GameMemory {
@@ -191,8 +213,8 @@ struct GameState {
 	AudioState audio_state;
 	RenderState render_state;
 
-	MetaState meta_state;
-	MainMetaState * main_state;
+	MetaStateType meta_state;
+	MetaState * meta_states[MetaStateType_count];
 
 	PlatformAsyncFile * save_file;
 	SaveFileHeader save;

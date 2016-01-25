@@ -44,6 +44,11 @@ void __assert_func(bool expression, char const * message) {
 #define GIGABYTES(x) (1024 * MEGABYTES(x))
 #define TERABYTES(x) (1024 * GIGABYTES(x))
 
+#define ALIGN(x, y) (((x) + ((y) - 1)) & ~((y) - 1))
+#define ALIGN4(x) ALIGN(x, 4)
+#define ALIGN8(x) ALIGN(x, 8)
+#define ALIGN16(x) ALIGN(x, 16)
+
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 
@@ -267,16 +272,15 @@ MemoryArena create_memory_arena(void * base_address, size_t size) {
 }
 
 void zero_memory_arena(MemoryArena * arena) {
-	for(u32 i = 0; i < arena->size; i++) {
+	arena->used = 0;
+	for(size_t i = 0; i < arena->size; i++) {
 		arena->base_address[i] = 0;
 	}
-
-	arena->used = 0;
 }
 
 void zero_memory(void * ptr, size_t size) {
 	u8 * ptr_u8 = (u8 *)ptr;
-	for(u32 i = 0; i < size; i++) {
+	for(size_t i = 0; i < size; i++) {
 		ptr_u8[i] = 0;
 	}
 }
@@ -284,7 +288,7 @@ void zero_memory(void * ptr, size_t size) {
 void copy_memory(void * dst, void * src, size_t size) {
 	u8 * dst_u8 = (u8 *)dst;
 	u8 * src_u8 = (u8 *)src;
-	for(u32 i = 0; i < size; i++) {
+	for(size_t i = 0; i < size; i++) {
 		dst_u8[i] = src_u8[i];
 	}
 }
@@ -293,18 +297,21 @@ void copy_memory(void * dst, void * src, size_t size) {
 #define PUSH_ARRAY(arena, type, length) (type *)push_memory_(arena, sizeof(type) * (length))
 #define PUSH_MEMORY(arena, type, size) (type *)push_memory_(arena, size)
 void * push_memory_(MemoryArena * arena, size_t size) {
-	ASSERT((arena->used + size) <= arena->size);
+	size_t aligned_size = ALIGN16(size);
+	ASSERT((arena->used + aligned_size) <= arena->size);
 	
 	void * ptr = arena->base_address + arena->used;
-	arena->used += size;
+	arena->used += aligned_size;
 	return ptr;
 }
 
 MemoryArena allocate_sub_arena(MemoryArena * arena, size_t size) {
+	size_t aligned_size = ALIGN16(size);
+
 	MemoryArena sub_arena = {};
-	sub_arena.size = size;
+	sub_arena.size = aligned_size;
 	sub_arena.used = 0;
-	sub_arena.base_address = PUSH_MEMORY(arena, u8, size);
+	sub_arena.base_address = PUSH_MEMORY(arena, u8, aligned_size);
 	return sub_arena;
 }
 

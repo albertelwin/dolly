@@ -39,6 +39,7 @@ enum AssetId {
 	AssetId_smiley,
 	AssetId_rocket,
 	AssetId_large_rocket,
+	AssetId_car,
 
 	//NOTE: Audio
 	AssetId_sin_440,
@@ -46,6 +47,7 @@ enum AssetId {
 	AssetId_woosh,
 	AssetId_pickup,
 	AssetId_explosion,
+	AssetId_baa,
 	AssetId_music,
 
 	AssetId_count,
