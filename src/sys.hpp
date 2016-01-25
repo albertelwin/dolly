@@ -297,9 +297,6 @@ void * push_memory_(MemoryArena * arena, size_t size) {
 	
 	void * ptr = arena->base_address + arena->used;
 	arena->used += size;
-
-	std::printf("LOG: used: %u\n", arena->used);
-
 	return ptr;
 }
 

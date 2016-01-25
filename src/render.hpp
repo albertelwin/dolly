@@ -6,6 +6,7 @@
 
 #define VERT_ELEM_COUNT 8
 #define QUAD_ELEM_COUNT (VERT_ELEM_COUNT * 6)
+#define QUAD_LINES_ELEM_COUNT (VERT_ELEM_COUNT * 8)
 
 //TODO: Automatically generate these structs for shaders!!
 struct Shader {
@@ -90,11 +91,7 @@ struct RenderState {
 	Font * debug_font;
 
 	b32 debug_render_entity_bounds;
-	RenderBatch * debug_batch;
-
-	//TODO: Do we need multiple batches?? We only use one at a time anyway!
-	u32 sprite_batch_count;
-	RenderBatch ** sprite_batches;
+	RenderBatch * render_batch;
 };
 
 #endif

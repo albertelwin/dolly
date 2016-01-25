@@ -54,6 +54,7 @@ Font * allocate_font(RenderState * render_state, Texture * tex, u32 v_len) {
 }
 
 void push_quad(RenderBatch * batch, math::Vec2 pos0, math::Vec2 pos1, math::Vec2 uv0, math::Vec2 uv1, math::Vec4 color) {
+	ASSERT(batch->v_len >= QUAD_ELEM_COUNT);
 	ASSERT(batch->e <= (batch->v_len - QUAD_ELEM_COUNT));
 	f32 * v = batch->v_arr;
 
@@ -77,7 +78,8 @@ void push_quad(RenderBatch * batch, math::Vec2 pos0, math::Vec2 pos1, math::Vec2
 }
 
 void push_quad_lines(RenderBatch * batch, math::Rec2 * rec, math::Vec4 color) {
-	ASSERT(batch->e <= (batch->v_len - QUAD_ELEM_COUNT));
+	ASSERT(batch->v_len >= QUAD_LINES_ELEM_COUNT);
+	ASSERT(batch->e <= (batch->v_len - QUAD_LINES_ELEM_COUNT));
 	f32 * v = batch->v_arr;
 
 	math::Vec2 pos0 = rec->min;
@@ -195,12 +197,10 @@ void render_and_clear_render_batch(RenderBatch * batch, Shader * shader, math::M
 	DEBUG_TIME_BLOCK();
 
 	if(batch->e > 0) {
-		for(u32 i = batch->e; i < batch->v_len; i++) {
-			batch->v_arr[i] = 0.0f;
-		}
-
 		glBindBuffer(GL_ARRAY_BUFFER, batch->v_buf.id);
 		glBufferSubData(GL_ARRAY_BUFFER, 0, batch->v_buf.size_in_bytes, batch->v_arr);
+		//TODO: This is a bit ugly!!
+		batch->v_buf.vert_count = batch->e / VERT_ELEM_COUNT;
 
 		render_v_buf(&batch->v_buf, batch->mode, shader, transform, batch->tex);
 
@@ -293,15 +293,9 @@ void load_render(RenderState * render_state, MemoryArena * arena, AssetState * a
 
 	render_state->debug_font = allocate_font(render_state, get_texture_asset(assets, AssetId_font, 0), 65536);
 
-	render_state->debug_batch = allocate_render_batch(render_state->arena, get_texture_asset(assets, AssetId_white, 0), 65536, RenderMode_lines);
 	render_state->debug_render_entity_bounds = false;
 
-	render_state->sprite_batch_count = get_asset_count(assets, AssetId_atlas);
-	render_state->sprite_batches = PUSH_ARRAY(render_state->arena, RenderBatch *, render_state->sprite_batch_count);
-	for(u32 i = 0; i < render_state->sprite_batch_count; i++) {
-		u32 batch_size = QUAD_ELEM_COUNT * 128;
-		render_state->sprite_batches[i] = allocate_render_batch(render_state->arena, get_texture_asset(assets, AssetId_atlas, i), batch_size);
-	}
+	render_state->render_batch = allocate_render_batch(render_state->arena, get_texture_asset(assets, AssetId_white, 0), QUAD_ELEM_COUNT * 512);
 
 	glEnable(GL_CULL_FACE);
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -357,13 +351,12 @@ void end_render(RenderState * render_state) {
 		glDrawArrays(GL_TRIANGLES, 0, v_buf->vert_count);		
 	}
 
-	{
+	f32 letterbox_pixels = (render_state->screen_height - render_state->letterboxed_height) * 0.5f;
+	if(letterbox_pixels > 0.0f) {
 		Texture * white_tex = get_texture_asset(render_state->assets, AssetId_white, 0);
 
 		math::Vec2 dim = math::vec2(render_state->screen_width, render_state->screen_height);
 		math::Mat4 scale = math::scale(dim.x, dim.y, 1.0f);
-
-		f32 letterbox_pixels = (render_state->screen_height - render_state->letterboxed_height) * 0.5f;
 
 		math::Mat4 transform0 = render_state->projection * math::translate(0.0f, dim.y - letterbox_pixels, 0.0f) * scale;
 		render_v_buf(&render_state->quad_v_buf, RenderMode_triangles, basic_shader, &transform0, white_tex, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
@@ -383,8 +376,11 @@ void render_entities(RenderState * render_state, Entity * entities, u32 entity_c
 
 	math::Rec2 screen_bounds = math::rec2_pos_dim(math::vec2(0.0f), math::vec2((f32)render_state->screen_width, render_state->letterboxed_height));
 
-	u32 null_batch_index = U32_MAX;
-	u32 current_batch_index = null_batch_index;
+	u32 null_atlas_index = U32_MAX;
+	u32 current_atlas_index = null_atlas_index;
+	RenderBatch * render_batch = render_state->render_batch;
+	ASSERT(!render_batch->e);
+	render_batch->mode = RenderMode_triangles;
 
 	Shader * basic_shader = &render_state->basic_shader;
 
@@ -408,9 +404,9 @@ void render_entities(RenderState * render_state, Entity * entities, u32 entity_c
 			//TODO: Remove epsilon!!
 			f32 epsilon = 0.1f;
 			if(math::rec_overlap(screen_bounds, math::rec2_pos_dim(pos, dim * 1.0f + epsilon))) {
-				if(current_batch_index != null_batch_index) {
-					render_and_clear_render_batch(render_state->sprite_batches[current_batch_index], basic_shader, &render_state->projection);
-					current_batch_index = null_batch_index;
+				if(current_atlas_index != null_atlas_index) {
+					render_and_clear_render_batch(render_batch, basic_shader, &render_state->projection);
+					current_atlas_index = null_atlas_index;
 				}
 
 				math::Mat4 transform = render_state->projection * math::translate(pos.x, pos.y, 0.0f) * math::scale(dim.x, dim.y, 1.0f);
@@ -419,29 +415,29 @@ void render_entities(RenderState * render_state, Entity * entities, u32 entity_c
 		}
 		else {
 			Texture * sprite = &asset->sprite;
-			ASSERT(sprite->atlas_index < render_state->sprite_batch_count);
 
 			if(math::rec_overlap(screen_bounds, math::rec2_pos_dim(pos, dim))) {
-				if(current_batch_index != null_batch_index) {
-					RenderBatch * current_batch = render_state->sprite_batches[current_batch_index];
-					if(current_batch_index != sprite->atlas_index || current_batch->e >= current_batch->v_len) {
-						render_and_clear_render_batch(render_state->sprite_batches[current_batch_index], basic_shader, &render_state->projection);
-					}
+				u32 elems_remaining = render_batch->v_len - render_batch->e;
+				if(current_atlas_index != sprite->atlas_index || elems_remaining < QUAD_ELEM_COUNT) {
+					render_and_clear_render_batch(render_state->render_batch, basic_shader, &render_state->projection);
+
+					current_atlas_index = sprite->atlas_index;
+					render_batch->tex = get_texture_asset(render_state->assets, AssetId_atlas, sprite->atlas_index);
 				}
 
-				current_batch_index = sprite->atlas_index;
-
-				RenderBatch * batch = render_state->sprite_batches[sprite->atlas_index];
-				push_sprite(batch, sprite, pos, dim, color);
+				push_sprite(render_batch, sprite, pos, dim, color);
 			}
 		}
 	}
-	
-	for(u32 i = 0; i < render_state->sprite_batch_count; i++) {
-		render_and_clear_render_batch(render_state->sprite_batches[i], basic_shader, &render_state->projection);
-	}
 
+	if(current_atlas_index != null_atlas_index) {
+		render_and_clear_render_batch(render_batch, basic_shader, &render_state->projection);
+	}
+	
 	if(render_state->debug_render_entity_bounds) {
+		render_batch->tex = get_texture_asset(render_state->assets, AssetId_white, 0);
+		render_batch->mode = RenderMode_lines;
+
 		for(u32 i = 0; i < entity_count; i++) {
 			Entity * entity = entities + i;
 
@@ -450,9 +446,14 @@ void render_entities(RenderState * render_state, Entity * entities, u32 entity_c
 			math::Vec2 pos = project_pos(&render_state->camera, entity->pos + math::vec3(math::rec_pos(bounds), 0.0f));
 			bounds = math::rec2_pos_dim(pos, math::rec_dim(bounds));
 
-			push_quad_lines(render_state->debug_batch, &bounds, math::vec4(1.0f));
+			u32 elems_remaining = render_batch->v_len - render_batch->e;
+			if(elems_remaining < QUAD_LINES_ELEM_COUNT) {
+				render_and_clear_render_batch(render_batch, basic_shader, &render_state->projection);
+			}
+
+			push_quad_lines(render_batch, &bounds, math::vec4(1.0f));
 		}
 
-		render_and_clear_render_batch(render_state->debug_batch, basic_shader, &render_state->projection);
+		render_and_clear_render_batch(render_batch, basic_shader, &render_state->projection);
 	}
 }

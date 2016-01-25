@@ -804,6 +804,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		}
 
 		case MetaState_gameover: {
+			render_state->letterboxed_height = render_state->screen_height;
+
 			if(game_input->buttons[ButtonId_start] & KEY_PRESSED) {
 				game_state->meta_state = MetaState_main;
 				game_state->save.plays++;
