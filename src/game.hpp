@@ -201,7 +201,7 @@ struct GameInput {
 	f32 total_time;
 
 	math::Vec2 mouse_pos;
-	math::Vec2 mouse_delta;
+	u8 mouse_button;
 
 	u8 buttons[ButtonId_count];
 };

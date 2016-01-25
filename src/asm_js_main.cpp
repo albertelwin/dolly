@@ -130,6 +130,14 @@ void main_loop(void * user_ptr) {
 		args->game_input.delta_time = (f32)(delta_time / 1000.0);
 		args->game_input.total_time += args->game_input.delta_time;
 
+		{
+			u8 val = args->game_input.mouse_button;
+			val &= ~(1 << KEY_PRESSED_BIT);
+			val &= ~(1 << KEY_RELEASED_BIT);
+
+			args->game_input.mouse_button = val;
+		}
+
 		for(u32 i = 0; i < ButtonId_count; i++) {
 			u8 val = args->game_input.buttons[i];
 			val &= ~(1 << KEY_PRESSED_BIT);
@@ -145,7 +153,6 @@ void main_loop(void * user_ptr) {
 		SDL_GetMouseState(&mouse_x, &mouse_y);
 
 		math::Vec2 mouse_pos = math::vec2((f32)mouse_x, (f32)mouse_y);
-		args->game_input.mouse_delta = mouse_pos - args->game_input.mouse_pos;
 		args->game_input.mouse_pos = mouse_pos;
 
 		SDL_Event event;
@@ -184,6 +191,30 @@ void main_loop(void * user_ptr) {
 
 					break;
 				}
+
+				case SDL_MOUSEBUTTONDOWN: {
+					if(event.button.button == SDL_BUTTON_LEFT) {
+						u8 val = args->game_input.mouse_button;
+						val |= ((!(val & KEY_DOWN)) << KEY_PRESSED_BIT);
+						val |= (1 << KEY_DOWN_BIT);
+
+						args->game_input.mouse_button = val;
+					}
+
+					break;
+				}
+
+				case SDL_MOUSEBUTTONUP: {
+					if(event.button.button == SDL_BUTTON_LEFT) {
+						u8 val = args->game_input.mouse_button;
+						val |= ((val & KEY_DOWN) << KEY_RELEASED_BIT);
+						val &= ~(1 << KEY_DOWN_BIT);
+
+						args->game_input.mouse_button = val;
+					}
+
+					break;
+				}
 			}
 		}
 
@@ -200,10 +231,6 @@ void main_loop(void * user_ptr) {
 }
 
 int main() {
-	for(u32 i = 0; i < 50; i++) {
-		std::printf("LOG: %u, %u\n", i, ALIGN4(i));
-	}
-
 	ASSERT(SDL_Init(SDL_INIT_VIDEO) == 0);
 
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 0);

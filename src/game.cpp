@@ -608,7 +608,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			MetaState * meta_state = get_meta_state(game_state, MetaStateType_menu);
 			MenuMetaState * menu_state = meta_state->menu;
 
-			if(game_input->buttons[ButtonId_start] & KEY_PRESSED) {
+			if(game_input->buttons[ButtonId_start] & KEY_PRESSED || game_input->mouse_button & KEY_PRESSED) {
 				change_meta_state(game_state, MetaStateType_main);
 			}
 
@@ -926,7 +926,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			render_state->fade_amount -= game_input->delta_time;
 			render_state->fade_amount = math::clamp01(render_state->fade_amount);
 
-			if(game_input->buttons[ButtonId_start] & KEY_PRESSED) {
+			if(game_input->buttons[ButtonId_start] & KEY_PRESSED || game_input->mouse_button & KEY_PRESSED) {
 				render_state->fade_amount = 0.0f;
 				game_state->save.plays++;
 
