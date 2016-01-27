@@ -41,6 +41,7 @@ struct Entity {
 	//TODO: Initial pos!!
 	f32 initial_x;
 	b32 hit;
+	f32 hit_time;
 
 	math::Vec2 chain_pos;
 	b32 hidden;
@@ -106,7 +107,7 @@ enum ButtonId {
 	ButtonId_up,
 	ButtonId_down,
 
-	//TODO: Temp!!
+	ButtonId_quit,
 	ButtonId_mute,
 
 	ButtonId_debug,
@@ -139,7 +140,11 @@ enum MetaStateType {
 };
 
 struct MenuMetaState {
-	
+	EntityArray entities;
+
+	Entity * play;
+	Entity * score;
+	Entity * credits;
 };
 
 struct MainMetaState {
@@ -164,9 +169,14 @@ struct MainMetaState {
 	f32 d_time;
 	u32 score;
 	f32 distance;
+
+	f32 ref_mouse_y;
+	f32 ref_mouse_dir;
 };
 
 struct GameOverMetaState {
+	AudioSource * music;
+
 	EntityArray entities;
 };
 
@@ -201,6 +211,7 @@ struct GameInput {
 	f32 total_time;
 
 	math::Vec2 mouse_pos;
+	math::Vec2 last_mouse_pos;
 	u8 mouse_button;
 
 	u8 buttons[ButtonId_count];
@@ -215,6 +226,9 @@ struct GameState {
 
 	MetaStateType meta_state;
 	MetaState * meta_states[MetaStateType_count];
+
+	b32 transitioning;
+	b32 transition_flip;
 
 	PlatformAsyncFile * save_file;
 	SaveFileHeader save;

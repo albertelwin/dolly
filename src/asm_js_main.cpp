@@ -108,6 +108,13 @@ void audio_callback(void * user_ptr, u8 * buffer_ptr, i32 buffer_size) {
 	game_sample(&args->game_memory, (i16 *)buffer_ptr, (u32)buffer_size / (args->bytes_per_sample * args->channels), args->samples_per_second);
 }
 
+math::Vec2 get_mouse_pos() {
+	i32 mouse_x;
+	i32 mouse_y;
+	SDL_GetMouseState(&mouse_x, &mouse_y);
+	return math::vec2(mouse_x, mouse_y);
+}
+
 void main_loop(void * user_ptr) {
 	MainLoopArgs * args = (MainLoopArgs *)user_ptr;
 	if(!args->page_hidden) {
@@ -148,21 +155,20 @@ void main_loop(void * user_ptr) {
 
 		SDL_PumpEvents();
 
-		i32 mouse_x;
-		i32 mouse_y;
-		SDL_GetMouseState(&mouse_x, &mouse_y);
-
-		math::Vec2 mouse_pos = math::vec2((f32)mouse_x, (f32)mouse_y);
+		math::Vec2 mouse_pos = get_mouse_pos();
+		args->game_input.last_mouse_pos = args->game_input.mouse_pos;
 		args->game_input.mouse_pos = mouse_pos;
 
 		SDL_Event event;
 		while(SDL_PollEvent(&event)) {
 			switch(event.type) {
 				case SDL_KEYDOWN: {
+#if 0
 					if(event.key.keysym.sym == SDLK_ESCAPE) {
 						web_audio_close();
 						emscripten_cancel_main_loop();
 					}
+#endif
 
 					for(u32 i = 0; i < ButtonId_count; i++) {
 						if(event.key.keysym.sym == args->game_button_to_key_map[i]) {
@@ -268,6 +274,7 @@ int main() {
 	args.game_button_to_key_map[ButtonId_up] = SDLK_UP;
 	args.game_button_to_key_map[ButtonId_down] = SDLK_DOWN;
 
+	args.game_button_to_key_map[ButtonId_quit] = SDLK_ESCAPE;
 	args.game_button_to_key_map[ButtonId_mute] = SDLK_RETURN;
 
 	args.game_button_to_key_map[ButtonId_debug] = SDLK_0;
@@ -275,6 +282,10 @@ int main() {
 	for(u32 i = 0; i < ButtonId_count; i++) {
 		ASSERT(args.game_button_to_key_map[i] != null_key_code);
 	}
+
+	math::Vec2 mouse_pos = get_mouse_pos();
+	args.game_input.last_mouse_pos = mouse_pos;
+	args.game_input.mouse_pos = mouse_pos;
 	
 	args.bytes_per_sample = sizeof(i16);
 	args.channels = 2;

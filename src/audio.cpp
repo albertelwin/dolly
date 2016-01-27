@@ -50,24 +50,26 @@ AudioSource * play_audio_clip(AudioState * audio_state, AssetId clip_id, b32 loo
 void stop_audio_clip(AudioState * audio_state, AudioSource * source) {
 	//TODO: Remove audio source without iterating over entire list??
 	if(source) {
+		b32 deleted = false;
+
 		AudioSource ** source_ptr = &audio_state->sources;
 		while(*source_ptr) {
-			AudioSource * source_ = *source_ptr;
+			AudioSource * source_it = *source_ptr;
 
-			if(source == source_) {
-				*source_ptr = source->next;
-				source->next = audio_state->source_free_list;
-				audio_state->source_free_list = source_;
+			if(source_it == source) {
+				*source_ptr = source_it->next;
+				source_it->next = audio_state->source_free_list;
+				audio_state->source_free_list = source_it;
 
-				source = 0;
+				deleted = true;
 				break;
 			}
 			else {
-				source_ptr = &source->next;
+				source_ptr = &source_it->next;
 			}
 		}
 
-		ASSERT(!source);
+		ASSERT(deleted);
 	}	
 }
 

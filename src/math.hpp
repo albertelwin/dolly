@@ -799,6 +799,10 @@ namespace math {
 		return ((r0.min.x < r1.min.x && r0.max.x > r1.min.x) || (r0.min.x >= r1.min.x && r0.min.x < r1.max.x)) && ((r0.min.y < r1.min.y && r0.max.y > r1.min.y) || (r0.min.y >= r1.min.y && r0.min.y < r1.max.y));
 	}
 
+	b32 inside_rec(Rec2 const & r, math::Vec2 const v) {
+		return (v.x >= r.min.x && v.x < r.max.x && v.y >= r.min.y && v.y < r.max.y);
+	}
+
 	struct Ray {
 		Vec3 o;
 		Vec3 d;

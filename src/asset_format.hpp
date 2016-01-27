@@ -28,7 +28,6 @@ enum AssetId {
 
 	AssetId_city,
 	AssetId_space,
-	AssetId_clouds,
 
 	AssetId_atlas,
 
@@ -41,14 +40,17 @@ enum AssetId {
 	AssetId_large_rocket,
 	AssetId_car,
 
+	AssetId_menu_credits,
+	AssetId_menu_play,
+	AssetId_menu_score,
+
 	//NOTE: Audio
-	AssetId_sin_440,
-	AssetId_beep,
-	AssetId_woosh,
+	// AssetId_sin_440,
 	AssetId_pickup,
 	AssetId_explosion,
 	AssetId_baa,
 	AssetId_music,
+	AssetId_death_music,
 
 	AssetId_count,
 };

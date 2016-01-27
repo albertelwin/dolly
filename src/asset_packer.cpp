@@ -286,7 +286,7 @@ void push_packed_texture(AssetPacker * packer, AssetFile * files, u32 file_count
 
 	u32 atlas_index = packer->atlas_count++;
 	TextureAtlas * atlas = packer->atlases + atlas_index;
-	atlas->tex = allocate_texture(1024, 1024, AssetId_atlas);
+	atlas->tex = allocate_texture(2048, 2048, AssetId_atlas);
 
 	f32 r_tex_size = 1.0f / (f32)atlas->tex.width;
 
@@ -365,25 +365,26 @@ int main() {
 	AssetPacker packer = {};
 
 	AssetFile sprite_files[] = {
-		{ AssetId_dolly, "dolly.png" },
-		{ AssetId_dolly, "dolly0.png" },
-		{ AssetId_dolly, "dolly1.png" },
-		{ AssetId_dolly, "dolly2.png" },
-		{ AssetId_dolly, "dolly3.png" },
-		{ AssetId_dolly, "dolly4.png" },
-		{ AssetId_dolly, "dolly5.png" },
-		{ AssetId_dolly, "dolly6.png" },
-		{ AssetId_dolly, "dolly7.png" },
-
 		{ AssetId_teacup, "teacup.png" },
 		{ AssetId_smiley, "smiley.png" },
 		{ AssetId_rocket, "rocket.png" },
 		{ AssetId_large_rocket, "large_rocket.png" },
 		{ AssetId_car, "car.png" },
 	};
-
 	push_packed_texture(&packer, sprite_files, ARRAY_COUNT(sprite_files));
+
+	AssetFile menu_sprite_files[] = {
+		{ AssetId_menu_credits, "menu_credits0.png" },
+		{ AssetId_menu_credits, "menu_credits1.png" },
+		{ AssetId_menu_play, "menu_play0.png" },
+		{ AssetId_menu_play, "menu_play1.png" },
+		{ AssetId_menu_score, "menu_score0.png" },
+		{ AssetId_menu_score, "menu_score1.png" },
+	};
+	push_packed_texture(&packer, menu_sprite_files, ARRAY_COUNT(menu_sprite_files));
+
 	push_sprite_sheet(&packer, "telly_sheet.png", AssetId_telly, 192, 192, 39);
+	push_sprite_sheet(&packer, "dolly_run.png", AssetId_dolly, 97, 80, 15);
 
 	Texture reg_tex_array[] = {
 		load_texture("white.png", AssetId_white),
@@ -401,23 +402,18 @@ int main() {
 		load_texture("space_layer2.png", AssetId_space),
 		load_texture("space_layer3.png", AssetId_space),
 		load_texture("space_layer4.png", AssetId_space),
-
-		load_texture("clouds.png", AssetId_clouds),
 	};
 
 	packer.header.asset_count += ARRAY_COUNT(reg_tex_array);
 
 	AudioClip clips[] = {
-		load_audio_clip("sin_440.wav", AssetId_sin_440),
-		load_audio_clip("woosh.wav", AssetId_woosh),
-		load_audio_clip("beep.wav", AssetId_beep),
+		// load_audio_clip("sin_440.wav", AssetId_sin_440),
+
 		load_audio_clip("pickup0.wav", AssetId_pickup),
 		load_audio_clip("pickup1.wav", AssetId_pickup),
 		load_audio_clip("pickup2.wav", AssetId_pickup),
 		load_audio_clip("explosion0.wav", AssetId_explosion),
 		load_audio_clip("explosion1.wav", AssetId_explosion),
-		load_audio_clip("music.wav", AssetId_music),
-
 		load_audio_clip("baa0.wav", AssetId_baa),
 		load_audio_clip("baa1.wav", AssetId_baa),
 		load_audio_clip("baa2.wav", AssetId_baa),
@@ -425,6 +421,9 @@ int main() {
 		load_audio_clip("baa4.wav", AssetId_baa),
 		load_audio_clip("baa5.wav", AssetId_baa),
 		load_audio_clip("baa6.wav", AssetId_baa),
+
+		load_audio_clip("music.wav", AssetId_music),
+		load_audio_clip("death_music.wav", AssetId_death_music)
 	};
 
 	packer.header.asset_count += ARRAY_COUNT(clips);
