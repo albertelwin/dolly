@@ -43,7 +43,7 @@ struct RenderBatch {
 	RenderMode mode;
 };
 
-struct Camera {
+struct RenderTransform {
 	math::Vec2 pos;
 	math::Vec2 offset;
 };
@@ -82,8 +82,6 @@ struct RenderState {
 
 	gl::VertexBuffer quad_v_buf;
 	gl::VertexBuffer scrollable_quad_v_buf;
-
-	Camera camera;
 
 	f32 pixelate_time;
 	f32 fade_amount;

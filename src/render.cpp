@@ -6,16 +6,23 @@
 #include <screen_quad.vert>
 #include <post_filter.frag>
 
-math::Vec2 project_pos(Camera * camera, math::Vec3 pos) {
-	math::Vec2 projected_pos = pos.xy - camera->pos;
-	projected_pos *= 1.0f / (pos.z + 1.0f);
-	return projected_pos + camera->offset;
+RenderTransform create_render_transform(math::Vec2 pos, math::Vec2 offset = math::vec2(0.0f)) {
+	RenderTransform transform = {};
+	transform.pos = pos;
+	transform.offset = offset;
+	return transform;
 }
 
-math::Vec3 unproject_pos(Camera * camera, math::Vec2 pos, f32 z) {
-	math::Vec3 unprojected_pos = math::vec3(pos - camera->offset, z);
+math::Vec2 project_pos(RenderTransform * transform, math::Vec3 pos) {
+	math::Vec2 projected_pos = pos.xy - transform->pos;
+	projected_pos *= 1.0f / (pos.z + 1.0f);
+	return projected_pos + transform->offset;
+}
+
+math::Vec3 unproject_pos(RenderTransform * transform, math::Vec2 pos, f32 z) {
+	math::Vec3 unprojected_pos = math::vec3(pos - transform->offset, z);
 	unprojected_pos.xy *= (z + 1.0f);
-	unprojected_pos.xy += camera->pos;
+	unprojected_pos.xy += transform->pos;
 	return unprojected_pos;
 }
 
@@ -371,7 +378,7 @@ void end_render(RenderState * render_state) {
 }
 
 //TODO: Remove entities from renderer??
-void render_entities(RenderState * render_state, Entity * entities, u32 entity_count) {
+void render_entities(RenderState * render_state, RenderTransform * render_transform, Entity * entities, u32 entity_count) {
 	DEBUG_TIME_BLOCK();
 
 	math::Rec2 screen_bounds = math::rec2_pos_dim(math::vec2(0.0f), math::vec2((f32)render_state->screen_width, render_state->letterboxed_height));
@@ -391,7 +398,7 @@ void render_entities(RenderState * render_state, Entity * entities, u32 entity_c
 		Asset * asset = get_asset(render_state->assets, entity->asset_id, entity->asset_index);
 		ASSERT(asset->type == AssetType_texture || asset->type == AssetType_sprite);
 
-		math::Vec2 pos = project_pos(&render_state->camera, entity->pos + math::vec3(asset->texture.offset, 0.0f));
+		math::Vec2 pos = project_pos(render_transform, entity->pos + math::vec3(asset->texture.offset, 0.0f));
 		math::Vec2 dim = asset->texture.dim * entity->scale;
 
 		math::Vec4 color = entity->color;
@@ -443,7 +450,7 @@ void render_entities(RenderState * render_state, Entity * entities, u32 entity_c
 
 			// math::Rec2 bounds = get_entity_render_bounds(assets, entity);
 			math::Rec2 bounds = math::rec_scale(entity->collider, entity->scale);
-			math::Vec2 pos = project_pos(&render_state->camera, entity->pos + math::vec3(math::rec_pos(bounds), 0.0f));
+			math::Vec2 pos = project_pos(render_transform, entity->pos + math::vec3(math::rec_pos(bounds), 0.0f));
 			bounds = math::rec2_pos_dim(pos, math::rec_dim(bounds));
 
 			u32 elems_remaining = render_batch->v_len - render_batch->e;

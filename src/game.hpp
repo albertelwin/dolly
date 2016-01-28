@@ -98,6 +98,15 @@ struct RocketSequence {
 
 	b32 playing;
 	f32 time_;
+	u32 transition_id;
+};
+
+enum TransitionType {
+	TransitionType_pixelate,
+	TransitionType_fade,
+
+	TransitionType_count,
+	TransitionType_null = TransitionType_count,
 };
 
 enum ButtonId {
@@ -145,12 +154,14 @@ struct MenuMetaState {
 	Entity * play;
 	Entity * score;
 	Entity * credits;
+
+	u32 transition_id;
 };
 
 struct MainMetaState {
 	AudioSource * music;
 
-	Camera * camera;
+	RenderTransform render_transform;
 
 	EntityArray entities;
 	math::Vec2 entity_gravity;
@@ -172,12 +183,17 @@ struct MainMetaState {
 
 	f32 ref_mouse_y;
 	f32 ref_mouse_dir;
+
+	u32 quit_transition_id;
+	u32 death_transition_id;
 };
 
 struct GameOverMetaState {
 	AudioSource * music;
 
 	EntityArray entities;
+
+	u32 transition_id;
 };
 
 struct MetaState {
@@ -227,7 +243,10 @@ struct GameState {
 	MetaStateType meta_state;
 	MetaState * meta_states[MetaStateType_count];
 
+	u32 transition_id;
 	b32 transitioning;
+	TransitionType transition_type;
+	f32 transition_time;
 	b32 transition_flip;
 
 	PlatformAsyncFile * save_file;
