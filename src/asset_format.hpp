@@ -18,6 +18,8 @@ enum TextureSampling {
 #define AUDIO_PADDING_SAMPLES 1
 #define AUDIO_CHANNELS 2
 
+#define ASSET_GROUP_COUNT(name) (AssetId_one_past_last_##name - AssetId_first_##name)
+
 enum AssetId {
 	AssetId_null,
 
@@ -39,6 +41,17 @@ enum AssetId {
 	AssetId_rocket,
 	AssetId_large_rocket,
 	AssetId_car,
+	AssetId_shield,
+
+	AssetId_first_collectable,
+	AssetId_collectable_blob = AssetId_first_collectable,
+	AssetId_collectable_diamond,
+	AssetId_collectable_flower,
+	AssetId_collectable_heart,
+	AssetId_collectable_paw,
+	AssetId_collectable_speech,
+	AssetId_collectable_spot,
+	AssetId_one_past_last_collectable,
 
 	AssetId_menu_credits,
 	AssetId_menu_play,

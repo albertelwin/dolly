@@ -232,6 +232,7 @@ void play_rocket_sequence(GameState * game_state, MetaState * meta_state, f32 dt
 				player->e->d_pos = math::vec2(0.0f);
 				player->e->pos.xy = math::vec2(player->e->initial_x, 0.0f);
 				player->e->pos.y += main_state->location_y_offset;
+				player->sheild->color.a = 1.0f;
 
 				main_state->current_location = LocationId_space;
 				main_state->entity_emitter.pos.y = main_state->location_y_offset;
@@ -249,6 +250,7 @@ void play_rocket_sequence(GameState * game_state, MetaState * meta_state, f32 dt
 			if(transition_should_flip(game_state, seq->transition_id)) {
 				player->e->d_pos = math::vec2(0.0f);
 				player->e->pos.xy = math::vec2(player->e->initial_x, 0.0f);
+				player->sheild->color.a = 0.0f;
 
 				main_state->current_location = LocationId_city;
 				main_state->entity_emitter.pos.y = 0.0f;
@@ -407,19 +409,6 @@ void init_main_meta_state(MetaState * meta_state) {
 	{
 		//TODO: Better probability generation!!
 		AssetId emitter_types[] = {
-			AssetId_smiley,
-			AssetId_smiley,
-			AssetId_smiley,
-			AssetId_smiley,
-			AssetId_smiley,
-			AssetId_smiley,
-			AssetId_smiley,
-			AssetId_smiley,
-
-			AssetId_telly,
-			AssetId_telly,
-			AssetId_telly,
-			AssetId_telly,
 			AssetId_telly,
 			AssetId_telly,
 			AssetId_telly,
@@ -433,10 +422,6 @@ void init_main_meta_state(MetaState * meta_state) {
 			AssetId_telly,
 			AssetId_telly,
 
-			AssetId_dolly,
-			AssetId_dolly,
-			AssetId_dolly,
-			AssetId_dolly,
 			AssetId_dolly,
 			AssetId_dolly,
 			AssetId_dolly,
@@ -451,6 +436,22 @@ void init_main_meta_state(MetaState * meta_state) {
 			AssetId_dolly,
 
 			AssetId_rocket,
+
+			AssetId_collectable_blob,
+			AssetId_collectable_diamond,
+			AssetId_collectable_flower,
+			AssetId_collectable_heart,
+			AssetId_collectable_paw,
+			AssetId_collectable_speech,
+			AssetId_collectable_spot,
+
+			AssetId_collectable_blob,
+			AssetId_collectable_diamond,
+			AssetId_collectable_flower,
+			AssetId_collectable_heart,
+			AssetId_collectable_paw,
+			AssetId_collectable_speech,
+			AssetId_collectable_spot,
 		};
 
 		main_state->locations[LocationId_city].emitter_type_count = ARRAY_COUNT(emitter_types);
@@ -469,7 +470,10 @@ void init_main_meta_state(MetaState * meta_state) {
 	}
 
 	Player * player = &main_state->player;
-	player->e = push_entity(entities, assets, AssetId_dolly, 0, math::vec3(0.0f));
+	player->sheild = push_entity(entities, assets, AssetId_shield, 0);
+	// player->sheild->color.a = 0.0f;
+
+	player->e = push_entity(entities, assets, AssetId_dolly, 0);
 	player->e->pos = math::vec3((f32)screen_width * -0.25f, 0.0f, 0.0f);
 	player->e->initial_x = player->e->pos.x;
 	player->e->speed = math::vec2(50.0f, 6000.0f);
@@ -606,6 +610,12 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					game_state->save.plays = header->plays + 1;
 					game_state->save.high_score = math::max(game_state->save.high_score, header->high_score);
 					game_state->save.longest_run = math::max(game_state->save.longest_run, header->longest_run);
+
+					for(u32 i = 0; i < ARRAY_COUNT(game_state->save.collectable_unlock_states); i++) {
+						if(header->collectable_unlock_states[i]) {
+							game_state->save.collectable_unlock_states[i] = true;
+						}
+					}
 				}
 			}
 
@@ -629,6 +639,17 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	str_clear(game_state->str);
 	str_print(game_state->str, "DOLLY DOLLY DOLLY DAYS!\nDT: %f\n\n", game_input->delta_time);
 	str_print(game_state->str, "PLAYS: %u | HIGH_SCORE: %u | LONGEST_RUN: %f\n", game_state->save.plays, game_state->save.high_score, game_state->save.longest_run);
+
+	str_print(game_state->str, "\n");
+	for(u32 i = 0; i < ARRAY_COUNT(game_state->save.collectable_unlock_states); i++){
+		b32 unlocked = game_state->save.collectable_unlock_states[i];
+
+		char * unlocked_str = (char *)"UNLOCKED";
+		char * locked_str = (char *)"LOCKED";
+
+		str_print(game_state->str, "[%u]: %s\n", i, unlocked ? unlocked_str : locked_str);
+	}
+	str_print(game_state->str, "\n");
 
 	if(game_input->buttons[ButtonId_debug] & KEY_PRESSED) {
 		render_state->debug_render_entity_bounds = !render_state->debug_render_entity_bounds;
@@ -868,6 +889,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			player->e->anim_time += game_input->delta_time * ANIMATION_FRAMES_PER_SEC;;
 			player->e->asset_index = (u32)player->e->anim_time % get_asset_count(assets, player->e->asset_id);
 
+			player->sheild->pos = player->e->pos;
+
 			render_transform->offset = (math::rand_vec2() * 2.0f - 1.0f) * math::max(main_state->d_time - 2.0f, 0.0f);
 
 			if(main_state->rocket_seq.playing) {
@@ -982,6 +1005,13 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 							main_state->score++;
 							break;
 						}
+					}
+
+					if(entity->asset_id >= AssetId_first_collectable && entity->asset_id < AssetId_one_past_last_collectable) {
+						u32 collectable_id = entity->asset_id - AssetId_first_collectable;
+						ASSERT(collectable_id < ARRAY_COUNT(game_state->save.collectable_unlock_states));
+						game_state->save.collectable_unlock_states[collectable_id] = true;
+						game_state->time_until_next_save = 0.0f;
 					}
 					
 					//TODO: Should there be a helper function for this??

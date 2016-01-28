@@ -370,6 +370,15 @@ int main() {
 		{ AssetId_rocket, "rocket.png" },
 		{ AssetId_large_rocket, "large_rocket.png" },
 		{ AssetId_car, "car.png" },
+		{ AssetId_shield, "shield.png" },
+
+		{ AssetId_collectable_blob, "collectable_blob.png" },
+		{ AssetId_collectable_diamond, "collectable_diamond.png" },
+		{ AssetId_collectable_flower, "collectable_flower.png" },
+		{ AssetId_collectable_heart, "collectable_heart.png" },
+		{ AssetId_collectable_paw, "collectable_paw.png" },
+		{ AssetId_collectable_speech, "collectable_speech.png" },
+		{ AssetId_collectable_spot, "collectable_spot.png" },
 	};
 	push_packed_texture(&packer, sprite_files, ARRAY_COUNT(sprite_files));
 

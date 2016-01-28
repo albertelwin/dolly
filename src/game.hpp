@@ -54,6 +54,7 @@ struct EntityArray {
 
 struct Player {
 	Entity * e;
+	Entity * sheild;
 
 	b32 dead;
 	f32 death_time;
@@ -124,10 +125,9 @@ enum ButtonId {
 	ButtonId_count,
 };
 
-// #define SAVE_FILE_CODE *(u32 *)"DLLY"
-#define SAVE_FILE_CODE 0x594C4C44
+#define SAVE_FILE_CODE 0x594C4C44 //"DLLY"
 //TODO: Can we inc this automatically somehow??
-#define SAVE_FILE_VERSION 3
+#define SAVE_FILE_VERSION 4
 #pragma pack(push, 1)
 struct SaveFileHeader {
 	u32 code;
@@ -136,6 +136,8 @@ struct SaveFileHeader {
 	u32 plays;
 	u32 high_score;
 	f32 longest_run;
+
+	b32 collectable_unlock_states[ASSET_GROUP_COUNT(collectable)];
 };
 #pragma pack(pop)
 
