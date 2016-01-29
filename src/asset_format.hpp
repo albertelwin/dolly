@@ -14,7 +14,7 @@ enum TextureSampling {
 	TextureSampling_count,
 };
 
-#define AUDIO_CLIP_SAMPLES_PER_SECOND 48000
+#define AUDIO_CLIP_SAMPLES_PER_SECOND 44100
 #define AUDIO_PADDING_SAMPLES 1
 #define AUDIO_CHANNELS 2
 
@@ -35,13 +35,14 @@ enum AssetId {
 
 	//NOTE: Sprites
 	AssetId_dolly,
-	AssetId_teacup,
+	AssetId_clock,
 	AssetId_telly,
-	AssetId_smiley,
 	AssetId_rocket,
 	AssetId_large_rocket,
 	AssetId_car,
 	AssetId_shield,
+	AssetId_speed_up,
+	AssetId_speed_down,
 
 	AssetId_first_collectable,
 	AssetId_collectable_blob = AssetId_first_collectable,
@@ -62,6 +63,7 @@ enum AssetId {
 	AssetId_pickup,
 	AssetId_explosion,
 	AssetId_baa,
+	AssetId_tick_tock,
 	AssetId_music,
 	AssetId_death_music,
 

@@ -50,28 +50,34 @@ math::Rec2 get_entity_collider_bounds(Entity * entity) {
 	return math::rec_scale(math::rec_offset(entity->collider, entity->pos.xy), entity->scale);
 }
 
-Entity * push_entity(EntityArray * entities, AssetState * assets, AssetId asset_id, u32 asset_index, math::Vec3 pos = math::vec3(0.0f)) {
-	ASSERT(entities->count < ARRAY_COUNT(entities->elems));
-
+void change_entity_asset(Entity * entity, AssetState * assets, AssetId asset_id, u32 asset_index) {
 	//TODO: Should entities only be sprites??
 	Asset * asset = get_asset(assets, asset_id, asset_index);
 	ASSERT(asset);
 	ASSERT(asset->type == AssetType_texture || asset->type == AssetType_sprite);
+	
+	entity->asset_type = asset->type;
+	entity->asset_id = asset_id;
+	entity->asset_index = asset_index;
+
+	//TODO: Always do this??
+	entity->collider = get_entity_render_bounds(assets, entity);
+}
+
+Entity * push_entity(EntityArray * entities, AssetState * assets, AssetId asset_id, u32 asset_index, math::Vec3 pos = math::vec3(0.0f)) {
+	ASSERT(entities->count < ARRAY_COUNT(entities->elems));
 
 	Entity * entity = entities->elems + entities->count++;
 	entity->pos = pos;
 	entity->scale = 1.0f;
 	entity->color = math::vec4(1.0f);
 
-	entity->asset_type = asset->type;
-	entity->asset_id = asset_id;
-	entity->asset_index = asset_index;
+	change_entity_asset(entity, assets, asset_id, asset_index);
 
 	entity->d_pos = math::vec2(0.0f);
 	entity->speed = math::vec2(500.0f);
 	entity->damp = 0.0f;
 	entity->use_gravity = false;
-	entity->collider = get_entity_render_bounds(assets, entity);
 
 	entity->anim_time = 0.0f;
 	entity->initial_x = pos.x;
@@ -86,6 +92,16 @@ Str * allocate_str(MemoryArena * arena, u32 max_len) {
 	str->len = 0;
 	str->ptr = PUSH_ARRAY(arena, char, max_len);	
 	return str;
+}
+
+void kill_player(Player * player) {
+	if(!player->dead) {
+		player->dead = true;
+
+		player->e->damp = 0.0f;
+		player->e->use_gravity = true;
+		player->e->d_pos = math::vec2(0.0f, 1000.0f);		
+	}
 }
 
 void push_player_clone(Player * player) {
@@ -116,13 +132,6 @@ void pop_player_clones(Player * player, u32 count) {
 				break;
 			}
 		}
-	}
-
-	if(remaining == count) {
-		player->dead = true;
-		player->e->damp = 0.0f;
-		player->e->use_gravity = true;
-		player->e->d_pos = math::vec2(0.0f, 1000.0f);
 	}
 }
 
@@ -407,8 +416,17 @@ void init_main_meta_state(MetaState * meta_state) {
 
 	//TODO: Collapse this!!
 	{
-		//TODO: Better probability generation!!
+		//TODO: We probably want to have a probability tree!!
 		AssetId emitter_types[] = {
+			AssetId_clock,
+			AssetId_clock,
+
+			AssetId_speed_up,
+			AssetId_speed_up,
+
+			AssetId_speed_down,
+			AssetId_speed_down,
+
 			AssetId_telly,
 			AssetId_telly,
 			AssetId_telly,
@@ -444,14 +462,6 @@ void init_main_meta_state(MetaState * meta_state) {
 			AssetId_collectable_paw,
 			AssetId_collectable_speech,
 			AssetId_collectable_spot,
-
-			AssetId_collectable_blob,
-			AssetId_collectable_diamond,
-			AssetId_collectable_flower,
-			AssetId_collectable_heart,
-			AssetId_collectable_paw,
-			AssetId_collectable_speech,
-			AssetId_collectable_spot,
 		};
 
 		main_state->locations[LocationId_city].emitter_type_count = ARRAY_COUNT(emitter_types);
@@ -460,7 +470,13 @@ void init_main_meta_state(MetaState * meta_state) {
 
 	{
 		AssetId emitter_types[] = {
-			AssetId_smiley,
+			AssetId_clock,
+
+			AssetId_dolly,
+			AssetId_dolly,
+			AssetId_dolly,
+			AssetId_dolly,
+			AssetId_dolly,
 			AssetId_dolly,
 			AssetId_dolly,
 		};
@@ -471,7 +487,16 @@ void init_main_meta_state(MetaState * meta_state) {
 
 	Player * player = &main_state->player;
 	player->sheild = push_entity(entities, assets, AssetId_shield, 0);
-	// player->sheild->color.a = 0.0f;
+	player->sheild->color.a = 0.0f;
+	player->clone_offset = math::vec2(-5.0f, 0.0f);
+
+	for(i32 i = ARRAY_COUNT(player->clones) - 1; i >= 0; i--) {
+		Entity * entity = push_entity(entities, assets, AssetId_dolly, 0, ENTITY_NULL_POS);
+		entity->color.a = 0.0f;
+		entity->hidden = true;
+
+		player->clones[i] = entity;
+	}
 
 	player->e = push_entity(entities, assets, AssetId_dolly, 0);
 	player->e->pos = math::vec3((f32)screen_width * -0.25f, 0.0f, 0.0f);
@@ -480,22 +505,12 @@ void init_main_meta_state(MetaState * meta_state) {
 	player->e->damp = 0.15f;
 	player->allow_input = true;
 
-	player->clone_offset = math::vec2(-5.0f, 0.0f);
-	for(u32 i = 0; i < ARRAY_COUNT(player->clones); i++) {
-		Entity * entity = push_entity(entities, assets, AssetId_dolly, 0, ENTITY_NULL_POS);
-		entity->color.a = 0.0f;
-		entity->hidden = true;
-
-		player->clones[i] = entity;
-	}
-	
 	EntityEmitter * emitter = &main_state->entity_emitter;
-	Texture * emitter_sprite = get_sprite_asset(meta_state->assets, AssetId_teacup, 0);
 	emitter->pos = math::vec3(screen_width * 0.75f, 0.0f, 0.0f);
 	emitter->time_until_next_spawn = 0.0f;
 	emitter->entity_count = 0;
 	for(u32 i = 0; i < ARRAY_COUNT(emitter->entity_array); i++) {
-		emitter->entity_array[i] = push_entity(entities, assets, AssetId_teacup, 0, emitter->pos);
+		emitter->entity_array[i] = push_entity(entities, assets, AssetId_first_collectable, 0, emitter->pos);
 	}
 
 	RocketSequence * seq = &main_state->rocket_seq;
@@ -519,9 +534,16 @@ void init_main_meta_state(MetaState * meta_state) {
 		location->layers[layer_index] = entity;
 	}
 
-	main_state->d_time = 1.0f;
+	main_state->d_speed = 0.0f;
+	main_state->dd_speed = 0.0f;
+
+	main_state->start_time = 30.0f;
+	main_state->max_time = main_state->start_time;
+	main_state->countdown_time = 10.0f;
+	main_state->time_remaining = main_state->start_time;
+
 	main_state->score = 0;
-	main_state->distance = 0.0f;
+	main_state->time_played = 0.0f;
 }
 
 void init_game_over_meta_state(MetaState * meta_state) {
@@ -638,9 +660,9 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 	str_clear(game_state->str);
 	str_print(game_state->str, "DOLLY DOLLY DOLLY DAYS!\nDT: %f\n\n", game_input->delta_time);
-	str_print(game_state->str, "PLAYS: %u | HIGH_SCORE: %u | LONGEST_RUN: %f\n", game_state->save.plays, game_state->save.high_score, game_state->save.longest_run);
+	str_print(game_state->str, "PLAYS: %u | HIGH_SCORE: %u | LONGEST_RUN: %f\n\n", game_state->save.plays, game_state->save.high_score, game_state->save.longest_run);
 
-	str_print(game_state->str, "\n");
+#if 0
 	for(u32 i = 0; i < ARRAY_COUNT(game_state->save.collectable_unlock_states); i++){
 		b32 unlocked = game_state->save.collectable_unlock_states[i];
 
@@ -650,13 +672,14 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		str_print(game_state->str, "[%u]: %s\n", i, unlocked ? unlocked_str : locked_str);
 	}
 	str_print(game_state->str, "\n");
+#endif
 
 	if(game_input->buttons[ButtonId_debug] & KEY_PRESSED) {
 		render_state->debug_render_entity_bounds = !render_state->debug_render_entity_bounds;
 	}
 
 	if(game_input->buttons[ButtonId_mute] & KEY_PRESSED) {
-		// game_state->audio_state.master_volume = game_state->audio_state.master_volume > 0.0f ? 0.0f : 1.0f;
+		game_state->audio_state.master_volume = game_state->audio_state.master_volume > 0.0f ? 0.0f : 1.0f;
 	}
 
 	Shader * basic_shader = &render_state->basic_shader;
@@ -746,24 +769,47 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				}
 			}
 
-			if(game_input->buttons[ButtonId_mute] & KEY_PRESSED) {
-				begin_rocket_sequence(game_state, meta_state);
-			}
-
 			if(!player->dead) {
-				main_state->d_time += 0.02f * game_input->delta_time;
-				main_state->d_time = math::clamp(main_state->d_time, 0.0f, 2.0f);
+				f32 dt = game_input->delta_time;
+				f32 new_time_remaining = main_state->time_remaining - dt;
+				if(new_time_remaining < 0.0f) {
+					dt = -new_time_remaining;
+					new_time_remaining = 0.0f;
 
-				f32 pitch = main_state->d_time;
-				if(main_state->d_time >= 1.0f) {
-					pitch = 1.0f + (main_state->d_time - 1.0f) * 0.02f;
-					
+					player->dead = true;
+
+					player->e->damp = 0.0f;
+					player->e->use_gravity = true;
+					player->e->d_pos = math::vec2(0.0f, 1000.0f);
+				}
+				else if(new_time_remaining <= main_state->countdown_time && main_state->time_remaining > main_state->countdown_time) {
+					main_state->tick_tock = play_audio_clip(&game_state->audio_state, get_audio_clip_asset(assets, AssetId_tick_tock, 0));
+				}
+
+				main_state->time_remaining = new_time_remaining;
+				main_state->time_played += dt;
+
+				main_state->accel_time -= game_input->delta_time;
+				if(main_state->accel_time <= 0.0f) {
+					main_state->accel_time = 0.0f;
+					main_state->dd_speed = 0.0f;
+				}
+
+				f32 damp = 0.1f;
+				main_state->d_speed += main_state->dd_speed * game_input->delta_time;
+				main_state->d_speed *= (1.0f - damp);
+
+				f32 pitch = math::max(main_state->d_speed + 1.0f, 0.5f);
+				if(pitch >= 1.0f) {
+					pitch = 1.0f + (pitch - 1.0f) * 0.02f;
 				}
 
 				change_pitch(main_state->music, pitch);
 			}
 
-			f32 adjusted_dt = main_state->d_time * game_input->delta_time;
+			f32 zero_speed = 1.5f;
+			f32 d_time = math::clamp(main_state->d_speed + zero_speed, 0.5f, 8.0f);
+			f32 adjusted_dt = d_time * game_input->delta_time;
 
 			player->active_clone_count = 0;
 			for(i32 i = ARRAY_COUNT(player->clones) - 1; i >= 0; i--) {
@@ -814,50 +860,20 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 			math::Vec2 player_dd_pos = math::vec2(0.0f);
 
-#if 0
-			if(game_input->buttons[ButtonId_mute] & KEY_PRESSED) {
-				if(player->running) {
-					player->running = false;
-					player->grounded = false;
-
-					player->e->damp = 0.15f;
-					player->e->use_gravity = false;
-					player->e->d_pos = math::vec2(0.0f);
-				}
-				else {
-					player->running = true;
-					player->grounded = false;
-
-					player->e->damp = 0.0f;
-					player->e->use_gravity = true;
-					player->e->d_pos = math::vec2(0.0f);
-				}
-			}
-#endif
-
 			if(!player->dead) {
 				if(player->allow_input) {
-					if(!player->running) {
-						f32 half_buffer_height = (f32)game_input->back_buffer_height * 0.5f;
-						
-						if(game_input->buttons[ButtonId_up] & KEY_DOWN || (game_input->mouse_button & KEY_DOWN && game_input->mouse_pos.y < half_buffer_height)) {
-							player_dd_pos.y += player->e->speed.y;
-						}
-
-						if(game_input->buttons[ButtonId_down] & KEY_DOWN || (game_input->mouse_button & KEY_DOWN && game_input->mouse_pos.y >= half_buffer_height)) {
-							player_dd_pos.y -= player->e->speed.y;
-						}
+					f32 half_buffer_height = (f32)game_input->back_buffer_height * 0.5f;
+					
+					if(game_input->buttons[ButtonId_up] & KEY_DOWN || (game_input->mouse_button & KEY_DOWN && game_input->mouse_pos.y < half_buffer_height)) {
+						player_dd_pos.y += player->e->speed.y;
 					}
-					else {
-						if(player->grounded) {
-							if(game_input->buttons[ButtonId_up] & KEY_PRESSED) {
-								player_dd_pos.y += player->e->speed.y * 15.0f;
-							}
-						}
+
+					if(game_input->buttons[ButtonId_down] & KEY_DOWN || (game_input->mouse_button & KEY_DOWN && game_input->mouse_pos.y >= half_buffer_height)) {
+						player_dd_pos.y -= player->e->speed.y;
 					}
 				}
 
-				main_state->distance += adjusted_dt;
+				main_state->time_played += game_input->delta_time;
 			}
 
 			if(player->e->use_gravity) {
@@ -876,11 +892,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				if(player->e->pos.y <= ground_height) {
 					player->e->pos.y = ground_height;
 					player->e->d_pos.y = 0.0f;
-					player->grounded = player->running;
 				}
-				else {
-					player->grounded = false;
-				}				
 			}
 
 			f32 max_dist_x = 20.0f;
@@ -891,7 +903,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 			player->sheild->pos = player->e->pos;
 
-			render_transform->offset = (math::rand_vec2() * 2.0f - 1.0f) * math::max(main_state->d_time - 2.0f, 0.0f);
+			render_transform->offset = (math::rand_vec2() * 2.0f - 1.0f) * math::max(main_state->d_speed, 0.0f);
 
 			if(main_state->rocket_seq.playing) {
 				play_rocket_sequence(game_state, meta_state, game_input->delta_time);
@@ -900,7 +912,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			Location * current_location = main_state->locations + main_state->current_location;
 
 #if 1
-			render_state->letterboxed_height = render_state->screen_height - math::max(main_state->d_time - 1.0f, 0.0f) * 20.0f;
+			render_state->letterboxed_height = render_state->screen_height - math::max(main_state->d_speed, 0.0f) * 40.0f;
 			render_state->letterboxed_height = math::max(render_state->letterboxed_height, render_state->screen_height / 3.0f);
 #endif
 			render_transform->pos.x = 0.0f;
@@ -930,16 +942,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					ASSERT(type_index < current_location->emitter_type_count);
 					AssetId asset_id = current_location->emitter_types[type_index];
 
-					Asset * asset = get_asset(assets, asset_id, 0);
-					ASSERT(asset);
-					ASSERT(asset->type == AssetType_texture || asset->type == AssetType_sprite);
-
-					entity->asset_type = asset->type;
-					entity->asset_id = asset_id;
-					entity->asset_index = 0;
-
-					entity->collider = get_entity_render_bounds(assets, entity);
-					if(entity->asset_id == AssetId_telly) {
+					change_entity_asset(entity, assets, asset_id, 0);
+					if(entity->asset_id == AssetId_telly || entity->asset_id == AssetId_speed_down) {
 						entity->collider = math::rec_scale(entity->collider, 0.5f);
 					}
 
@@ -953,32 +957,35 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				Entity * entity = emitter->entity_array[i];
 				b32 destroy = false;
 
-				if(!entity->hit) {
-					if(move_entity(meta_state, render_transform, entity, adjusted_dt)) {
-						destroy = true;
-					}
+				if(move_entity(meta_state, render_transform, entity, adjusted_dt)) {
+					destroy = true;
 				}
-				else {
-					f32 dd_pos = 100.0f * adjusted_dt;
-					entity->pos.y += dd_pos;
 
-					entity->color.a -= 2.0f * adjusted_dt;
+				if(entity->hit) {
+					f32 anim_speed = 4.0f;
+
+					entity->scale += anim_speed * game_input->delta_time;
+					if(entity->scale > 1.0f) {
+						entity->scale= 1.0f;
+					}
+
+					entity->color.a -= anim_speed * game_input->delta_time;
 					if(entity->color.a < 0.0f) {
 						entity->color.a = 0.0f;
 						destroy = true;
-					}
+					}					
 				}
 
-				entity->anim_time += game_input->delta_time * ANIMATION_FRAMES_PER_SEC;;
+				entity->anim_time += game_input->delta_time * ANIMATION_FRAMES_PER_SEC;
 				entity->asset_index = (u32)entity->anim_time % get_asset_count(assets, entity->asset_id);
 
 				math::Rec2 bounds = get_entity_collider_bounds(entity);
 				//TODO: When should this check happen??
 				if(rec_overlap(player_bounds, bounds) && !player->dead && !entity->hit) {
 					entity->hit = true;
-					entity->scale *= 2.0f;
 
 					AssetId clip_id = AssetId_pickup;
+					b32 is_slow_down = false;
 
 					switch(entity->asset_id) {
 						case AssetId_dolly: {
@@ -992,6 +999,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 						case AssetId_telly: {
 							pop_player_clones(player, 5);
 							clip_id = AssetId_explosion;
+							is_slow_down = true;
 							
 							break;
 						}
@@ -1001,10 +1009,42 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 							break;
 						}
 
+						case AssetId_clock: {
+							main_state->time_remaining += main_state->countdown_time;
+							main_state->time_remaining = math::min(main_state->time_remaining, main_state->max_time);
+							stop_audio_clip(meta_state->audio_state, main_state->tick_tock);
+							main_state->tick_tock = 0;
+
+							break;
+						}
+
+						case AssetId_speed_up: {
+							if(main_state->accel_time == 0.0f) {
+								main_state->dd_speed = 40.0f;
+								main_state->accel_time = 5.0f;								
+							}
+							else if(main_state->dd_speed < 0.0f) {
+								main_state->accel_time = 0.0f;
+							}
+
+							break;
+						}
+
+						//TODO: Speed downs are redundant!!
+						case AssetId_speed_down: {
+							is_slow_down = true;
+							break;
+						}
+
 						default: {
 							main_state->score++;
 							break;
 						}
+					}
+
+					if(is_slow_down && main_state->accel_time == 0.0f) {
+						main_state->dd_speed = -40.0f;
+						main_state->accel_time = 1.5f;
 					}
 
 					if(entity->asset_id >= AssetId_first_collectable && entity->asset_id < AssetId_one_past_last_collectable) {
@@ -1018,6 +1058,9 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					AudioClip * clip = get_audio_clip_asset(assets, clip_id, math::rand_i32() % get_asset_count(assets, clip_id));
 					AudioSource * source = play_audio_clip(&game_state->audio_state, clip);
 					change_pitch(source, math::lerp(0.9f, 1.1f, math::rand_f32()));
+
+					change_entity_asset(entity, assets, AssetId_shield, 0);
+					entity->scale *= 0.5f;
 				}
 
 				if(destroy) {
@@ -1039,9 +1082,9 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			}
 
 			game_state->save.high_score = math::max(game_state->save.high_score, main_state->score);
-			game_state->save.longest_run = math::max(game_state->save.longest_run, main_state->distance);
+			game_state->save.longest_run = math::max(game_state->save.longest_run, main_state->time_played);
 
-			str_print(game_state->str, "SPEED: %f | SCORE: %u | CLONES: %u\n\n", main_state->d_time, main_state->score, main_state->player.active_clone_count);
+			str_print(game_state->str, "TIME: %f | SPEED: %f | SCORE: %u | CLONES: %u\n\n", main_state->time_remaining, main_state->d_speed, main_state->score, main_state->player.active_clone_count);
 
 			break;
 		}
@@ -1069,7 +1112,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				}
 			}
 
-			str_print(game_state->str, "\nGAMEOVER!\nPRESS SPACE TO RESTART\n\n");
+			str_print(game_state->str, "GAMEOVER!\nPRESS SPACE TO RESTART\n\n");
 
 			break;
 		}

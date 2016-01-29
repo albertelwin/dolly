@@ -365,12 +365,13 @@ int main() {
 	AssetPacker packer = {};
 
 	AssetFile sprite_files[] = {
-		{ AssetId_teacup, "teacup.png" },
-		{ AssetId_smiley, "smiley.png" },
+		{ AssetId_clock, "clock.png" },
 		{ AssetId_rocket, "rocket.png" },
 		{ AssetId_large_rocket, "large_rocket.png" },
 		{ AssetId_car, "car.png" },
 		{ AssetId_shield, "shield.png" },
+		{ AssetId_speed_up, "speed_up.png" },
+		{ AssetId_speed_down, "speed_down.png" },
 
 		{ AssetId_collectable_blob, "collectable_blob.png" },
 		{ AssetId_collectable_diamond, "collectable_diamond.png" },
@@ -430,6 +431,8 @@ int main() {
 		load_audio_clip("baa4.wav", AssetId_baa),
 		load_audio_clip("baa5.wav", AssetId_baa),
 		load_audio_clip("baa6.wav", AssetId_baa),
+
+		load_audio_clip("tick_tock.wav", AssetId_tick_tock),
 
 		load_audio_clip("music.wav", AssetId_music),
 		load_audio_clip("death_music.wav", AssetId_death_music)

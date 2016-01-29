@@ -57,10 +57,6 @@ struct Player {
 	Entity * sheild;
 
 	b32 dead;
-	f32 death_time;
-
-	b32 running;
-	b32 grounded;
 
 	b32 allow_input;
 
@@ -162,6 +158,7 @@ struct MenuMetaState {
 
 struct MainMetaState {
 	AudioSource * music;
+	AudioSource * tick_tock;
 
 	RenderTransform render_transform;
 
@@ -178,13 +175,18 @@ struct MainMetaState {
 	EntityEmitter entity_emitter;
 	RocketSequence rocket_seq;
 
-	//TODO: This should just be player speed!!
-	f32 d_time;
-	u32 score;
-	f32 distance;
+	//TODO: Should this be part of the player??
+	f32 d_speed;
+	f32 dd_speed;
+	f32 accel_time;
+	
+	f32 time_remaining;
+	f32 start_time;
+	f32 max_time;
+	f32 countdown_time;
 
-	f32 ref_mouse_y;
-	f32 ref_mouse_dir;
+	u32 score;
+	f32 time_played;
 
 	u32 quit_transition_id;
 	u32 death_transition_id;

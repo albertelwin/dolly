@@ -1,5 +1,6 @@
 bin/
 *.pak
 *.zip
+*.ini
 
 *.sublime-workspace
