@@ -371,7 +371,6 @@ int main() {
 		{ AssetId_car, "car.png" },
 		{ AssetId_shield, "shield.png" },
 		{ AssetId_speed_up, "speed_up.png" },
-		{ AssetId_speed_down, "speed_down.png" },
 
 		{ AssetId_collectable_blob, "collectable_blob.png" },
 		{ AssetId_collectable_diamond, "collectable_diamond.png" },

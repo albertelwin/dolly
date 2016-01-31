@@ -100,6 +100,14 @@ u32 c_str_len(char const * str) {
 	return len;
 }
 
+void c_str_copy(char * dst, char const * src) {
+	while(*src) {
+		*dst++ = *src++;
+	}
+
+	*dst = 0;
+}
+
 struct Str {
 	char * ptr;
 	u32 len;

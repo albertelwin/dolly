@@ -6,6 +6,7 @@
 
 struct PlatformAsyncFile {
 	MemoryPtr memory;
+	char name[128];
 };
 
 PlatformAsyncFile * platform_open_async_file(char const * file_name);

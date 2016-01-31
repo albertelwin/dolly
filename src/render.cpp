@@ -51,8 +51,8 @@ Font * allocate_font(RenderState * render_state, Texture * tex, u32 v_len) {
 	font->glyph_height = 5;
 	font->glyph_spacing = 1;
 
-	font->scale = 2.0f;
-	// font->scale = 4.0f;
+	// font->scale = 2.0f;
+	font->scale = 4.0f;
 	font->anchor.x = -(f32)render_state->back_buffer_width * 0.5f + font->glyph_spacing * font->scale;
 	font->anchor.y = (f32)render_state->back_buffer_height * 0.5f - (font->glyph_height + font->glyph_spacing) * font->scale;
 	font->pos = font->anchor;

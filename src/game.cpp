@@ -241,11 +241,12 @@ void play_rocket_sequence(GameState * game_state, MetaState * meta_state, f32 dt
 				player->e->d_pos = math::vec2(0.0f);
 				player->e->pos.xy = math::vec2(player->e->initial_x, 0.0f);
 				player->e->pos.y += main_state->location_y_offset;
-				player->sheild->color.a = 1.0f;
+				// player->sheild->color.a = 1.0f;
 
 				main_state->current_location = LocationId_space;
 				main_state->entity_emitter.pos.y = main_state->location_y_offset;
 				main_state->entity_emitter.time_until_next_spawn = 0.0f;
+				main_state->accel_time = 0.0f;
 
 				seq->transition_id = 0;
 			}
@@ -263,7 +264,8 @@ void play_rocket_sequence(GameState * game_state, MetaState * meta_state, f32 dt
 
 				main_state->current_location = LocationId_city;
 				main_state->entity_emitter.pos.y = 0.0f;
-				main_state->entity_emitter.time_until_next_spawn = 0.0f;				
+				main_state->entity_emitter.time_until_next_spawn = 0.0f;
+				main_state->accel_time = 0.0f;
 			}
 
 			if(!game_state->transitioning) {
@@ -419,14 +421,10 @@ void init_main_meta_state(MetaState * meta_state) {
 		//TODO: We probably want to have a probability tree!!
 		AssetId emitter_types[] = {
 			AssetId_clock,
-			AssetId_clock,
 
 			AssetId_speed_up,
 			AssetId_speed_up,
 
-			AssetId_speed_down,
-			AssetId_speed_down,
-
 			AssetId_telly,
 			AssetId_telly,
 			AssetId_telly,
@@ -439,19 +437,8 @@ void init_main_meta_state(MetaState * meta_state) {
 			AssetId_telly,
 			AssetId_telly,
 			AssetId_telly,
-
-			AssetId_dolly,
-			AssetId_dolly,
-			AssetId_dolly,
-			AssetId_dolly,
-			AssetId_dolly,
-			AssetId_dolly,
-			AssetId_dolly,
-			AssetId_dolly,
-			AssetId_dolly,
-			AssetId_dolly,
-			AssetId_dolly,
-			AssetId_dolly,
+			AssetId_telly,
+			AssetId_telly,
 
 			AssetId_rocket,
 
@@ -603,7 +590,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		load_audio(&game_state->audio_state, &game_state->memory_arena, &game_state->assets, game_input->audio_supported);
 		load_render(&game_state->render_state, &game_state->memory_arena, &game_state->assets, game_input->back_buffer_width, game_input->back_buffer_height);
 
-		// game_state->audio_state.master_volume = 0.0f;
+		game_state->audio_state.master_volume = 0.0f;
 
 		game_state->meta_state = MetaStateType_null;
 		for(u32 i = 0; i < ARRAY_COUNT(game_state->meta_states); i++) {
@@ -659,7 +646,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	RenderState * render_state = &game_state->render_state;
 
 	str_clear(game_state->str);
-	str_print(game_state->str, "DOLLY DOLLY DOLLY DAYS!\nDT: %f\n\n", game_input->delta_time);
+	// str_print(game_state->str, "DOLLY DOLLY DOLLY DAYS!\nDT: %f\n\n", game_input->delta_time);
 	str_print(game_state->str, "PLAYS: %u | HIGH_SCORE: %u | LONGEST_RUN: %f\n\n", game_state->save.plays, game_state->save.high_score, game_state->save.longest_run);
 
 #if 0
@@ -895,9 +882,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				}
 			}
 
-			f32 max_dist_x = 20.0f;
-			player->e->pos.x = math::clamp(player->e->pos.x, player->e->initial_x - max_dist_x, player->e->initial_x + max_dist_x);
-
 			player->e->anim_time += game_input->delta_time * ANIMATION_FRAMES_PER_SEC;;
 			player->e->asset_index = (u32)player->e->anim_time % get_asset_count(assets, player->e->asset_id);
 
@@ -943,7 +927,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					AssetId asset_id = current_location->emitter_types[type_index];
 
 					change_entity_asset(entity, assets, asset_id, 0);
-					if(entity->asset_id == AssetId_telly || entity->asset_id == AssetId_speed_down) {
+					if(entity->asset_id == AssetId_telly) {
 						entity->collider = math::rec_scale(entity->collider, 0.5f);
 					}
 
@@ -997,9 +981,11 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 						}
 
 						case AssetId_telly: {
-							pop_player_clones(player, 5);
-							clip_id = AssetId_explosion;
-							is_slow_down = true;
+							if(main_state->dd_speed <= 0.0f) {
+								pop_player_clones(player, 5);
+								clip_id = AssetId_explosion;
+								is_slow_down = true;
+							}
 							
 							break;
 						}
@@ -1027,12 +1013,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 								main_state->accel_time = 0.0f;
 							}
 
-							break;
-						}
-
-						//TODO: Speed downs are redundant!!
-						case AssetId_speed_down: {
-							is_slow_down = true;
 							break;
 						}
 
@@ -1084,7 +1064,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			game_state->save.high_score = math::max(game_state->save.high_score, main_state->score);
 			game_state->save.longest_run = math::max(game_state->save.longest_run, main_state->time_played);
 
-			str_print(game_state->str, "TIME: %f | SPEED: %f | SCORE: %u | CLONES: %u\n\n", main_state->time_remaining, main_state->d_speed, main_state->score, main_state->player.active_clone_count);
+			// str_print(game_state->str, "TIME: %f | SPEED: %f | SCORE: %u | CLONES: %u\n\n", main_state->time_remaining, main_state->d_speed, main_state->score, main_state->player.active_clone_count);
+			str_print(game_state->str, "TIME: %f\n\n", main_state->time_remaining);
 
 			break;
 		}

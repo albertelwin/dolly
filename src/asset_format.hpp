@@ -42,7 +42,6 @@ enum AssetId {
 	AssetId_car,
 	AssetId_shield,
 	AssetId_speed_up,
-	AssetId_speed_down,
 
 	AssetId_first_collectable,
 	AssetId_collectable_blob = AssetId_first_collectable,

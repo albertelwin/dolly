@@ -38,41 +38,51 @@ struct MainLoopArgs {
 };
 
 PlatformAsyncFile * platform_open_async_file(char const * file_name) {
-	PlatformAsyncFile * file = 0;
-	if(!emscripten_run_script_int("Module.syncing_user_dat")) {
-		file = ALLOC_STRUCT(PlatformAsyncFile);
-		file->memory = read_file_to_memory(file_name);
+	PlatformAsyncFile * async_file = 0;
+	if(emscripten_run_script_int("Module.local_store_safe_to_read_write")) {
+		ASSERT(c_str_len(file_name) < ARRAY_COUNT(async_file->name));
+
+		async_file = ALLOC_STRUCT(PlatformAsyncFile);
+		c_str_copy(async_file->name, file_name);
+		async_file->memory = read_file_to_memory(file_name);
 	}
 
-	return file;
+	return async_file;
 }
 
-void platform_close_async_file(PlatformAsyncFile * file) {
-	FREE_MEMORY(file->memory.ptr);
-	FREE_MEMORY(file);
+void platform_close_async_file(PlatformAsyncFile * async_file) {
+	FREE_MEMORY(async_file->memory.ptr);
+	FREE_MEMORY(async_file);
 }
 
-b32 platform_write_async_file(PlatformAsyncFile * file, void * ptr, size_t size) {
+b32 platform_write_async_file(PlatformAsyncFile * async_file, void * ptr, size_t size) {
 	b32 written = false;
 
-	if(!emscripten_run_script_int("Module.syncing_user_dat")) {
-		//TODO: Store this in PlatformAsyncFile!!
-		char const * file_name = "/user_dat/save.dat";
-
-		std::FILE * file = std::fopen(file_name, "wb");
+	if(emscripten_run_script_int("Module.local_store_safe_to_read_write")) {
+		std::FILE * file = std::fopen(async_file->name, "wb");
 		if(file) {
 			std::fwrite(ptr, size, 1, file);
 			std::fclose(file);
 
 			written = true;
-			std::printf("LOG: %s: saving!\n", file_name);
+			std::printf("LOG: %s: saving!\n", async_file->name);
 
 			EM_ASM(
-				Module.syncing_user_dat = true;
-				FS.syncfs(function (err) {
-					assert(!err);
-					Module.syncing_user_dat = false;
-				});
+				try {
+					Module.local_store_safe_to_read_write = false;
+					FS.syncfs(function(err) {
+						if(err) {
+							console.error("ERROR: " + err + "\n");
+						}
+						else {
+							Module.local_store_safe_to_read_write = true;
+						}
+					});					
+				}
+				catch(e) {
+					console.error("ERROR: " + e + "\n");
+					Module.local_store_safe_to_read_write = false;
+				}
 			);	
 		}
 	}

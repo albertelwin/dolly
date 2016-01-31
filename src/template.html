@@ -3,7 +3,7 @@
 	<head>
 		<meta charset="utf-8">
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-		<title>Dolly Dolly Dolly Days!</title>
+		<title>Dolly and the Atom Smasher</title>
 	</head>
 	<body style="margin: 0; padding: 8px;">
 		<div id="log" style='font-family: "Courier New"; font-size: 14px;'></div>
@@ -14,18 +14,24 @@
 
 			var Module = {
 				preRun: [ function() {
-					FS.mkdir('/user_dat');
-					FS.mount(IDBFS, {}, '/user_dat');
+					try {
+						Module.local_store_safe_to_read_write = false;
 
-					Module.syncing_user_dat = true;
-					FS.syncfs(true, function(err) {
-						if(err) {
-							console.error("ERROR: " + err + "\n");
-						}
-						else {
-							Module.syncing_user_dat = false;
-						}
-					});
+						FS.mkdir('/user_dat');
+						FS.mount(IDBFS, {}, '/user_dat');
+						FS.syncfs(true, function(err) {
+							if(err) {
+								console.error("ERROR: " + err + "\n");
+							}
+							else {
+								Module.local_store_safe_to_read_write = true;
+							}
+						});
+					}
+					catch(e) {
+						console.error("ERROR: " + e + "\n");
+						Module.local_store_safe_to_read_write = false;
+					}
 				}],
 
 				postRun: [ function() {
