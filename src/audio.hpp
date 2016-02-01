@@ -24,6 +24,7 @@ struct AudioSource {
 	
 	AudioSource * next;
 	b32 is_free;
+	b32 gets_freed_on_end;
 };
 
 struct AudioState {
@@ -32,6 +33,7 @@ struct AudioState {
 
 	AudioSource * sources;
 	AudioSource * source_free_list;
+	u32 debug_sources_to_free;
 
 	b32 supported;
 	f32 master_volume;

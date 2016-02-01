@@ -406,6 +406,12 @@ int main() {
 		load_texture("city_layer3.png", AssetId_city),
 		load_texture("city_layer4.png", AssetId_city),
 
+		load_texture("city_layer0.png", AssetId_mountains),
+		load_texture("mountains_layer1.png", AssetId_mountains),
+		load_texture("mountains_layer2.png", AssetId_mountains),
+		load_texture("mountains_layer3.png", AssetId_mountains),
+		load_texture("mountains_layer4.png", AssetId_mountains),
+
 		load_texture("space_layer0.png", AssetId_space),
 		load_texture("space_layer1.png", AssetId_space),
 		load_texture("space_layer2.png", AssetId_space),

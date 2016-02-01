@@ -29,6 +29,7 @@ enum AssetId {
 	AssetId_font,
 
 	AssetId_city,
+	AssetId_mountains,
 	AssetId_space,
 
 	AssetId_atlas,

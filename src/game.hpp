@@ -43,6 +43,7 @@ struct Entity {
 	b32 hit;
 	f32 hit_time;
 
+	u32 rand_id;
 	math::Vec2 chain_pos;
 	b32 hidden;
 };
@@ -75,16 +76,16 @@ struct EntityEmitter {
 
 enum LocationId {
 	LocationId_city,
+	LocationId_mountains,
 	LocationId_space,
 
 	LocationId_count,
+	LocationId_null = LocationId_count,
 };
 
 struct Location {
 	Entity * layers[PARALLAX_LAYER_COUNT];
-
-	f32 min_y;
-	f32 max_y;
+	f32 y;
 
 	u32 emitter_type_count;
 	AssetId * emitter_types;
@@ -165,10 +166,12 @@ struct MainMetaState {
 	EntityArray entities;
 	math::Vec2 entity_gravity;
 
-	LocationId current_location;
-	f32 location_y_offset;
 	f32 ground_height;
 	Location locations[LocationId_count];
+	LocationId current_location;
+	LocationId next_location;
+	LocationId last_location;
+	u32 location_transition_id;
 
 	Player player;
 

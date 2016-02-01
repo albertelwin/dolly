@@ -87,6 +87,10 @@ namespace math {
 		return rand();
 	}
 
+	u32 rand_u32() {
+		return (u32)rand();
+	}
+
 	f32 rand_f32() {
 		return (f32)rand() / (f32)RAND_MAX;
 	}
