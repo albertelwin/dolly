@@ -596,7 +596,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		load_audio(&game_state->audio_state, &game_state->memory_arena, &game_state->assets, game_input->audio_supported);
 		load_render(&game_state->render_state, &game_state->memory_arena, &game_state->assets, game_input->back_buffer_width, game_input->back_buffer_height);
 
-		game_state->audio_state.master_volume = 0.0f;
+		// game_state->audio_state.master_volume = 0.0f;
 
 		game_state->meta_state = MetaStateType_null;
 		for(u32 i = 0; i < ARRAY_COUNT(game_state->meta_states); i++) {
@@ -753,7 +753,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				}
 
 				if(new_state != MetaStateType_null) {
-					stop_audio_clip(meta_state->audio_state, main_state->music);
+					fade_out_audio_clip(main_state->music, 1.0f);
 					main_state->music = 0;
 
 					if(main_state->tick_tock) {
@@ -1116,7 +1116,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			}
 			else {
 				if(transition_should_flip(game_state, game_over_state->transition_id)) {
-					stop_audio_clip(meta_state->audio_state, game_over_state->music);
+					fade_out_audio_clip(game_over_state->music, 1.0f);
 
 					game_state->save.plays++;
 					change_meta_state(game_state, MetaStateType_main);					
@@ -1183,7 +1183,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		}
 	}
 
-#if 0
+#if 1
 	str_print(game_state->str, "SOURCES TO FREE %u\n", audio_state->debug_sources_to_free);
 #endif
 

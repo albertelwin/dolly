@@ -30,12 +30,13 @@ AudioSource * play_audio_clip(AudioState * audio_state, AudioClip * clip, b32 lo
 		source->next = audio_state->sources;
 		audio_state->sources = source;
 
-		source->is_free = false;
-		source->gets_freed_on_end = false;
+		source->flags = 0;
+		if(loop) {
+			source->flags |= AudioSourceFlags_loop;
+		}
 
 		source->clip = clip;
 		source->sample_pos = audio_val64(0.0f);
-		source->loop = loop;
 		source->pitch = 1.0f;
 		source->volume = math::vec2(1.0f);
 		source->target_volume = source->volume;
@@ -54,7 +55,7 @@ void fire_audio_clip(AudioState * audio_state, AudioClip * clip, math::Vec2 volu
 	AudioSource * source = play_audio_clip(audio_state, clip, false);
 	source->volume = volume;
 	source->pitch = pitch;
-	source->gets_freed_on_end = true;
+	source->flags |= AudioSourceFlags_free_on_end;
 }
 
 void fire_audio_clip(AudioState * audio_state, AssetId clip_id, math::Vec2 volume = math::vec2(1.0f), f32 pitch = 1.0f) {
@@ -85,7 +86,7 @@ void stop_audio_clip(AudioState * audio_state, AudioSource * source) {
 		}
 
 		ASSERT(deleted);
-	}	
+	}
 }
 
 void change_volume(AudioSource * source, math::Vec2 volume, f32 time_) {
@@ -109,6 +110,14 @@ void change_pitch(AudioSource * source, f32 pitch) {
 	}
 }
 
+void fade_out_audio_clip(AudioSource * source, f32 time_) {
+	if(source) {
+		change_volume(source, math::vec2(0.0f), time_);
+		source->flags |= AudioSourceFlags_free_on_volume_end;
+		source->flags |= AudioSourceFlags_free_on_end;
+	}
+}
+
 void audio_output_samples(AudioState * audio_state, i16 * sample_memory_ptr, u32 samples_to_write, u32 samples_per_second) {
 	audio_state->debug_sources_to_free = 0;
 
@@ -123,11 +132,12 @@ void audio_output_samples(AudioState * audio_state, i16 * sample_memory_ptr, u32
 		f32 pitch = source->pitch * playback_rate;
 		AudioVal64 pitch64 = audio_val64(pitch);
 
+		b32 free_source = false;
 		u32 samples_left_to_write = samples_to_write;
 		u32 samples_written = 0;
 
 		u32 valid_samples = clip->samples;
-		if(!source->loop) {
+		if(!(source->flags & AudioSourceFlags_loop)) {
 			valid_samples--;
 			ASSERT(valid_samples);
 		}
@@ -209,25 +219,38 @@ void audio_output_samples(AudioState * audio_state, i16 * sample_memory_ptr, u32
 				}
 
 				samples_left_to_write -= samples_to_play;
-				if(source->sample_pos.int_part >= valid_samples) {
-					if(source->loop) {
-						source->sample_pos.int_part -= valid_samples;
-					}
-					else {
-						samples_left_to_write = 0;
-					}
+
+				b32 volume_not_changing = !source->volume_delta.v[0] && !source->volume_delta.v[1];
+				if(volume_not_changing && (source->flags & AudioSourceFlags_free_on_volume_end)) {
+					samples_left_to_write = 0;
+					free_source = true;
+				}
+				else {
+					if(source->sample_pos.int_part >= valid_samples) {
+						if(source->flags & AudioSourceFlags_loop) {
+							source->sample_pos.int_part -= valid_samples;
+						}
+						else {
+							samples_left_to_write = 0;
+							free_source = (source->flags & AudioSourceFlags_free_on_end);
+						}
+					}					
 				}
 			}
 		}
 		else {
-			ASSERT(!source->gets_freed_on_end);
-			audio_state->debug_sources_to_free++;
+			if(source->flags & AudioSourceFlags_free_on_end) {
+				free_source = true;
+			}
+			else {
+				audio_state->debug_sources_to_free++;
+			}
 		}
 
-		if(source->sample_pos.int_part >= valid_samples && !source->loop && source->gets_freed_on_end) {
+		if(free_source) {
 			*source_ptr = source->next;
 			source->next = audio_state->source_free_list;
-			audio_state->source_free_list = source;
+			audio_state->source_free_list = source;			
 		}
 		else {
 			source_ptr = &source->next;

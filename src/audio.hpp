@@ -11,11 +11,18 @@ struct AudioVal64 {
 	f32 frc_part;
 };
 
+enum AudioSourceFlags {
+	AudioSourceFlags_loop = 0x1,
+	AudioSourceFlags_free_on_end = 0x2,
+	AudioSourceFlags_free_on_volume_end = 0x4,
+};
+
 struct AudioSource {
 	AudioClip * clip;
 	AudioVal64 sample_pos;
 
-	b32 loop;
+	u32 flags;
+
 	f32 pitch;
 	math::Vec2 volume;
 
@@ -23,8 +30,6 @@ struct AudioSource {
 	math::Vec2 volume_delta;
 	
 	AudioSource * next;
-	b32 is_free;
-	b32 gets_freed_on_end;
 };
 
 struct AudioState {
