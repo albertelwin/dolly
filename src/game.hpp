@@ -99,6 +99,24 @@ struct RocketSequence {
 	u32 transition_id;
 };
 
+enum ScoreValueId {
+	ScoreValueId_time_played,
+	ScoreValueId_points,
+
+	ScoreValueId_count,
+};
+
+struct ScoreValue {
+	f32 display;
+	f32 time_;
+
+	b32 is_f32;
+	union {
+		f32 f32_;
+		u32 u32_;
+	};
+};
+
 enum TransitionType {
 	TransitionType_pixelate,
 	TransitionType_fade,
@@ -173,6 +191,7 @@ struct MainMetaState {
 	AudioSource * tick_tock;
 
 	RenderTransform render_transform;
+	Font * font;
 
 	EntityArray entities;
 	math::Vec2 entity_gravity;
@@ -199,8 +218,11 @@ struct MainMetaState {
 	f32 max_time;
 	f32 countdown_time;
 
-	u32 score;
-	f32 time_played;
+	b32 show_score_overlay;
+	Entity * score_overlay;
+	Str * score_str;
+	u32 score_value_index;
+	ScoreValue score_values[ScoreValueId_count];
 
 	u32 quit_transition_id;
 	u32 death_transition_id;

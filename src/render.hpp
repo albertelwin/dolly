@@ -56,7 +56,9 @@ struct Font {
 	u32 glyph_width;
 	u32 glyph_height;
 	u32 glyph_spacing;
+};
 
+struct FontLayout {
 	f32 scale;
 	math::Vec2 anchor;
 	math::Vec2 pos;
@@ -87,8 +89,8 @@ struct RenderState {
 	f32 fade_amount;
 
 	Font * debug_font;
-
 	b32 debug_render_entity_bounds;
+	
 	RenderBatch * render_batch;
 };
 

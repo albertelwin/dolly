@@ -56,6 +56,8 @@ enum AssetId {
 	AssetId_collectable_spot,
 	AssetId_one_past_last_collectable,
 
+	AssetId_score_overlay,
+
 	AssetId_menu_credits,
 	AssetId_menu_play,
 	AssetId_menu_score,

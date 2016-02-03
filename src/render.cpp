@@ -41,23 +41,27 @@ RenderBatch * allocate_render_batch(MemoryArena * arena, Texture * tex, u32 v_le
 	return batch;
 }
 
-Font * allocate_font(RenderState * render_state, Texture * tex, u32 v_len) {
+Font * allocate_font(RenderState * render_state, u32 v_len, u32 projection_width, u32 projection_height) {
 	Font * font = PUSH_STRUCT(render_state->arena, Font);
 
-	font->batch = allocate_render_batch(render_state->arena, tex, v_len);
+	font->batch = allocate_render_batch(render_state->arena, get_texture_asset(render_state->assets, AssetId_font, 0), v_len);
 
-	font->projection_matrix = math::orthographic_projection((f32)render_state->back_buffer_width, (f32)render_state->back_buffer_height);
+	font->projection_matrix = math::orthographic_projection((f32)projection_width, (f32)projection_height);
 	font->glyph_width = 3;
 	font->glyph_height = 5;
 	font->glyph_spacing = 1;
 
-	// font->scale = 2.0f;
-	font->scale = 4.0f;
-	font->anchor.x = -(f32)render_state->back_buffer_width * 0.5f + font->glyph_spacing * font->scale;
-	font->anchor.y = (f32)render_state->back_buffer_height * 0.5f - (font->glyph_height + font->glyph_spacing) * font->scale;
-	font->pos = font->anchor;
-
 	return font;
+}
+
+FontLayout create_font_layout(Font * font, f32 scale, u32 projection_width, u32 projection_height, math::Vec2 offset = math::vec2(0.0f)) {
+	FontLayout layout = {};
+	layout.scale = scale;
+	layout.anchor.x = -(f32)projection_width * 0.5f + font->glyph_spacing * layout.scale;
+	layout.anchor.y = (f32)projection_height * 0.5f - (font->glyph_height + font->glyph_spacing) * layout.scale;
+	layout.anchor += offset;
+	layout.pos = layout.anchor;
+	return layout;
 }
 
 void push_quad(RenderBatch * batch, math::Vec2 pos0, math::Vec2 pos1, math::Vec2 uv0, math::Vec2 uv1, math::Vec4 color) {
@@ -123,14 +127,14 @@ void push_sprite(RenderBatch * batch, Texture * sprite, math::Vec2 pos, math::Ve
 	push_quad(batch, pos0, pos1, uv0, uv1, color);
 }
 
-void push_str(Font * font, Str * str) {
+void push_str(Font * font, Str * str, FontLayout * layout) {
 	DEBUG_TIME_BLOCK();
 
 	RenderBatch * batch = font->batch;
 
-	f32 glyph_width = font->glyph_width * font->scale;
-	f32 glyph_height = font->glyph_height * font->scale;
-	f32 glyph_spacing = font->glyph_spacing * font->scale;
+	f32 glyph_width = font->glyph_width * layout->scale;
+	f32 glyph_height = font->glyph_height * layout->scale;
+	f32 glyph_spacing = font->glyph_spacing * layout->scale;
 
 	math::Vec2 tex_dim = batch->tex->dim;
 	math::Vec2 r_tex_dim = math::vec2(1.0f / tex_dim.x, 1.0f / tex_dim.y);
@@ -144,14 +148,14 @@ void push_str(Font * font, Str * str) {
 	for(u32 i = 0; i < str->len; i++) {
 		char char_ = str->ptr[i];
 		if(char_ == '\n') {
-			font->pos.x = font->anchor.x;
-			font->pos.y -= (glyph_height + glyph_spacing);
+			layout->pos.x = layout->anchor.x;
+			layout->pos.y -= (glyph_height + glyph_spacing);
 		}
 		else {
-			math::Vec2 pos0 = font->pos;
+			math::Vec2 pos0 = layout->pos;
 			math::Vec2 pos1 = math::vec2(pos0.x + glyph_width, pos0.y + glyph_height);
 
-			font->pos.x += (glyph_width + glyph_spacing);
+			layout->pos.x += (glyph_width + glyph_spacing);
 			if(char_ != ' ') {
 				u32 u = ((char_ - glyph_first_char) % glyphs_per_row) * (font->glyph_width + font->glyph_spacing * 2) + font->glyph_spacing;
 				u32 v = ((char_ - glyph_first_char) / glyphs_per_row) * (font->glyph_height + font->glyph_spacing * 2) + font->glyph_spacing;
@@ -165,11 +169,11 @@ void push_str(Font * font, Str * str) {
 	}
 }
 
-void push_c_str(Font * font, char const * c_str) {
+void push_c_str(Font * font, char const * c_str, FontLayout * layout) {
 	Str str;
 	str.max_len = str.len = c_str_len(c_str);
 	str.ptr = (char *)c_str;
-	push_str(font, &str);
+	push_str(font, &str, layout);
 }
 
 void render_v_buf(gl::VertexBuffer * v_buf, RenderMode render_mode, Shader * shader, math::Mat4 * transform, Texture * tex0, math::Vec4 color = math::vec4(1.0f)) {
@@ -298,14 +302,17 @@ void load_render(RenderState * render_state, MemoryArena * arena, AssetState * a
 
 	render_state->scrollable_quad_v_buf = gl::create_vertex_buffer(scrollable_quad_verts, ARRAY_COUNT(scrollable_quad_verts), VERT_ELEM_COUNT, GL_STATIC_DRAW);
 
-	render_state->debug_font = allocate_font(render_state, get_texture_asset(assets, AssetId_font, 0), 65536);
-
+	render_state->debug_font = allocate_font(render_state, 65536, render_state->back_buffer_width, render_state->back_buffer_height);
 	render_state->debug_render_entity_bounds = false;
 
 	render_state->render_batch = allocate_render_batch(render_state->arena, get_texture_asset(assets, AssetId_white, 0), QUAD_ELEM_COUNT * 512);
 
 	glEnable(GL_CULL_FACE);
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+}
+
+void render_font(RenderState * render_state, Font * font) {
+	render_and_clear_render_batch(font->batch, &render_state->basic_shader, &font->projection_matrix);
 }
 
 void begin_render(RenderState * render_state) {
@@ -372,7 +379,7 @@ void end_render(RenderState * render_state) {
 		render_v_buf(&render_state->quad_v_buf, RenderMode_triangles, basic_shader, &transform1, white_tex, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 	}
 
-	render_and_clear_render_batch(render_state->debug_font->batch, basic_shader, &render_state->debug_font->projection_matrix);
+	render_font(render_state, render_state->debug_font);
 
 	glDisable(GL_BLEND);
 }
@@ -403,37 +410,39 @@ void render_entities(RenderState * render_state, RenderTransform * render_transf
 
 		math::Vec4 color = entity->color;
 		color.rgb *= color.a;
-		
-		if(entity->asset_type == AssetType_texture) {
-			Texture * tex = &asset->texture;
-			gl::VertexBuffer * v_buf = entity->scrollable ? &render_state->scrollable_quad_v_buf : &render_state->quad_v_buf;
 
-			//TODO: Remove epsilon!!
-			f32 epsilon = 0.1f;
-			if(math::rec_overlap(screen_bounds, math::rec2_pos_dim(pos, dim * 1.0f + epsilon))) {
-				if(current_atlas_index != null_atlas_index) {
-					render_and_clear_render_batch(render_batch, basic_shader, &render_state->projection);
-					current_atlas_index = null_atlas_index;
+		if(color.a > 0.0f) {
+			if(entity->asset_type == AssetType_texture) {
+				Texture * tex = &asset->texture;
+				gl::VertexBuffer * v_buf = entity->scrollable ? &render_state->scrollable_quad_v_buf : &render_state->quad_v_buf;
+
+				//TODO: Remove epsilon!!
+				f32 epsilon = 0.1f;
+				if(math::rec_overlap(screen_bounds, math::rec2_pos_dim(pos, dim * 1.0f + epsilon))) {
+					if(current_atlas_index != null_atlas_index) {
+						render_and_clear_render_batch(render_batch, basic_shader, &render_state->projection);
+						current_atlas_index = null_atlas_index;
+					}
+
+					math::Mat4 transform = render_state->projection * math::translate(pos.x, pos.y, 0.0f) * math::scale(dim.x, dim.y, 1.0f);
+					render_v_buf(v_buf, RenderMode_triangles, basic_shader, &transform, tex, color);
 				}
-
-				math::Mat4 transform = render_state->projection * math::translate(pos.x, pos.y, 0.0f) * math::scale(dim.x, dim.y, 1.0f);
-				render_v_buf(v_buf, RenderMode_triangles, basic_shader, &transform, tex, color);
 			}
-		}
-		else {
-			Texture * sprite = &asset->sprite;
+			else {
+				Texture * sprite = &asset->sprite;
 
-			if(math::rec_overlap(screen_bounds, math::rec2_pos_dim(pos, dim))) {
-				u32 elems_remaining = render_batch->v_len - render_batch->e;
-				if(current_atlas_index != sprite->atlas_index || elems_remaining < QUAD_ELEM_COUNT) {
-					render_and_clear_render_batch(render_state->render_batch, basic_shader, &render_state->projection);
+				if(math::rec_overlap(screen_bounds, math::rec2_pos_dim(pos, dim))) {
+					u32 elems_remaining = render_batch->v_len - render_batch->e;
+					if(current_atlas_index != sprite->atlas_index || elems_remaining < QUAD_ELEM_COUNT) {
+						render_and_clear_render_batch(render_state->render_batch, basic_shader, &render_state->projection);
 
-					current_atlas_index = sprite->atlas_index;
-					render_batch->tex = get_texture_asset(render_state->assets, AssetId_atlas, sprite->atlas_index);
+						current_atlas_index = sprite->atlas_index;
+						render_batch->tex = get_texture_asset(render_state->assets, AssetId_atlas, sprite->atlas_index);
+					}
+
+					push_sprite(render_batch, sprite, pos, dim, color);
 				}
-
-				push_sprite(render_batch, sprite, pos, dim, color);
-			}
+			}			
 		}
 	}
 

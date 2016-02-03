@@ -401,6 +401,7 @@ void init_main_meta_state(MetaState * meta_state) {
 	change_volume(main_state->music, math::vec2(1.0f), 1.0f);
 
 	main_state->render_transform = create_render_transform(math::vec2(0.0f));
+	main_state->font = allocate_font(meta_state->render_state, 65536, screen_width, screen_height);
 
 	EntityArray * entities = &main_state->entities;
 
@@ -447,35 +448,35 @@ void init_main_meta_state(MetaState * meta_state) {
 	{
 		//TODO: We probably want to have a probability tree!!
 		AssetId emitter_types[] = {
-			AssetId_clock,
+			// AssetId_clock,
 
 			AssetId_speed_up,
 			AssetId_speed_up,
 
-			AssetId_telly,
-			AssetId_telly,
-			AssetId_telly,
-			AssetId_telly,
-			AssetId_telly,
-			AssetId_telly,
-			AssetId_telly,
-			AssetId_telly,
-			AssetId_telly,
-			AssetId_telly,
-			AssetId_telly,
-			AssetId_telly,
-			AssetId_telly,
-			AssetId_telly,
+			// AssetId_telly,
+			// AssetId_telly,
+			// AssetId_telly,
+			// AssetId_telly,
+			// AssetId_telly,
+			// AssetId_telly,
+			// AssetId_telly,
+			// AssetId_telly,
+			// AssetId_telly,
+			// AssetId_telly,
+			// AssetId_telly,
+			// AssetId_telly,
+			// AssetId_telly,
+			// AssetId_telly,
 
-			AssetId_rocket,
+			// AssetId_rocket,
 
-			AssetId_collectable_blob,
-			AssetId_collectable_diamond,
-			AssetId_collectable_flower,
-			AssetId_collectable_heart,
-			AssetId_collectable_paw,
-			AssetId_collectable_speech,
-			AssetId_collectable_spot,
+			// AssetId_collectable_blob,
+			// AssetId_collectable_diamond,
+			// AssetId_collectable_flower,
+			// AssetId_collectable_heart,
+			// AssetId_collectable_paw,
+			// AssetId_collectable_speech,
+			// AssetId_collectable_spot,
 		};
 
 		main_state->locations[LocationId_city].emitter_type_count = ARRAY_COUNT(emitter_types);
@@ -557,13 +558,18 @@ void init_main_meta_state(MetaState * meta_state) {
 	main_state->d_speed = 0.0f;
 	main_state->dd_speed = 0.0f;
 
-	main_state->start_time = 30.0f;
+	// main_state->start_time = 30.0f;
+	main_state->start_time = 5.0f;
 	main_state->max_time = main_state->start_time;
 	main_state->countdown_time = 10.0f;
 	main_state->time_remaining = main_state->start_time;
 
-	main_state->score = 0;
-	main_state->time_played = 0.0f;
+	main_state->score_overlay = push_entity(entities, assets, AssetId_score_overlay, 0);
+	main_state->score_overlay->color.a = 0.0f;
+	main_state->score_str = allocate_str(&meta_state->arena, 256);
+
+	main_state->score_values[ScoreValueId_time_played].is_f32 = true;
+	main_state->score_values[ScoreValueId_points].is_f32 = false;
 }
 
 void init_game_over_meta_state(MetaState * meta_state) {
@@ -578,8 +584,6 @@ void init_game_over_meta_state(MetaState * meta_state) {
 	game_over_state->music = play_audio_clip(meta_state->audio_state, AssetId_death_music, true);
 	change_volume(game_over_state->music, math::vec2(0.0f), 0.0f);
 	change_volume(game_over_state->music, math::vec2(1.0f), 1.0f);
-
-	meta_state->render_state->fade_amount = 1.0f;
 
 	EntityArray * entities = &game_over_state->entities;
 	push_entity(entities, assets, AssetId_car, 0);	
@@ -628,7 +632,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		load_audio(&game_state->audio_state, &game_state->memory_arena, &game_state->assets, game_input->audio_supported);
 		load_render(&game_state->render_state, &game_state->memory_arena, &game_state->assets, game_input->back_buffer_width, game_input->back_buffer_height);
 
-		// game_state->audio_state.master_volume = 0.0f;
+		game_state->audio_state.master_volume = 0.0f;
 
 		game_state->meta_state = MetaStateType_null;
 		for(u32 i = 0; i < ARRAY_COUNT(game_state->meta_states); i++) {
@@ -747,7 +751,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			}
 			else {
 				if(transition_should_flip(game_state, menu_state->transition_id)) {
-					change_meta_state(game_state, MetaStateType_intro);
+					change_meta_state(game_state, MetaStateType_main);
 				}
 			}
 
@@ -792,14 +796,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			if(!game_state->transitioning) {
 				if(game_input->buttons[ButtonId_quit] & KEY_PRESSED) {
 					main_state->quit_transition_id = begin_transition(game_state, TransitionType_pixelate);
-				}
-				else if(player->dead && player->e->pos.y <= render_transform->pos.y - meta_state->render_state->screen_height * 0.5f) {
-					main_state->death_transition_id = begin_transition(game_state, TransitionType_fade);
-				}
-
-				//TODO: Fade out and stop??
-				if(game_state->transitioning) {
-					change_volume(main_state->music, math::vec2(0.0f), 1.0f);
+					fade_out_audio_clip(main_state->music, 1.0f);
+					main_state->music = 0;
 				}
 			}
 			else {
@@ -812,9 +810,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				}
 
 				if(new_state != MetaStateType_null) {
-					fade_out_audio_clip(main_state->music, 1.0f);
-					main_state->music = 0;
-
 					if(main_state->tick_tock) {
 						stop_audio_clip(meta_state->audio_state, main_state->tick_tock);
 						main_state->tick_tock = 0;
@@ -838,6 +833,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					player->e->damp = 0.0f;
 					player->e->use_gravity = true;
 					player->e->d_pos = math::vec2(0.0f, 1000.0f);
+
+					main_state->accel_time = 0.0f;
 				}
 				else if(new_time_remaining <= main_state->countdown_time && main_state->time_remaining > main_state->countdown_time) {
 					ASSERT(!main_state->tick_tock);
@@ -845,8 +842,16 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				}
 
 				main_state->time_remaining = new_time_remaining;
-				main_state->time_played += dt;
+				main_state->score_values[ScoreValueId_time_played].f32_ += dt;
+			}
+			else {
+				if(player->e->pos.y <= render_transform->pos.y - meta_state->render_state->screen_height * 0.5f) {
+					main_state->show_score_overlay = true;
+					main_state->score_overlay->color.a = 1.0f;
+				}
+			}
 
+			{
 				main_state->accel_time -= game_input->delta_time;
 				if(main_state->accel_time <= 0.0f) {
 					main_state->accel_time = 0.0f;
@@ -862,7 +867,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					pitch = 1.0f + (pitch - 1.0f) * 0.02f;
 				}
 
-				change_pitch(main_state->music, pitch);
+				change_pitch(main_state->music, pitch);				
 			}
 
 			f32 zero_speed = 1.5f;
@@ -925,8 +930,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 						player_dd_pos.y -= player->e->speed.y;
 					}
 				}
-
-				main_state->time_played += game_input->delta_time;
 			}
 
 			if(player->e->use_gravity) {
@@ -1053,7 +1056,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					switch(entity->asset_id) {
 						case AssetId_dolly: {
 							push_player_clone(player);
-							main_state->score++;
+							main_state->score_values[ScoreValueId_points].u32_++;
 							clip_id = AssetId_baa;
 
 							break;
@@ -1107,7 +1110,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 						}
 
 						default: {
-							main_state->score++;
+							main_state->score_values[ScoreValueId_points].u32_++;
 							break;
 						}
 					}
@@ -1151,10 +1154,40 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				}
 			}
 
-			game_state->save.high_score = math::max(game_state->save.high_score, main_state->score);
-			game_state->save.longest_run = math::max(game_state->save.longest_run, main_state->time_played);
+			if(main_state->show_score_overlay) {
+				main_state->score_values[ScoreValueId_points].u32_ = 893;
 
-			// str_print(game_state->str, "TIME: %f | SPEED: %f | SCORE: %u | CLONES: %u\n\n", main_state->time_remaining, main_state->d_speed, main_state->score, main_state->player.active_clone_count);
+				//TODO: UI elements shouldn't use the game's render transform!!
+				main_state->score_overlay->pos.y = main_state->locations[main_state->current_location].y;
+
+				if(main_state->score_value_index < ARRAY_COUNT(main_state->score_values)) {
+					ScoreValue * value = main_state->score_values + main_state->score_value_index;
+
+					f32 to = value->is_f32 ? value->f32_ : (f32)value->u32_;
+					value->display = math::lerp(0.0f, to, math::clamp01(value->time_));
+					value->time_ += game_input->delta_time;
+
+					if(value->time_ > 2.0f) {
+						main_state->score_value_index++;
+					}
+				}
+				else {
+					if(!game_state->transitioning) {
+						main_state->death_transition_id = begin_transition(game_state);
+						fade_out_audio_clip(main_state->music, 1.0f);
+						main_state->music = 0;
+					}
+				}
+
+				str_clear(main_state->score_str);
+				str_print(main_state->score_str, "SCORE\n\n");
+				str_print(main_state->score_str, "TIME PLAYED: %f\n", main_state->score_values[ScoreValueId_time_played].display);
+				str_print(main_state->score_str, "POINTS: %u\n", (u32)main_state->score_values[ScoreValueId_points].display);
+			}
+
+			game_state->save.high_score = math::max(game_state->save.high_score, main_state->score_values[ScoreValueId_points].u32_);
+			game_state->save.longest_run = math::max(game_state->save.longest_run, main_state->score_values[ScoreValueId_time_played].f32_);
+
 			str_print(game_state->str, "TIME: %f\n\n", main_state->time_remaining);
 
 			break;
@@ -1169,15 +1202,12 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			if(!game_state->transitioning) {
 				if(game_input->buttons[ButtonId_start] & KEY_PRESSED || game_input->mouse_button & KEY_PRESSED) {
 					game_over_state->transition_id = begin_transition(game_state);
-					if(game_over_state->transition_id) {
-						change_volume(game_over_state->music, math::vec2(0.0f), 1.0f / 1.5f);
-					}
+					fade_out_audio_clip(game_over_state->music, 1.0f);
+					game_over_state->music = 0;
 				}
 			}
 			else {
 				if(transition_should_flip(game_state, game_over_state->transition_id)) {
-					fade_out_audio_clip(game_over_state->music, 1.0f);
-
 					game_state->save.plays++;
 					change_meta_state(game_state, MetaStateType_main);					
 				}
@@ -1247,14 +1277,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	str_print(game_state->str, "SOURCES TO FREE %u\n", audio_state->debug_sources_to_free);
 #endif
 
-	Font * debug_font = render_state->debug_font;
-	debug_font->pos = debug_font->anchor;
-
-	push_str(debug_font, game_state->str);
-#if 0
-	push_str(debug_font, game_state->debug_str);
-#endif
-
 	begin_render(render_state);
 
 	switch(game_state->meta_state) {
@@ -1287,6 +1309,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			EntityArray * entities = &main_state->entities;
 			render_entities(render_state, &main_state->render_transform, entities->elems, entities->count);
 
+			FontLayout font_layout = create_font_layout(main_state->font, 4.0f, render_state->screen_width, render_state->screen_height, math::vec2(285.0f, -86.0f));
+			push_str(main_state->font, main_state->score_str, &font_layout);
+			render_font(render_state, main_state->font);
+
 			break;
 		}
 
@@ -1303,6 +1329,14 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		INVALID_CASE();
 	}
+
+	Font * debug_font = render_state->debug_font;
+	FontLayout debug_font_layout = create_font_layout(debug_font, 4.0f, render_state->back_buffer_width, render_state->back_buffer_height);
+
+	push_str(debug_font, game_state->str, &debug_font_layout);
+#if 0
+	push_str(debug_font, game_state->debug_str, &debug_font_layout);
+#endif
 
 	end_render(render_state);
 }

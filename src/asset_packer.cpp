@@ -382,6 +382,11 @@ int main() {
 	};
 	push_packed_texture(&packer, sprite_files, ARRAY_COUNT(sprite_files));
 
+	AssetFile ui_sprite_files[] = {
+		{ AssetId_score_overlay, "score_overlay.png" },
+	};
+	push_packed_texture(&packer, ui_sprite_files, ARRAY_COUNT(ui_sprite_files));
+
 	AssetFile menu_sprite_files[] = {
 		{ AssetId_menu_credits, "menu_credits0.png" },
 		{ AssetId_menu_credits, "menu_credits1.png" },
