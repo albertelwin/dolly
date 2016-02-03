@@ -306,12 +306,17 @@ MetaState * allocate_meta_state(GameState * game_state, MetaStateType type) {
 	meta_state->audio_state = &game_state->audio_state;
 	meta_state->render_state = &game_state->render_state;
 
-	size_t arena_size = KILOBYTES(256);
+	size_t arena_size = KILOBYTES(64);
 
 	meta_state->type = type;
 	switch(type) {
 		case MetaStateType_menu: {
 			meta_state->menu = PUSH_STRUCT(arena, MenuMetaState);
+			break;
+		}
+
+		case MetaStateType_intro: {
+			meta_state->intro = PUSH_STRUCT(arena, IntroMetaState);
 			break;
 		}
 
@@ -353,6 +358,28 @@ void init_menu_meta_state(MetaState * meta_state) {
 	menu_state->credits = push_entity(entities, meta_state->assets, AssetId_menu_credits, 0);
 	menu_state->score = push_entity(entities, meta_state->assets, AssetId_menu_score, 0);
 	menu_state->play = push_entity(entities, meta_state->assets, AssetId_menu_play, 0);
+}
+
+void init_intro_meta_state(MetaState * meta_state) {
+	ASSERT(meta_state->type == MetaStateType_intro);
+	IntroMetaState * intro_state = meta_state->intro;
+
+	zero_memory_arena(&meta_state->arena);
+	zero_memory(intro_state, sizeof(IntroMetaState));
+
+	EntityArray * entities = &intro_state->entities;
+
+	f32 x = -(f32)meta_state->render_state->screen_width * 0.5f;
+	for(u32 i = 0; i < ARRAY_COUNT(intro_state->panels); i++) {
+		Entity * entity = push_entity(entities, meta_state->assets, AssetId_intro, i);
+		entity->color.a = 0.0f;
+
+		f32 width = math::rec_dim(get_entity_render_bounds(meta_state->assets, entity)).x;
+		entity->pos = math::vec3(x + width * 0.5f, 0.0f, 0.0f);
+		x += width;
+
+		intro_state->panels[i] = entity;
+	}
 }
 
 void init_main_meta_state(MetaState * meta_state) {
@@ -569,6 +596,11 @@ void change_meta_state(GameState * game_state, MetaStateType type) {
 			break;
 		}
 
+		case MetaStateType_intro: {
+			init_intro_meta_state(meta_state);
+			break;
+		}
+
 		case MetaStateType_main: {
 			init_main_meta_state(meta_state);
 			break;
@@ -603,7 +635,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			game_state->meta_states[i] = allocate_meta_state(game_state, (MetaStateType)i);
 		}
 
-		change_meta_state(game_state, MetaStateType_main);
+		change_meta_state(game_state, MetaStateType_menu);
 
 		game_state->auto_save_time = 5.0f;
 		game_state->save.code = SAVE_FILE_CODE;
@@ -715,6 +747,33 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			}
 			else {
 				if(transition_should_flip(game_state, menu_state->transition_id)) {
+					change_meta_state(game_state, MetaStateType_intro);
+				}
+			}
+
+			break;
+		}
+
+		case MetaStateType_intro: {
+			MetaState * meta_state = get_meta_state(game_state, MetaStateType_intro);
+			IntroMetaState * intro_state = meta_state->intro;
+
+			if(!game_state->transitioning) {
+				f32 frame_index = (u32)intro_state->anim_time + 1;
+				intro_state->anim_time += game_input->delta_time * 1.5f;
+
+				for(u32 i = 0; i < math::min(frame_index, ARRAY_COUNT(intro_state->panels)); i++) {
+					Entity * entity = intro_state->panels[i];
+					entity->color.a += game_input->delta_time * 8.0f;
+					entity->color.a = math::clamp01(entity->color.a);
+				}
+
+				if(frame_index > (ARRAY_COUNT(intro_state->panels) + 1)) {
+					intro_state->transition_id = begin_transition(game_state);
+				}
+			}
+			else {
+				if(transition_should_flip(game_state, intro_state->transition_id)) {
 					change_meta_state(game_state, MetaStateType_main);
 				}
 			}
@@ -807,7 +866,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			}
 
 			f32 zero_speed = 1.5f;
-			f32 d_time = math::clamp(main_state->d_speed + zero_speed, 0.5f, 8.0f);
+			f32 d_time = math::clamp(main_state->d_speed + zero_speed, 0.5f, 4.0f);
 			f32 adjusted_dt = d_time * game_input->delta_time;
 
 			player->active_clone_count = 0;
@@ -1001,9 +1060,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 						}
 
 						case AssetId_telly: {
+							clip_id = AssetId_explosion;
+							
 							if(main_state->dd_speed <= 0.0f) {
 								pop_player_clones(player, 5);
-								clip_id = AssetId_explosion;
 								is_slow_down = true;
 							}
 							
@@ -1138,7 +1198,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		switch(game_state->transition_type) {
 			case TransitionType_pixelate: {
-				f32 new_pixelate_time = new_transition_time * 2.0f;
+				f32 new_pixelate_time = new_transition_time * 1.5f;
 				if(render_state->pixelate_time < 1.0f && new_pixelate_time >= 1.0f) {
 					game_state->transition_flip = true;
 				}
@@ -1183,7 +1243,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		}
 	}
 
-#if 1
+#if 0
 	str_print(game_state->str, "SOURCES TO FREE %u\n", audio_state->debug_sources_to_free);
 #endif
 
@@ -1200,6 +1260,17 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	switch(game_state->meta_state) {
 		case MetaStateType_menu: {
 			MetaState * meta_state = get_meta_state(game_state, MetaStateType_menu);
+
+			RenderTransform render_transform = create_render_transform(math::vec2(0.0f));
+
+			EntityArray * entities = &meta_state->menu->entities;
+			render_entities(render_state, &render_transform, entities->elems, entities->count);
+
+			break;
+		}
+
+		case MetaStateType_intro: {
+			MetaState * meta_state = get_meta_state(game_state, MetaStateType_intro);
 
 			RenderTransform render_transform = create_render_transform(math::vec2(0.0f));
 

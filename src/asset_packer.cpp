@@ -417,6 +417,10 @@ int main() {
 		load_texture("space_layer2.png", AssetId_space),
 		load_texture("space_layer3.png", AssetId_space),
 		load_texture("space_layer4.png", AssetId_space),
+
+		load_texture("intro0.png", AssetId_intro),
+		load_texture("intro1.png", AssetId_intro),
+		load_texture("intro2.png", AssetId_intro),
 	};
 
 	packer.header.asset_count += ARRAY_COUNT(reg_tex_array);

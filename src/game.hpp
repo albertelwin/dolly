@@ -140,6 +140,7 @@ struct SaveFileHeader {
 
 enum MetaStateType {
 	MetaStateType_menu,
+	MetaStateType_intro,
 	MetaStateType_main,
 	MetaStateType_game_over,
 
@@ -148,11 +149,21 @@ enum MetaStateType {
 };
 
 struct MenuMetaState {
+	//TODO: Should entities be part of the meta state??
 	EntityArray entities;
 
 	Entity * play;
 	Entity * score;
 	Entity * credits;
+
+	u32 transition_id;
+};
+
+struct IntroMetaState {
+	EntityArray entities;
+
+	Entity * panels[3];
+	f32 anim_time;
 
 	u32 transition_id;
 };
@@ -212,6 +223,7 @@ struct MetaState {
 	MetaStateType type;
 	union {
 		MenuMetaState * menu;
+		IntroMetaState * intro;
 		MainMetaState * main;
 		GameOverMetaState * game_over;
 	};

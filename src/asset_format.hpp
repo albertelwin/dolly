@@ -32,6 +32,8 @@ enum AssetId {
 	AssetId_mountains,
 	AssetId_space,
 
+	AssetId_intro,
+
 	AssetId_atlas,
 
 	//NOTE: Sprites
