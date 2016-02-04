@@ -46,12 +46,13 @@ struct RenderBatch {
 struct RenderTransform {
 	math::Vec2 pos;
 	math::Vec2 offset;
+
+	u32 projection_width;
+	u32 projection_height;
 };
 
 struct Font {
 	RenderBatch * batch;
-
-	math::Mat4 projection_matrix;
 
 	u32 glyph_width;
 	u32 glyph_height;
@@ -73,8 +74,6 @@ struct RenderState {
 
 	u32 screen_width;
 	u32 screen_height;
-	f32 letterboxed_height;
-	math::Mat4 projection;
 
 	Shader basic_shader;
 	Shader post_shader;
@@ -90,7 +89,7 @@ struct RenderState {
 
 	Font * debug_font;
 	b32 debug_render_entity_bounds;
-	
+
 	RenderBatch * render_batch;
 };
 

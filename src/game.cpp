@@ -400,7 +400,8 @@ void init_main_meta_state(MetaState * meta_state) {
 	change_volume(main_state->music, math::vec2(0.0f), 0.0f);
 	change_volume(main_state->music, math::vec2(1.0f), 1.0f);
 
-	main_state->render_transform = create_render_transform(math::vec2(0.0f));
+	main_state->render_transform = create_render_transform(screen_width, screen_height);
+	main_state->letterboxed_height = (f32)screen_height;
 	main_state->font = allocate_font(meta_state->render_state, 65536, screen_width, screen_height);
 
 	EntityArray * entities = &main_state->entities;
@@ -448,35 +449,35 @@ void init_main_meta_state(MetaState * meta_state) {
 	{
 		//TODO: We probably want to have a probability tree!!
 		AssetId emitter_types[] = {
-			// AssetId_clock,
+			AssetId_clock,
 
 			AssetId_speed_up,
 			AssetId_speed_up,
 
-			// AssetId_telly,
-			// AssetId_telly,
-			// AssetId_telly,
-			// AssetId_telly,
-			// AssetId_telly,
-			// AssetId_telly,
-			// AssetId_telly,
-			// AssetId_telly,
-			// AssetId_telly,
-			// AssetId_telly,
-			// AssetId_telly,
-			// AssetId_telly,
-			// AssetId_telly,
-			// AssetId_telly,
+			AssetId_telly,
+			AssetId_telly,
+			AssetId_telly,
+			AssetId_telly,
+			AssetId_telly,
+			AssetId_telly,
+			AssetId_telly,
+			AssetId_telly,
+			AssetId_telly,
+			AssetId_telly,
+			AssetId_telly,
+			AssetId_telly,
+			AssetId_telly,
+			AssetId_telly,
 
-			// AssetId_rocket,
+			AssetId_rocket,
 
-			// AssetId_collectable_blob,
-			// AssetId_collectable_diamond,
-			// AssetId_collectable_flower,
-			// AssetId_collectable_heart,
-			// AssetId_collectable_paw,
-			// AssetId_collectable_speech,
-			// AssetId_collectable_spot,
+			AssetId_collectable_blob,
+			AssetId_collectable_diamond,
+			AssetId_collectable_flower,
+			AssetId_collectable_heart,
+			AssetId_collectable_paw,
+			AssetId_collectable_speech,
+			AssetId_collectable_spot,
 		};
 
 		main_state->locations[LocationId_city].emitter_type_count = ARRAY_COUNT(emitter_types);
@@ -558,8 +559,7 @@ void init_main_meta_state(MetaState * meta_state) {
 	main_state->d_speed = 0.0f;
 	main_state->dd_speed = 0.0f;
 
-	// main_state->start_time = 30.0f;
-	main_state->start_time = 5.0f;
+	main_state->start_time = 30.0f;
 	main_state->max_time = main_state->start_time;
 	main_state->countdown_time = 10.0f;
 	main_state->time_remaining = main_state->start_time;
@@ -718,8 +718,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		case MetaStateType_menu: {
 			MetaState * meta_state = get_meta_state(game_state, MetaStateType_menu);
 			MenuMetaState * menu_state = meta_state->menu;
-
-			render_state->letterboxed_height = render_state->screen_height;
 
 			if(!game_state->transitioning) {
 				math::Vec2 screen_dim = math::vec2(render_state->screen_width, render_state->screen_height);
@@ -985,8 +983,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			Location * current_location = main_state->locations + main_state->current_location;
 
 #if 1
-			render_state->letterboxed_height = render_state->screen_height - math::max(main_state->d_speed, 0.0f) * 40.0f;
-			render_state->letterboxed_height = math::max(render_state->letterboxed_height, render_state->screen_height / 3.0f);
+			main_state->letterboxed_height = render_state->screen_height - math::max(main_state->d_speed, 0.0f) * 40.0f;
+			main_state->letterboxed_height = math::max(main_state->letterboxed_height, render_state->screen_height / 3.0f);
 #endif
 			render_transform->pos.x = 0.0f;
 			render_transform->pos.y = current_location->y;
@@ -1155,8 +1153,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			}
 
 			if(main_state->show_score_overlay) {
-				main_state->score_values[ScoreValueId_points].u32_ = 893;
-
 				//TODO: UI elements shouldn't use the game's render transform!!
 				main_state->score_overlay->pos.y = main_state->locations[main_state->current_location].y;
 
@@ -1196,8 +1192,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		case MetaStateType_game_over: {
 			MetaState * meta_state = get_meta_state(game_state, MetaStateType_game_over);
 			GameOverMetaState * game_over_state = meta_state->game_over;
-
-			render_state->letterboxed_height = render_state->screen_height;
 
 			if(!game_state->transitioning) {
 				if(game_input->buttons[ButtonId_start] & KEY_PRESSED || game_input->mouse_button & KEY_PRESSED) {
@@ -1283,7 +1277,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		case MetaStateType_menu: {
 			MetaState * meta_state = get_meta_state(game_state, MetaStateType_menu);
 
-			RenderTransform render_transform = create_render_transform(math::vec2(0.0f));
+			RenderTransform render_transform = create_render_transform(render_state->screen_width, render_state->screen_height);
 
 			EntityArray * entities = &meta_state->menu->entities;
 			render_entities(render_state, &render_transform, entities->elems, entities->count);
@@ -1294,7 +1288,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		case MetaStateType_intro: {
 			MetaState * meta_state = get_meta_state(game_state, MetaStateType_intro);
 
-			RenderTransform render_transform = create_render_transform(math::vec2(0.0f));
+			RenderTransform render_transform = create_render_transform(render_state->screen_width, render_state->screen_height);
 
 			EntityArray * entities = &meta_state->menu->entities;
 			render_entities(render_state, &render_transform, entities->elems, entities->count);
@@ -1309,9 +1303,25 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			EntityArray * entities = &main_state->entities;
 			render_entities(render_state, &main_state->render_transform, entities->elems, entities->count);
 
-			FontLayout font_layout = create_font_layout(main_state->font, 4.0f, render_state->screen_width, render_state->screen_height, math::vec2(285.0f, -86.0f));
+			RenderTransform font_render_transform = create_render_transform(render_state->screen_width, render_state->screen_height);
+			FontLayout font_layout = create_font_layout(main_state->font, 4.0f, font_render_transform.projection_width, font_render_transform.projection_height, math::vec2(285.0f, -86.0f));
 			push_str(main_state->font, main_state->score_str, &font_layout);
-			render_font(render_state, main_state->font);
+			render_font(render_state, main_state->font, &font_render_transform);
+
+			f32 letterbox_pixels = (render_state->screen_height - main_state->letterboxed_height) * 0.5f;
+			if(letterbox_pixels > 0.0f) {
+				Texture * white_tex = get_texture_asset(render_state->assets, AssetId_white, 0);
+
+				math::Vec2 dim = math::vec2(render_state->screen_width, render_state->screen_height);
+				math::Mat4 scale = math::scale(dim.x, dim.y, 1.0f);
+				math::Mat4 projection = math::orthographic_projection((f32)render_state->screen_width, (f32)render_state->screen_height);
+
+				math::Mat4 transform0 = projection * math::translate(0.0f, dim.y - letterbox_pixels, 0.0f) * scale;
+				render_v_buf(&render_state->quad_v_buf, RenderMode_triangles, basic_shader, &transform0, white_tex, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+
+				math::Mat4 transform1 = projection * math::translate(0.0f,-dim.y + letterbox_pixels, 0.0f) * scale;
+				render_v_buf(&render_state->quad_v_buf, RenderMode_triangles, basic_shader, &transform1, white_tex, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+			}
 
 			break;
 		}
@@ -1319,7 +1329,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		case MetaStateType_game_over: {
 			MetaState * meta_state = get_meta_state(game_state, MetaStateType_game_over);
 
-			RenderTransform render_transform = create_render_transform(math::vec2(0.0f));
+			RenderTransform render_transform = create_render_transform(render_state->screen_width, render_state->screen_height);
 
 			EntityArray * entities = &meta_state->game_over->entities;
 			render_entities(render_state, &render_transform, entities->elems, entities->count);

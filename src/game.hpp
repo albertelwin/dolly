@@ -191,6 +191,7 @@ struct MainMetaState {
 	AudioSource * tick_tock;
 
 	RenderTransform render_transform;
+	f32 letterboxed_height;
 	Font * font;
 
 	EntityArray entities;

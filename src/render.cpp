@@ -6,10 +6,12 @@
 #include <screen_quad.vert>
 #include <post_filter.frag>
 
-RenderTransform create_render_transform(math::Vec2 pos, math::Vec2 offset = math::vec2(0.0f)) {
+RenderTransform create_render_transform(u32 projection_width, u32 projection_height, math::Vec2 pos = math::vec2(0.0f), math::Vec2 offset = math::vec2(0.0f)) {
 	RenderTransform transform = {};
 	transform.pos = pos;
 	transform.offset = offset;
+	transform.projection_width = projection_width;
+	transform.projection_height = projection_height;
 	return transform;
 }
 
@@ -46,7 +48,6 @@ Font * allocate_font(RenderState * render_state, u32 v_len, u32 projection_width
 
 	font->batch = allocate_render_batch(render_state->arena, get_texture_asset(render_state->assets, AssetId_font, 0), v_len);
 
-	font->projection_matrix = math::orthographic_projection((f32)projection_width, (f32)projection_height);
 	font->glyph_width = 3;
 	font->glyph_height = 5;
 	font->glyph_spacing = 1;
@@ -229,8 +230,6 @@ void load_render(RenderState * render_state, MemoryArena * arena, AssetState * a
 	//TODO: Adjust these to actual aspect ratio?
 	render_state->screen_width = 1280;
 	render_state->screen_height = 720;
-	render_state->letterboxed_height = (f32)render_state->screen_width;
-	render_state->projection = math::orthographic_projection((f32)render_state->screen_width, (f32)render_state->screen_height);
 
 	Shader * basic_shader = &render_state->basic_shader;
 	u32 basic_vert = gl::compile_shader_from_source(BASIC_VERT_SRC, GL_VERTEX_SHADER);
@@ -311,8 +310,9 @@ void load_render(RenderState * render_state, MemoryArena * arena, AssetState * a
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 }
 
-void render_font(RenderState * render_state, Font * font) {
-	render_and_clear_render_batch(font->batch, &render_state->basic_shader, &font->projection_matrix);
+void render_font(RenderState * render_state, Font * font, RenderTransform * render_transform) {
+	math::Mat4 projection = math::orthographic_projection((f32)render_transform->projection_width, (f32)render_transform->projection_height);
+	render_and_clear_render_batch(font->batch, &render_state->basic_shader, &projection);
 }
 
 void begin_render(RenderState * render_state) {
@@ -362,24 +362,11 @@ void end_render(RenderState * render_state) {
 		glVertexAttribPointer(post_shader->i_position, 2, GL_FLOAT, 0, stride, 0);
 		glEnableVertexAttribArray(post_shader->i_position);
 
-		glDrawArrays(GL_TRIANGLES, 0, v_buf->vert_count);		
+		glDrawArrays(GL_TRIANGLES, 0, v_buf->vert_count);
 	}
 
-	f32 letterbox_pixels = (render_state->screen_height - render_state->letterboxed_height) * 0.5f;
-	if(letterbox_pixels > 0.0f) {
-		Texture * white_tex = get_texture_asset(render_state->assets, AssetId_white, 0);
-
-		math::Vec2 dim = math::vec2(render_state->screen_width, render_state->screen_height);
-		math::Mat4 scale = math::scale(dim.x, dim.y, 1.0f);
-
-		math::Mat4 transform0 = render_state->projection * math::translate(0.0f, dim.y - letterbox_pixels, 0.0f) * scale;
-		render_v_buf(&render_state->quad_v_buf, RenderMode_triangles, basic_shader, &transform0, white_tex, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-
-		math::Mat4 transform1 = render_state->projection * math::translate(0.0f,-dim.y + letterbox_pixels, 0.0f) * scale;
-		render_v_buf(&render_state->quad_v_buf, RenderMode_triangles, basic_shader, &transform1, white_tex, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-	}
-
-	render_font(render_state, render_state->debug_font);
+	RenderTransform font_render_transform = create_render_transform(render_state->back_buffer_width, render_state->back_buffer_height);
+	render_font(render_state, render_state->debug_font, &font_render_transform);
 
 	glDisable(GL_BLEND);
 }
@@ -388,7 +375,8 @@ void end_render(RenderState * render_state) {
 void render_entities(RenderState * render_state, RenderTransform * render_transform, Entity * entities, u32 entity_count) {
 	DEBUG_TIME_BLOCK();
 
-	math::Rec2 screen_bounds = math::rec2_pos_dim(math::vec2(0.0f), math::vec2((f32)render_state->screen_width, render_state->letterboxed_height));
+	math::Rec2 screen_bounds = math::rec2_pos_dim(math::vec2(0.0f), math::vec2((f32)render_state->screen_width, (f32)render_state->screen_height));
+	math::Mat4 projection = math::orthographic_projection((f32)render_transform->projection_width, (f32)render_transform->projection_height);
 
 	u32 null_atlas_index = U32_MAX;
 	u32 current_atlas_index = null_atlas_index;
@@ -420,11 +408,11 @@ void render_entities(RenderState * render_state, RenderTransform * render_transf
 				f32 epsilon = 0.1f;
 				if(math::rec_overlap(screen_bounds, math::rec2_pos_dim(pos, dim * 1.0f + epsilon))) {
 					if(current_atlas_index != null_atlas_index) {
-						render_and_clear_render_batch(render_batch, basic_shader, &render_state->projection);
+						render_and_clear_render_batch(render_batch, basic_shader, &projection);
 						current_atlas_index = null_atlas_index;
 					}
 
-					math::Mat4 transform = render_state->projection * math::translate(pos.x, pos.y, 0.0f) * math::scale(dim.x, dim.y, 1.0f);
+					math::Mat4 transform = projection * math::translate(pos.x, pos.y, 0.0f) * math::scale(dim.x, dim.y, 1.0f);
 					render_v_buf(v_buf, RenderMode_triangles, basic_shader, &transform, tex, color);
 				}
 			}
@@ -434,7 +422,7 @@ void render_entities(RenderState * render_state, RenderTransform * render_transf
 				if(math::rec_overlap(screen_bounds, math::rec2_pos_dim(pos, dim))) {
 					u32 elems_remaining = render_batch->v_len - render_batch->e;
 					if(current_atlas_index != sprite->atlas_index || elems_remaining < QUAD_ELEM_COUNT) {
-						render_and_clear_render_batch(render_state->render_batch, basic_shader, &render_state->projection);
+						render_and_clear_render_batch(render_state->render_batch, basic_shader, &projection);
 
 						current_atlas_index = sprite->atlas_index;
 						render_batch->tex = get_texture_asset(render_state->assets, AssetId_atlas, sprite->atlas_index);
@@ -447,7 +435,7 @@ void render_entities(RenderState * render_state, RenderTransform * render_transf
 	}
 
 	if(current_atlas_index != null_atlas_index) {
-		render_and_clear_render_batch(render_batch, basic_shader, &render_state->projection);
+		render_and_clear_render_batch(render_batch, basic_shader, &projection);
 	}
 	
 	if(render_state->debug_render_entity_bounds) {
@@ -464,12 +452,12 @@ void render_entities(RenderState * render_state, RenderTransform * render_transf
 
 			u32 elems_remaining = render_batch->v_len - render_batch->e;
 			if(elems_remaining < QUAD_LINES_ELEM_COUNT) {
-				render_and_clear_render_batch(render_batch, basic_shader, &render_state->projection);
+				render_and_clear_render_batch(render_batch, basic_shader, &projection);
 			}
 
 			push_quad_lines(render_batch, &bounds, math::vec4(1.0f));
 		}
 
-		render_and_clear_render_batch(render_batch, basic_shader, &render_state->projection);
+		render_and_clear_render_batch(render_batch, basic_shader, &projection);
 	}
 }
