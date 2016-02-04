@@ -59,6 +59,11 @@ struct Font {
 	u32 glyph_spacing;
 };
 
+enum FontLayoutAnchor {
+	FontLayoutAnchor_top_left,
+	FontLayoutAnchor_bottom_left,
+};
+
 struct FontLayout {
 	f32 scale;
 	math::Vec2 anchor;

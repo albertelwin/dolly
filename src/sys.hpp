@@ -108,157 +108,6 @@ void c_str_copy(char * dst, char const * src) {
 	*dst = 0;
 }
 
-struct Str {
-	char * ptr;
-	u32 len;
-	u32 max_len;
-};
-
-Str str_fixed_size(char const * ptr, u32 len) {
-	Str str;
-	str.ptr = (char *)ptr;
-	str.max_len = str.len = len;
-	return str;
-}
-
-Str str_from_c_str(char const * c_str) {
-	Str str;
-	str.max_len = str.len = c_str_len(c_str);
-	str.ptr = (char *)c_str;
-	return str;
-}
-
-void str_clear(Str * str) {
-	str->len = 0;
-	str->ptr[0] = 0;
-}
-
-b32 str_equal(Str * str_x, Str * str_y) {
-	b32 equal;
-	if(str_x->len == str_y->len) {
-		equal = true;
-
-		for(u32 i = 0; i < str_x->len; i++) {
-			if(str_x->ptr[i] != str_y->ptr[i]) {
-				equal = false;
-				break;
-			}
-		}
-	}
-	else {
-		equal = false;
-	}
-
-	return equal;
-}
-
-b32 str_equal(Str * str_x, char const * c_str) {
-	Str str_y = str_from_c_str(c_str);
-	return str_equal(str_x, &str_y);
-}
-
-void str_push(Str * str, char char_) {
-	ASSERT(str->len < (str->max_len - 1));
-
-	str->ptr[str->len++] = char_;
-	str->ptr[str->len] = 0;
-}
-
-void str_push_c_str(Str * str, char const * val) {
-	while(*val) {
-		str_push(str, *val++);
-	}
-}
-
-void str_push_u32(Str * str, u32 val) {
-	if(!val) {
-		str_push(str, '0');
-	}
-	else {
-		char * dst = str->ptr + str->len;
-
-		u32 val_ = val;
-		while(val_) {
-			dst++;
-			str->len++;
-			val_ /= 10;
-		}
-
-		*dst-- = 0;
-
-		while(val) {
-			*dst-- = '0' + val % 10;
-			val /= 10; 
-		}
-	}
-}
-
-void str_push_f32(Str * str, f32 val) {
-	if(f32_is_neg(val)) {
-		str_push(str, '-');
-		val = -val;
-	}
-
-	if(f32_is_inf(val)) {
-		str_push_c_str(str, "inf");
-	}
-	else if(f32_is_nan(val)) {
-		str_push_c_str(str, "nan");
-	}
-	else {
-		str_push_u32(str, (u32)val);
-		str_push(str, '.');
-
-		u32 p = 10000;
-		u32 frc = (u32)((val - (u32)val) * p);
-
-		p /= 10;
-		while(p) {
-			str_push(str, '0' + ((frc / p) % 10));
-			p /= 10;
-		}
-	}
-}
-
-void str_print(Str * str, char const * fmt, ...) {
-	va_list args;
-	va_start(args, fmt);
-
-	while(*fmt) {
-		if(fmt[0] == '%') {
-			switch(fmt[1]) {
-				case 's': {
-					str_push_c_str(str, va_arg(args, char *));
-					break;
-				}
-
-				case 'f': {
-					str_push_f32(str, (f32)va_arg(args, f64));
-					break;
-				}
-
-				case 'u': {
-					str_push_u32(str, va_arg(args, u32));
-					break;
-				}
-
-				default: {
-					ASSERT(false);
-					break;
-				}
-			}
-
-			fmt += 2;
-		}
-		else {
-			str_push(str, *fmt++);
-		}
-	}
-
-	str->ptr[str->len] = 0;
-	va_end(args);
-}
-
 struct MemoryPtr {
 	size_t size;
 	u8 * ptr;
@@ -341,6 +190,182 @@ void * alloc_memory_(size_t size) {
 #define FREE_MEMORY(ptr) free_memory_(ptr)
 void free_memory_(void * ptr) {
 	std::free(ptr);
+}
+
+struct Str {
+	char * ptr;
+	u32 len;
+	u32 max_len;
+};
+
+Str * allocate_str(MemoryArena * arena, u32 max_len) {
+	Str * str = PUSH_STRUCT(arena, Str);
+	str->max_len = max_len;
+	str->len = 0;
+	str->ptr = PUSH_ARRAY(arena, char, max_len);
+	return str;
+}
+
+Str str_fixed_size(char const * ptr, u32 max_len) {
+	Str str;
+	str.ptr = (char *)ptr;
+	str.len = 0;
+	str.max_len = max_len;
+	return str;
+}
+
+Str str_from_c_str(char const * c_str) {
+	Str str;
+	str.max_len = str.len = c_str_len(c_str);
+	str.ptr = (char *)c_str;
+	return str;
+}
+
+void str_clear(Str * str) {
+	str->len = 0;
+	str->ptr[0] = 0;
+}
+
+b32 str_equal(Str * str_x, Str * str_y) {
+	b32 equal;
+	if(str_x->len == str_y->len) {
+		equal = true;
+
+		for(u32 i = 0; i < str_x->len; i++) {
+			if(str_x->ptr[i] != str_y->ptr[i]) {
+				equal = false;
+				break;
+			}
+		}
+	}
+	else {
+		equal = false;
+	}
+
+	return equal;
+}
+
+b32 str_equal(Str * str_x, char const * c_str) {
+	Str str_y = str_from_c_str(c_str);
+	return str_equal(str_x, &str_y);
+}
+
+void str_push(Str * str, char char_) {
+	ASSERT(str->len < (str->max_len - 1));
+
+	str->ptr[str->len++] = char_;
+	str->ptr[str->len] = 0;
+}
+
+void str_push_c_str(Str * str, char const * val) {
+	while(*val) {
+		str_push(str, *val++);
+	}
+}
+
+void str_push_u32(Str * str, u32 val) {
+	if(!val) {
+		str_push(str, '0');
+	}
+	else {
+		char * dst = str->ptr + str->len;
+
+		u32 val_ = val;
+		while(val_) {
+			dst++;
+			str->len++;
+			val_ /= 10;
+		}
+
+		*dst-- = 0;
+
+		while(val) {
+			*dst-- = '0' + val % 10;
+			val /= 10; 
+		}
+	}
+}
+
+void str_push_f32(Str * str, f32 val, u32 precision = 0) {
+	if(f32_is_neg(val)) {
+		str_push(str, '-');
+		val = -val;
+	}
+
+	if(f32_is_inf(val)) {
+		str_push_c_str(str, "inf");
+	}
+	else if(f32_is_nan(val)) {
+		str_push_c_str(str, "nan");
+	}
+	else {
+		str_push_u32(str, (u32)val);
+		str_push(str, '.');
+
+		if(precision == 0) {
+			precision = 4;
+		}
+
+		u32 p = 10;
+		//TODO: Can we do this without a loop??
+		for(u32 i = 1; i < precision; i++) {
+			p *= 10;
+		}
+
+		u32 frc = (u32)((val - (u32)val) * p);
+
+		p /= 10;
+		while(p) {
+			str_push(str, '0' + ((frc / p) % 10));
+			p /= 10;
+		}
+	}
+}
+
+void str_print(Str * str, char const * fmt, ...) {
+	va_list args;
+	va_start(args, fmt);
+
+	while(*fmt) {
+		if(fmt[0] == '%') {
+			//TODO: Support multiple digit precision values!!
+			u32 precision = 0;
+			if(fmt[1] == '.') {
+				precision = fmt[2] - '0';
+				fmt += 2;
+			}
+
+			switch(fmt[1]) {
+				case 's': {
+					str_push_c_str(str, va_arg(args, char *));
+					break;
+				}
+
+				case 'f': {
+					str_push_f32(str, (f32)va_arg(args, f64), precision);
+					break;
+				}
+
+				case 'u': {
+					str_push_u32(str, va_arg(args, u32));
+					break;
+				}
+
+				default: {
+					ASSERT(false);
+					break;
+				}
+			}
+
+			fmt += 2;
+		}
+		else {
+			str_push(str, *fmt++);
+		}
+	}
+
+	str->ptr[str->len] = 0;
+	va_end(args);
 }
 
 #define KEY_DOWN_BIT 0

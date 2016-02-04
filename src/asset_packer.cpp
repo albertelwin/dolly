@@ -362,25 +362,45 @@ void push_sprite_sheet(AssetPacker * packer, char const * file_name, AssetId spr
 }
 
 int main() {
+	//TODO: Automatically sync these up!!
+	ASSERT(ASSET_GROUP_COUNT(collectable) == ASSET_GROUP_COUNT(display));
+
 	AssetPacker packer = {};
 
 	AssetFile sprite_files[] = {
-		{ AssetId_clock, "clock.png" },
 		{ AssetId_rocket, "rocket.png" },
 		{ AssetId_large_rocket, "large_rocket.png" },
+		{ AssetId_boots, "boots.png" },
 		{ AssetId_car, "car.png" },
 		{ AssetId_shield, "shield.png" },
-		{ AssetId_speed_up, "speed_up.png" },
 
 		{ AssetId_collectable_blob, "collectable_blob.png" },
+		{ AssetId_collectable_clock, "collectable_clock.png" },
 		{ AssetId_collectable_diamond, "collectable_diamond.png" },
 		{ AssetId_collectable_flower, "collectable_flower.png" },
 		{ AssetId_collectable_heart, "collectable_heart.png" },
 		{ AssetId_collectable_paw, "collectable_paw.png" },
 		{ AssetId_collectable_speech, "collectable_speech.png" },
+		{ AssetId_collectable_speed_up, "collectable_speed_up.png" },
 		{ AssetId_collectable_spot, "collectable_spot.png" },
 	};
 	push_packed_texture(&packer, sprite_files, ARRAY_COUNT(sprite_files));
+
+	AssetFile display_sprite_files[] = {
+		{ AssetId_display_background, "display_background.png" },
+
+		{ AssetId_display_blob, "display_blob.png" },
+		{ AssetId_display_clock, "display_clock.png" },
+		{ AssetId_display_diamond, "display_diamond.png" },
+		{ AssetId_display_flower, "display_flower.png" },
+		{ AssetId_display_heart, "display_heart.png" },
+		{ AssetId_display_paw, "display_paw.png" },
+		{ AssetId_display_speech, "display_speech.png" },
+		{ AssetId_display_speed_up, "display_speed_up.png" },
+		{ AssetId_display_spot, "display_spot.png" },
+		{ AssetId_display_telly, "display_telly.png" },
+	};
+	push_packed_texture(&packer, display_sprite_files, ARRAY_COUNT(display_sprite_files));
 
 	AssetFile ui_sprite_files[] = {
 		{ AssetId_score_overlay, "score_overlay.png" },
@@ -397,7 +417,14 @@ int main() {
 	};
 	push_packed_texture(&packer, menu_sprite_files, ARRAY_COUNT(menu_sprite_files));
 
-	push_sprite_sheet(&packer, "telly_sheet.png", AssetId_telly, 192, 192, 39);
+	AssetFile intro_sprite_files[] = {
+		{ AssetId_intro, "intro0.png" },
+		{ AssetId_intro, "intro1.png" },
+		{ AssetId_intro, "intro2.png" },
+	};
+	push_packed_texture(&packer, intro_sprite_files, ARRAY_COUNT(intro_sprite_files));
+
+	push_sprite_sheet(&packer, "telly_sheet.png", AssetId_collectable_telly, 192, 192, 39);
 	push_sprite_sheet(&packer, "dolly_run.png", AssetId_dolly, 97, 80, 15);
 
 	Texture reg_tex_array[] = {
@@ -422,10 +449,6 @@ int main() {
 		load_texture("space_layer2.png", AssetId_space),
 		load_texture("space_layer3.png", AssetId_space),
 		load_texture("space_layer4.png", AssetId_space),
-
-		load_texture("intro0.png", AssetId_intro),
-		load_texture("intro1.png", AssetId_intro),
-		load_texture("intro2.png", AssetId_intro),
 	};
 
 	packer.header.asset_count += ARRAY_COUNT(reg_tex_array);

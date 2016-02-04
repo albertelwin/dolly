@@ -86,14 +86,6 @@ Entity * push_entity(EntityArray * entities, AssetState * assets, AssetId asset_
 	return entity;
 }
 
-Str * allocate_str(MemoryArena * arena, u32 max_len) {
-	Str * str = PUSH_STRUCT(arena, Str);
-	str->max_len = max_len;
-	str->len = 0;
-	str->ptr = PUSH_ARRAY(arena, char, max_len);	
-	return str;
-}
-
 void kill_player(Player * player) {
 	if(!player->dead) {
 		player->dead = true;
@@ -355,9 +347,19 @@ void init_menu_meta_state(MetaState * meta_state) {
 
 	EntityArray * entities = &menu_state->entities;
 
-	menu_state->credits = push_entity(entities, meta_state->assets, AssetId_menu_credits, 0);
-	menu_state->score = push_entity(entities, meta_state->assets, AssetId_menu_score, 0);
-	menu_state->play = push_entity(entities, meta_state->assets, AssetId_menu_play, 0);
+	push_entity(entities, meta_state->assets, AssetId_display_background, 0);
+
+	for(u32 i = 0; i < ARRAY_COUNT(menu_state->display_items); i++) {
+		AssetId asset_id = (AssetId)(AssetId_first_display + i);
+		Entity * entity = push_entity(entities, meta_state->assets, asset_id, 0);
+		entity->color.a = 0.0f;
+
+		menu_state->display_items[i] = entity;
+	}
+
+	menu_state->buttons[MenuButtonId_credits] = push_entity(entities, meta_state->assets, AssetId_menu_credits, 0);
+	menu_state->buttons[MenuButtonId_score] = push_entity(entities, meta_state->assets, AssetId_menu_score, 0);
+	menu_state->buttons[MenuButtonId_play] = push_entity(entities, meta_state->assets, AssetId_menu_play, 0);
 }
 
 void init_intro_meta_state(MetaState * meta_state) {
@@ -369,14 +371,9 @@ void init_intro_meta_state(MetaState * meta_state) {
 
 	EntityArray * entities = &intro_state->entities;
 
-	f32 x = -(f32)meta_state->render_state->screen_width * 0.5f;
 	for(u32 i = 0; i < ARRAY_COUNT(intro_state->panels); i++) {
 		Entity * entity = push_entity(entities, meta_state->assets, AssetId_intro, i);
 		entity->color.a = 0.0f;
-
-		f32 width = math::rec_dim(get_entity_render_bounds(meta_state->assets, entity)).x;
-		entity->pos = math::vec3(x + width * 0.5f, 0.0f, 0.0f);
-		x += width;
 
 		intro_state->panels[i] = entity;
 	}
@@ -449,34 +446,34 @@ void init_main_meta_state(MetaState * meta_state) {
 	{
 		//TODO: We probably want to have a probability tree!!
 		AssetId emitter_types[] = {
-			AssetId_clock,
-
-			AssetId_speed_up,
-			AssetId_speed_up,
-
-			AssetId_telly,
-			AssetId_telly,
-			AssetId_telly,
-			AssetId_telly,
-			AssetId_telly,
-			AssetId_telly,
-			AssetId_telly,
-			AssetId_telly,
-			AssetId_telly,
-			AssetId_telly,
-			AssetId_telly,
-			AssetId_telly,
-			AssetId_telly,
-			AssetId_telly,
-
 			AssetId_rocket,
+			AssetId_boots,
+
+			AssetId_collectable_telly,
+			AssetId_collectable_telly,
+			AssetId_collectable_telly,
+			AssetId_collectable_telly,
+			AssetId_collectable_telly,
+			AssetId_collectable_telly,
+			AssetId_collectable_telly,
+			AssetId_collectable_telly,
+			AssetId_collectable_telly,
+			AssetId_collectable_telly,
+			AssetId_collectable_telly,
+			AssetId_collectable_telly,
+			AssetId_collectable_telly,
+			AssetId_collectable_telly,
+			AssetId_collectable_telly,
+			AssetId_collectable_telly,
 
 			AssetId_collectable_blob,
+			AssetId_collectable_clock,
 			AssetId_collectable_diamond,
 			AssetId_collectable_flower,
 			AssetId_collectable_heart,
 			AssetId_collectable_paw,
 			AssetId_collectable_speech,
+			AssetId_collectable_speed_up,
 			AssetId_collectable_spot,
 		};
 
@@ -489,7 +486,7 @@ void init_main_meta_state(MetaState * meta_state) {
 
 	{
 		AssetId emitter_types[] = {
-			AssetId_clock,
+			AssetId_collectable_clock,
 
 			AssetId_dolly,
 			AssetId_dolly,
@@ -560,6 +557,7 @@ void init_main_meta_state(MetaState * meta_state) {
 	main_state->dd_speed = 0.0f;
 
 	main_state->start_time = 30.0f;
+	// main_state->start_time = 5.0f;
 	main_state->max_time = main_state->start_time;
 	main_state->countdown_time = 10.0f;
 	main_state->time_remaining = main_state->start_time;
@@ -632,7 +630,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		load_audio(&game_state->audio_state, &game_state->memory_arena, &game_state->assets, game_input->audio_supported);
 		load_render(&game_state->render_state, &game_state->memory_arena, &game_state->assets, game_input->back_buffer_width, game_input->back_buffer_height);
 
-		game_state->audio_state.master_volume = 0.0f;
+		// game_state->audio_state.master_volume = 0.0f;
 
 		game_state->meta_state = MetaStateType_null;
 		for(u32 i = 0; i < ARRAY_COUNT(game_state->meta_states); i++) {
@@ -689,7 +687,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 	str_clear(game_state->str);
 	// str_print(game_state->str, "DOLLY DOLLY DOLLY DAYS!\nDT: %f\n\n", game_input->delta_time);
-	str_print(game_state->str, "PLAYS: %u | HIGH_SCORE: %u | LONGEST_RUN: %f\n\n", game_state->save.plays, game_state->save.high_score, game_state->save.longest_run);
+	// str_print(game_state->str, "PLAYS: %u | HIGH_SCORE: %u | LONGEST_RUN: %.2f\n\n", game_state->save.plays, game_state->save.high_score, game_state->save.longest_run);
 
 #if 0
 	for(u32 i = 0; i < ARRAY_COUNT(game_state->save.collectable_unlock_states); i++){
@@ -711,13 +709,17 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		game_state->audio_state.master_volume = game_state->audio_state.master_volume > 0.0f ? 0.0f : 1.0f;
 	}
 
-	Shader * basic_shader = &render_state->basic_shader;
-	Shader * post_shader = &render_state->post_shader;
-
 	switch(game_state->meta_state) {
 		case MetaStateType_menu: {
 			MetaState * meta_state = get_meta_state(game_state, MetaStateType_menu);
 			MenuMetaState * menu_state = meta_state->menu;
+
+			for(u32 i = 0; i < ARRAY_COUNT(menu_state->display_items); i++) {
+				Entity * entity = menu_state->display_items[i];
+				if(game_state->save.collectable_unlock_states[i]) {
+					entity->color.a = 1.0f;
+				}
+			}
 
 			if(!game_state->transitioning) {
 				math::Vec2 screen_dim = math::vec2(render_state->screen_width, render_state->screen_height);
@@ -727,8 +729,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				mouse_pos.y = -mouse_pos.y;
 
 				Entity * hot_entity = 0;
-				for(u32 i = 0; i < menu_state->entities.count; i++) {
-					Entity * entity = menu_state->entities.elems + i;
+				for(u32 i = 0; i < ARRAY_COUNT(menu_state->buttons); i++) {
+					Entity * entity = menu_state->buttons[i];
 					entity->asset_index = 0;
 
 					math::Rec2 bounds = get_entity_collider_bounds(entity);
@@ -741,7 +743,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					hot_entity->asset_index = 1;
 
 					if(game_input->mouse_button & KEY_PRESSED) {
-						if(hot_entity == menu_state->play) {
+						if(hot_entity == menu_state->buttons[MenuButtonId_play]) {
 							menu_state->transition_id = begin_transition(game_state);
 						}
 					}
@@ -749,7 +751,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			}
 			else {
 				if(transition_should_flip(game_state, menu_state->transition_id)) {
-					change_meta_state(game_state, MetaStateType_main);
+					change_meta_state(game_state, MetaStateType_intro);
 				}
 			}
 
@@ -956,7 +958,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 			render_transform->offset = (math::rand_vec2() * 2.0f - 1.0f) * math::max(main_state->d_speed, 0.0f);
 
-			if(main_state->rocket_seq.playing) {
+			if(!player->dead && main_state->rocket_seq.playing) {
 				play_rocket_sequence(game_state, meta_state, game_input->delta_time);
 			}
 
@@ -993,7 +995,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 			EntityEmitter * emitter = &main_state->entity_emitter;
 			emitter->time_until_next_spawn -= adjusted_dt;
-			if(emitter->time_until_next_spawn <= 0.0f) {
+			if(!player->dead && emitter->time_until_next_spawn <= 0.0f) {
 				if(emitter->entity_count < ARRAY_COUNT(emitter->entity_array)) {
 					Entity * entity = emitter->entity_array[emitter->entity_count++];
 
@@ -1007,7 +1009,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					AssetId asset_id = current_location->emitter_types[type_index];
 
 					change_entity_asset(entity, assets, asset_id, 0);
-					if(entity->asset_id == AssetId_telly) {
+					if(entity->asset_id == AssetId_collectable_telly) {
 						entity->collider = math::rec_scale(entity->collider, 0.5f);
 					}
 
@@ -1060,7 +1062,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 							break;
 						}
 
-						case AssetId_telly: {
+						case AssetId_collectable_telly: {
 							clip_id = AssetId_explosion;
 							
 							if(main_state->dd_speed <= 0.0f) {
@@ -1076,7 +1078,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 							break;
 						}
 
-						case AssetId_clock: {
+						case AssetId_collectable_clock: {
 							main_state->time_remaining += main_state->countdown_time;
 							main_state->time_remaining = math::min(main_state->time_remaining, main_state->max_time);
 							stop_audio_clip(meta_state->audio_state, main_state->tick_tock);
@@ -1085,7 +1087,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 							break;
 						}
 
-						case AssetId_speed_up: {
+						case AssetId_collectable_speed_up: {
 							if(main_state->accel_time == 0.0f) {
 								main_state->dd_speed = 40.0f;
 								main_state->accel_time = 5.0f;								
@@ -1097,7 +1099,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 							break;
 						}
 
-						case AssetId_collectable_blob: {
+						case AssetId_boots: {
 							begin_location_transition(game_state, main_state, LocationId_mountains);
 							break;
 						}
@@ -1177,14 +1179,12 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 				str_clear(main_state->score_str);
 				str_print(main_state->score_str, "SCORE\n\n");
-				str_print(main_state->score_str, "TIME PLAYED: %f\n", main_state->score_values[ScoreValueId_time_played].display);
+				str_print(main_state->score_str, "TIME PLAYED: %.2f\n", main_state->score_values[ScoreValueId_time_played].display);
 				str_print(main_state->score_str, "POINTS: %u\n", (u32)main_state->score_values[ScoreValueId_points].display);
 			}
 
 			game_state->save.high_score = math::max(game_state->save.high_score, main_state->score_values[ScoreValueId_points].u32_);
 			game_state->save.longest_run = math::max(game_state->save.longest_run, main_state->score_values[ScoreValueId_time_played].f32_);
-
-			str_print(game_state->str, "TIME: %f\n\n", main_state->time_remaining);
 
 			break;
 		}
@@ -1267,10 +1267,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		}
 	}
 
-#if 0
-	str_print(game_state->str, "SOURCES TO FREE %u\n", audio_state->debug_sources_to_free);
-#endif
-
 	begin_render(render_state);
 
 	switch(game_state->meta_state) {
@@ -1303,25 +1299,72 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			EntityArray * entities = &main_state->entities;
 			render_entities(render_state, &main_state->render_transform, entities->elems, entities->count);
 
-			RenderTransform font_render_transform = create_render_transform(render_state->screen_width, render_state->screen_height);
-			FontLayout font_layout = create_font_layout(main_state->font, 4.0f, font_render_transform.projection_width, font_render_transform.projection_height, math::vec2(285.0f, -86.0f));
-			push_str(main_state->font, main_state->score_str, &font_layout);
-			render_font(render_state, main_state->font, &font_render_transform);
+			math::Vec2 screen_dim = math::vec2(render_state->screen_width, render_state->screen_height);
+			math::Mat4 screen_projection = math::orthographic_projection((f32)render_state->screen_width, (f32)render_state->screen_height);
+			math::Mat4 screen_scale = math::scale(screen_dim.x, screen_dim.y, 1.0f);
+
+			Shader * basic_shader = &render_state->basic_shader;
+			Texture * white_tex = get_texture_asset(render_state->assets, AssetId_white, 0);
 
 			f32 letterbox_pixels = (render_state->screen_height - main_state->letterboxed_height) * 0.5f;
 			if(letterbox_pixels > 0.0f) {
-				Texture * white_tex = get_texture_asset(render_state->assets, AssetId_white, 0);
-
-				math::Vec2 dim = math::vec2(render_state->screen_width, render_state->screen_height);
-				math::Mat4 scale = math::scale(dim.x, dim.y, 1.0f);
-				math::Mat4 projection = math::orthographic_projection((f32)render_state->screen_width, (f32)render_state->screen_height);
-
-				math::Mat4 transform0 = projection * math::translate(0.0f, dim.y - letterbox_pixels, 0.0f) * scale;
+				math::Mat4 transform0 = screen_projection * math::translate(0.0f, screen_dim.y - letterbox_pixels, 0.0f) * screen_scale;
 				render_v_buf(&render_state->quad_v_buf, RenderMode_triangles, basic_shader, &transform0, white_tex, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
-				math::Mat4 transform1 = projection * math::translate(0.0f,-dim.y + letterbox_pixels, 0.0f) * scale;
+				math::Mat4 transform1 = screen_projection * math::translate(0.0f,-screen_dim.y + letterbox_pixels, 0.0f) * screen_scale;
 				render_v_buf(&render_state->quad_v_buf, RenderMode_triangles, basic_shader, &transform1, white_tex, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 			}
+
+			if(main_state->show_score_overlay) {
+				math::Mat4 transform = screen_projection * screen_scale;
+				render_v_buf(&render_state->quad_v_buf, RenderMode_triangles, basic_shader, &transform, white_tex, math::vec4(0.0f, 0.0f, 0.0f, 0.25f));
+			}
+
+			RenderTransform font_render_transform = create_render_transform(render_state->screen_width, render_state->screen_height);
+			math::Vec2 font_render_dim = math::vec2(font_render_transform.projection_width, font_render_transform.projection_height);
+			f32 font_scale = 4.0f;
+
+			{
+				char time_str_buf[256];
+				Str time_str = str_fixed_size(time_str_buf, ARRAY_COUNT(time_str_buf));
+				str_print(&time_str, "TIME REMAINING: %.2f", main_state->time_remaining);
+
+				FontLayout font_layout = create_font_layout(main_state->font, font_render_dim, font_scale, FontLayoutAnchor_top_left);
+				push_str(main_state->font, &font_layout, &time_str);
+			}
+
+			{
+				char * location_str = 0;
+				switch(main_state->current_location) {
+					case LocationId_city: {
+						location_str = (char *)"CITY";
+						break;
+					}
+
+					case LocationId_mountains: {
+						location_str = (char *)"MOUNTAINS";
+						break;
+					}
+
+					case LocationId_space: {
+						location_str = (char *)"SPACE";
+						break;
+					}
+
+					INVALID_CASE();
+				}
+
+				FontLayout font_layout = create_font_layout(main_state->font, font_render_dim, font_scale, FontLayoutAnchor_bottom_left);
+				push_c_str(main_state->font, &font_layout, location_str);
+			}
+
+			{
+				math::Vec2 font_layout_dim = math::rec_dim(get_entity_render_bounds(meta_state->assets, main_state->score_overlay));
+				FontLayout font_layout = create_font_layout(main_state->font, font_layout_dim, font_scale, FontLayoutAnchor_top_left, math::vec2(24.0f, -24.0f));
+				push_str(main_state->font, &font_layout, main_state->score_str);
+			}
+
+			render_font(render_state, main_state->font, &font_render_transform);
 
 			break;
 		}
@@ -1341,9 +1384,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	}
 
 	Font * debug_font = render_state->debug_font;
-	FontLayout debug_font_layout = create_font_layout(debug_font, 4.0f, render_state->back_buffer_width, render_state->back_buffer_height);
-
-	push_str(debug_font, game_state->str, &debug_font_layout);
+	FontLayout debug_font_layout = create_font_layout(debug_font, math::vec2(render_state->back_buffer_width, render_state->back_buffer_height), 4.0f, FontLayoutAnchor_top_left);
+	push_str(debug_font, &debug_font_layout, game_state->str);
 #if 0
 	push_str(debug_font, game_state->debug_str, &debug_font_layout);
 #endif

@@ -58,7 +58,7 @@ Asset * push_asset(AssetState * assets, AssetId id, AssetType type) {
 void load_assets(AssetState * assets, MemoryArena * arena) {
 	assets->arena = arena;
 
-	MemoryPtr file_buf; 
+	MemoryPtr file_buf;
 	file_buf.ptr = (u8 *)mz_zip_extract_archive_file_to_heap("asset.zip", "asset.pak", &file_buf.size, 0);
 	u8 * file_ptr = file_buf.ptr;
 

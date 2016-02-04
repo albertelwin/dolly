@@ -55,11 +55,27 @@ Font * allocate_font(RenderState * render_state, u32 v_len, u32 projection_width
 	return font;
 }
 
-FontLayout create_font_layout(Font * font, f32 scale, u32 projection_width, u32 projection_height, math::Vec2 offset = math::vec2(0.0f)) {
+FontLayout create_font_layout(Font * font, math::Vec2 dim, f32 scale, FontLayoutAnchor anchor, math::Vec2 offset = math::vec2(0.0f)) {
 	FontLayout layout = {};
 	layout.scale = scale;
-	layout.anchor.x = -(f32)projection_width * 0.5f + font->glyph_spacing * layout.scale;
-	layout.anchor.y = (f32)projection_height * 0.5f - (font->glyph_height + font->glyph_spacing) * layout.scale;
+
+	switch(anchor) {
+		case FontLayoutAnchor_top_left: {
+			layout.anchor.x = -dim.x * 0.5f + font->glyph_spacing * scale;
+			layout.anchor.y = dim.y * 0.5f - (font->glyph_height + font->glyph_spacing) * scale;
+			break;
+		}
+
+		case FontLayoutAnchor_bottom_left: {
+			layout.anchor.x = -dim.x * 0.5f + font->glyph_spacing * scale;
+			layout.anchor.y = -dim.y * 0.5f + font->glyph_spacing * scale;
+
+			break;
+		}
+
+		INVALID_CASE();
+	}
+
 	layout.anchor += offset;
 	layout.pos = layout.anchor;
 	return layout;
@@ -69,6 +85,8 @@ void push_quad(RenderBatch * batch, math::Vec2 pos0, math::Vec2 pos1, math::Vec2
 	ASSERT(batch->v_len >= QUAD_ELEM_COUNT);
 	ASSERT(batch->e <= (batch->v_len - QUAD_ELEM_COUNT));
 	f32 * v = batch->v_arr;
+
+	color.rgb *= color.a;
 
 	v[batch->e++] =  pos0.x; v[batch->e++] =  pos0.y; v[batch->e++] =   uv0.x; v[batch->e++] =   uv0.y;
 	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
@@ -93,6 +111,8 @@ void push_quad_lines(RenderBatch * batch, math::Rec2 * rec, math::Vec4 color) {
 	ASSERT(batch->v_len >= QUAD_LINES_ELEM_COUNT);
 	ASSERT(batch->e <= (batch->v_len - QUAD_LINES_ELEM_COUNT));
 	f32 * v = batch->v_arr;
+
+	color.rgb *= color.a;
 
 	math::Vec2 pos0 = rec->min;
 	math::Vec2 pos1 = rec->max;
@@ -128,7 +148,7 @@ void push_sprite(RenderBatch * batch, Texture * sprite, math::Vec2 pos, math::Ve
 	push_quad(batch, pos0, pos1, uv0, uv1, color);
 }
 
-void push_str(Font * font, Str * str, FontLayout * layout) {
+void push_str(Font * font, FontLayout * layout, Str * str) {
 	DEBUG_TIME_BLOCK();
 
 	RenderBatch * batch = font->batch;
@@ -170,11 +190,9 @@ void push_str(Font * font, Str * str, FontLayout * layout) {
 	}
 }
 
-void push_c_str(Font * font, char const * c_str, FontLayout * layout) {
-	Str str;
-	str.max_len = str.len = c_str_len(c_str);
-	str.ptr = (char *)c_str;
-	push_str(font, &str, layout);
+void push_c_str(Font * font, FontLayout * layout, char const * c_str) {
+	Str str = str_from_c_str(c_str);
+	push_str(font, layout, &str);
 }
 
 void render_v_buf(gl::VertexBuffer * v_buf, RenderMode render_mode, Shader * shader, math::Mat4 * transform, Texture * tex0, math::Vec4 color = math::vec4(1.0f)) {
@@ -183,6 +201,8 @@ void render_v_buf(gl::VertexBuffer * v_buf, RenderMode render_mode, Shader * sha
 	glUseProgram(shader->id);
 
 	glUniformMatrix4fv(shader->transform, 1, GL_FALSE, transform->v);
+
+	color.rgb *= color.a;
 	glUniform4f(shader->color, color.r, color.g, color.b, color.a);
 
 	glActiveTexture(GL_TEXTURE0);
@@ -397,8 +417,6 @@ void render_entities(RenderState * render_state, RenderTransform * render_transf
 		math::Vec2 dim = asset->texture.dim * entity->scale;
 
 		math::Vec4 color = entity->color;
-		color.rgb *= color.a;
-
 		if(color.a > 0.0f) {
 			if(entity->asset_type == AssetType_texture) {
 				Texture * tex = &asset->texture;

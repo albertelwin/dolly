@@ -19,5 +19,6 @@ set COMMON_COMPILER_FLAGS=-s TOTAL_MEMORY=268435456 -std=c++11 -Werror -Wall -Wn
 REM set COMPILER_FLAGS=%COMMON_COMPILER_FLAGS% -s SAFE_HEAP=0
 set COMPILER_FLAGS=%COMMON_COMPILER_FLAGS% -O3
 
+REM em++ %COMPILER_FLAGS% -s BUILD_AS_WORKER=1 -I../src ../src/asm_js_worker.cpp -o worker.js --preload-file ../dat/asset.zip@asset.zip
 em++ %COMPILER_FLAGS% -I../src --js-library ../src/web_audio.js ../src/asm_js_main.cpp -o dolly.html --shell-file ../src/template.html --preload-file ../dat/asset.zip@asset.zip
 cd ..

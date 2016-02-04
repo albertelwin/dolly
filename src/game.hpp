@@ -142,7 +142,7 @@ enum ButtonId {
 
 #define SAVE_FILE_CODE 0x594C4C44 //"DLLY"
 //TODO: Can we inc this automatically somehow??
-#define SAVE_FILE_VERSION 4
+#define SAVE_FILE_VERSION 5
 #pragma pack(push, 1)
 struct SaveFileHeader {
 	u32 code;
@@ -166,13 +166,20 @@ enum MetaStateType {
 	MetaStateType_null = MetaStateType_count,
 };
 
+enum MenuButtonId {
+	MenuButtonId_play,
+	MenuButtonId_score,
+	MenuButtonId_credits,
+
+	MenuButtonId_count,
+};
+
 struct MenuMetaState {
 	//TODO: Should entities be part of the meta state??
 	EntityArray entities;
 
-	Entity * play;
-	Entity * score;
-	Entity * credits;
+	Entity * display_items[ASSET_GROUP_COUNT(display)];
+	Entity * buttons[MenuButtonId_count];
 
 	u32 transition_id;
 };

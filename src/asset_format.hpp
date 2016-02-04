@@ -32,35 +32,52 @@ enum AssetId {
 	AssetId_mountains,
 	AssetId_space,
 
-	AssetId_intro,
-
 	AssetId_atlas,
 
 	//NOTE: Sprites
 	AssetId_dolly,
-	AssetId_clock,
-	AssetId_telly,
 	AssetId_rocket,
 	AssetId_large_rocket,
+	AssetId_boots,
 	AssetId_car,
 	AssetId_shield,
-	AssetId_speed_up,
 
 	AssetId_first_collectable,
 	AssetId_collectable_blob = AssetId_first_collectable,
+	AssetId_collectable_clock,
 	AssetId_collectable_diamond,
 	AssetId_collectable_flower,
 	AssetId_collectable_heart,
 	AssetId_collectable_paw,
 	AssetId_collectable_speech,
+	AssetId_collectable_speed_up,
 	AssetId_collectable_spot,
+	AssetId_collectable_telly,
 	AssetId_one_past_last_collectable,
+
+	//TODO: Figure out a way to combine these with the collectable ids!!
+	AssetId_first_display,
+	AssetId_display_blob = AssetId_first_display,
+	AssetId_display_clock,
+	AssetId_display_diamond,
+	AssetId_display_flower,
+	AssetId_display_heart,
+	AssetId_display_paw,
+	AssetId_display_speech,
+	AssetId_display_speed_up,
+	AssetId_display_spot,
+	AssetId_display_telly,
+	AssetId_one_past_last_display,
+
+	AssetId_display_background,
 
 	AssetId_score_overlay,
 
 	AssetId_menu_credits,
 	AssetId_menu_play,
 	AssetId_menu_score,
+
+	AssetId_intro,
 
 	//NOTE: Audio
 	// AssetId_sin_440,

@@ -90,6 +90,10 @@ b32 platform_write_async_file(PlatformAsyncFile * async_file, void * ptr, size_t
 	return written;
 }
 
+void worker_callback(char * data, int size, void * args) {
+	std::printf("LOG: worker_callback()");
+}
+
 EM_BOOL visibility_callback(int event_type, EmscriptenVisibilityChangeEvent const * event, void * user_ptr) {
 	MainLoopArgs * args = (MainLoopArgs *)user_ptr;
 
@@ -312,6 +316,11 @@ int main() {
 	args.page_hidden = false;
 	args.time_when_hidden = 0.0f;
 	args.time_when_shown = 0.0f;
+
+#if 0
+	worker_handle worker = emscripten_create_worker("worker.js");
+	emscripten_call_worker(args.worker, "worker_func", 0, 0, worker_callback, 0);
+#endif
 
 	emscripten_set_visibilitychange_callback(&args, 1, visibility_callback);
 
