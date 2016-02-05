@@ -28,6 +28,10 @@ enum AssetId {
 
 	AssetId_font,
 
+	AssetId_menu_background,
+	// AssetId_menu_credits_page,
+	// AssetId_menu_score_page,
+
 	AssetId_city,
 	AssetId_mountains,
 	AssetId_space,
@@ -49,9 +53,9 @@ enum AssetId {
 	AssetId_collectable_flower,
 	AssetId_collectable_heart,
 	AssetId_collectable_paw,
+	AssetId_collectable_smiley,
 	AssetId_collectable_speech,
 	AssetId_collectable_speed_up,
-	AssetId_collectable_spot,
 	AssetId_collectable_telly,
 	AssetId_one_past_last_collectable,
 
@@ -63,21 +67,26 @@ enum AssetId {
 	AssetId_display_flower,
 	AssetId_display_heart,
 	AssetId_display_paw,
+	AssetId_display_smiley,
 	AssetId_display_speech,
 	AssetId_display_speed_up,
-	AssetId_display_spot,
 	AssetId_display_telly,
 	AssetId_one_past_last_display,
 
-	AssetId_display_background,
+	AssetId_score_background,
 
-	AssetId_score_overlay,
+	AssetId_menu_btn_credits,
+	AssetId_menu_btn_play,
+	AssetId_menu_btn_score,
+	// AssetId_menu_btn_back,
 
-	AssetId_menu_credits,
-	AssetId_menu_play,
-	AssetId_menu_score,
+	AssetId_score_btn_menu,
+	AssetId_score_btn_replay,
 
 	AssetId_intro,
+
+	AssetId_maze_top,
+	AssetId_maze_bottom,
 
 	//NOTE: Audio
 	// AssetId_sin_440,
@@ -85,7 +94,7 @@ enum AssetId {
 	AssetId_explosion,
 	AssetId_baa,
 	AssetId_tick_tock,
-	AssetId_music,
+	AssetId_game_music,
 	AssetId_death_music,
 
 	AssetId_count,

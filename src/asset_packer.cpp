@@ -96,7 +96,10 @@ Texture load_texture(char const * file_name, AssetId id, TextureSampling samplin
 
 	i32 width, height, channels;
 	u8 * img_data = stbi_load(file_name, &width, &height, &channels, 0);
-	ASSERT(img_data != 0);
+	if(!img_data) {
+		std::printf("LOG: Could not find %s!!\n", file_name);
+		ASSERT(!"Texture not found!");
+	}
 
 	Texture tex = {};
 	tex.id = id;
@@ -403,40 +406,60 @@ int main() {
 		{ AssetId_collectable_flower, "collectable_flower.png" },
 		{ AssetId_collectable_heart, "collectable_heart.png" },
 		{ AssetId_collectable_paw, "collectable_paw.png" },
+		{ AssetId_collectable_smiley, "collectable_smiley.png" },
 		{ AssetId_collectable_speech, "collectable_speech.png" },
 		{ AssetId_collectable_speed_up, "collectable_speed_up.png" },
-		{ AssetId_collectable_spot, "collectable_spot.png" },
+
+		{ AssetId_maze_top, "maze_top0.png" },
+		{ AssetId_maze_top, "maze_top1.png" },
+		{ AssetId_maze_top, "maze_top2.png" },
+		{ AssetId_maze_top, "maze_top3.png" },
+		{ AssetId_maze_top, "maze_top4.png" },
+		{ AssetId_maze_top, "maze_top5.png" },
+		{ AssetId_maze_top, "maze_top6.png" },
+		{ AssetId_maze_top, "maze_top7.png" },
+		{ AssetId_maze_bottom, "maze_bottom0.png" },
+		{ AssetId_maze_bottom, "maze_bottom1.png" },
+		{ AssetId_maze_bottom, "maze_bottom2.png" },
+		{ AssetId_maze_bottom, "maze_bottom3.png" },
+		{ AssetId_maze_bottom, "maze_bottom4.png" },
+		{ AssetId_maze_bottom, "maze_bottom5.png" },
+		{ AssetId_maze_bottom, "maze_bottom6.png" },
+		{ AssetId_maze_bottom, "maze_bottom7.png" },
 	};
 	push_packed_texture(&packer, sprite_files, ARRAY_COUNT(sprite_files));
 
 	AssetFile display_sprite_files[] = {
-		{ AssetId_display_background, "display_background.png" },
-
 		{ AssetId_display_blob, "display_blob.png" },
 		{ AssetId_display_clock, "display_clock.png" },
 		{ AssetId_display_diamond, "display_diamond.png" },
 		{ AssetId_display_flower, "display_flower.png" },
 		{ AssetId_display_heart, "display_heart.png" },
 		{ AssetId_display_paw, "display_paw.png" },
+		{ AssetId_display_smiley, "display_smiley.png" },
 		{ AssetId_display_speech, "display_speech.png" },
 		{ AssetId_display_speed_up, "display_speed_up.png" },
-		{ AssetId_display_spot, "display_spot.png" },
 		{ AssetId_display_telly, "display_telly.png" },
 	};
 	push_packed_texture(&packer, display_sprite_files, ARRAY_COUNT(display_sprite_files));
 
 	AssetFile ui_sprite_files[] = {
-		{ AssetId_score_overlay, "score_overlay.png" },
+		{ AssetId_score_background, "score_background.png" },
 	};
 	push_packed_texture(&packer, ui_sprite_files, ARRAY_COUNT(ui_sprite_files));
 
 	AssetFile menu_sprite_files[] = {
-		{ AssetId_menu_credits, "menu_credits0.png" },
-		{ AssetId_menu_credits, "menu_credits1.png" },
-		{ AssetId_menu_play, "menu_play0.png" },
-		{ AssetId_menu_play, "menu_play1.png" },
-		{ AssetId_menu_score, "menu_score0.png" },
-		{ AssetId_menu_score, "menu_score1.png" },
+		{ AssetId_menu_btn_credits, "menu_btn_credits0.png" },
+		{ AssetId_menu_btn_credits, "menu_btn_credits1.png" },
+		{ AssetId_menu_btn_play, "menu_btn_play0.png" },
+		{ AssetId_menu_btn_play, "menu_btn_play1.png" },
+		{ AssetId_menu_btn_score, "menu_btn_score0.png" },
+		{ AssetId_menu_btn_score, "menu_btn_score1.png" },
+
+		{ AssetId_score_btn_menu, "score_btn_menu0.png" },
+		{ AssetId_score_btn_menu, "score_btn_menu1.png" },
+		{ AssetId_score_btn_replay, "score_btn_replay0.png" },
+		{ AssetId_score_btn_replay, "score_btn_replay1.png" },
 	};
 	push_packed_texture(&packer, menu_sprite_files, ARRAY_COUNT(menu_sprite_files));
 
@@ -444,6 +467,7 @@ int main() {
 		{ AssetId_intro, "intro0.png" },
 		{ AssetId_intro, "intro1.png" },
 		{ AssetId_intro, "intro2.png" },
+		{ AssetId_intro, "intro3.png" },
 	};
 	push_packed_texture(&packer, intro_sprite_files, ARRAY_COUNT(intro_sprite_files));
 
@@ -454,6 +478,8 @@ int main() {
 		load_texture("white.png", AssetId_white),
 
 		load_texture("font.png", AssetId_font, TextureSampling_point),
+
+		load_texture("menu_background.png", AssetId_menu_background),
 
 		load_texture("city_layer0.png", AssetId_city),
 		load_texture("city_layer1.png", AssetId_city),
@@ -494,8 +520,8 @@ int main() {
 
 		load_audio_clip("tick_tock.wav", AssetId_tick_tock),
 
-		load_audio_clip("music.wav", AssetId_music),
-		load_audio_clip("death_music.wav", AssetId_death_music)
+		load_audio_clip("game_music.wav", AssetId_game_music),
+		// load_audio_clip("death_music.wav", AssetId_death_music),
 	};
 
 	packer.header.asset_count += ARRAY_COUNT(clips);

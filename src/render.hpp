@@ -59,8 +59,14 @@ struct Font {
 	u32 glyph_spacing;
 };
 
+enum PushStrFunc {
+	PushStrFunc_push,
+	PushStrFunc_get_width,
+};
+
 enum FontLayoutAnchor {
 	FontLayoutAnchor_top_left,
+	FontLayoutAnchor_top_centre,
 	FontLayoutAnchor_bottom_left,
 };
 

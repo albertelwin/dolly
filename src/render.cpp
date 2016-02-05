@@ -63,6 +63,14 @@ FontLayout create_font_layout(Font * font, math::Vec2 dim, f32 scale, FontLayout
 		case FontLayoutAnchor_top_left: {
 			layout.anchor.x = -dim.x * 0.5f + font->glyph_spacing * scale;
 			layout.anchor.y = dim.y * 0.5f - (font->glyph_height + font->glyph_spacing) * scale;
+
+			break;
+		}
+
+		case FontLayoutAnchor_top_centre: {
+			layout.anchor.x = 0.0f;
+			layout.anchor.y = dim.y * 0.5f - (font->glyph_height + font->glyph_spacing) * scale;
+
 			break;
 		}
 
@@ -193,6 +201,24 @@ void push_str(Font * font, FontLayout * layout, Str * str) {
 void push_c_str(Font * font, FontLayout * layout, char const * c_str) {
 	Str str = str_from_c_str(c_str);
 	push_str(font, layout, &str);
+}
+
+f32 get_str_render_width(Font * font, f32 scale, Str * str) {
+	f32 width = 0.0f;
+
+	for(u32 i = 0; i < str->len; i++) {
+		char char_ = str->ptr[i];
+		//TODO: Support multi-line strings??
+		ASSERT(char_ != '\n');
+
+		width += (font->glyph_width + font->glyph_spacing) * scale;
+	}
+
+	if(width) {
+		width -= font->glyph_spacing * scale;
+	}
+
+	return width;
 }
 
 void render_v_buf(gl::VertexBuffer * v_buf, RenderMode render_mode, Shader * shader, math::Mat4 * transform, Texture * tex0, math::Vec4 color = math::vec4(1.0f)) {

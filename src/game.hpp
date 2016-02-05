@@ -74,6 +74,11 @@ struct EntityEmitter {
 	Entity * entity_array[16];
 };
 
+struct MazeChunk {
+	Entity * top;
+	Entity * bottom;
+};
+
 enum LocationId {
 	LocationId_city,
 	LocationId_mountains,
@@ -115,6 +120,36 @@ struct ScoreValue {
 		f32 f32_;
 		u32 u32_;
 	};
+};
+
+enum MenuButtonId {
+	MenuButtonId_play,
+	MenuButtonId_score,
+	MenuButtonId_credits,
+
+	MenuButtonId_count,
+};
+
+#if 0
+enum MenuPageId {
+	MenuPageId_main,
+	MenuPageId_score,
+	MenuPageId_credits,
+
+	MenuPageId_count,
+};
+
+struct MenuPage {
+	u32 button_count;
+	MenuButtonId buttons[4];
+};
+#endif
+
+enum ScoreButtonId {
+	ScoreButtonId_menu,
+	ScoreButtonId_replay,
+
+	ScoreButtonId_count,
 };
 
 enum TransitionType {
@@ -166,18 +201,13 @@ enum MetaStateType {
 	MetaStateType_null = MetaStateType_count,
 };
 
-enum MenuButtonId {
-	MenuButtonId_play,
-	MenuButtonId_score,
-	MenuButtonId_credits,
-
-	MenuButtonId_count,
-};
-
 struct MenuMetaState {
+	RenderTransform render_transform;
+
 	//TODO: Should entities be part of the meta state??
 	EntityArray entities;
 
+	Entity * background;
 	Entity * display_items[ASSET_GROUP_COUNT(display)];
 	Entity * buttons[MenuButtonId_count];
 
@@ -187,7 +217,9 @@ struct MenuMetaState {
 struct IntroMetaState {
 	EntityArray entities;
 
+	//TODO: Tidy this up!!
 	Entity * panels[3];
+	Entity * last_panel;
 	f32 anim_time;
 
 	u32 transition_id;
@@ -198,6 +230,7 @@ struct MainMetaState {
 	AudioSource * tick_tock;
 
 	RenderTransform render_transform;
+	RenderTransform ui_render_transform;
 	f32 letterboxed_height;
 	Font * font;
 
@@ -216,6 +249,9 @@ struct MainMetaState {
 	EntityEmitter entity_emitter;
 	RocketSequence rocket_seq;
 
+	u32 maze_chunk_count;
+	MazeChunk * maze_chunks;
+
 	//TODO: Should this be part of the player??
 	f32 d_speed;
 	f32 dd_speed;
@@ -225,14 +261,17 @@ struct MainMetaState {
 	f32 start_time;
 	f32 max_time;
 	f32 countdown_time;
+	f32 clock_scale;
 
 	b32 show_score_overlay;
-	Entity * score_overlay;
+	Entity * score_background;
+	Entity * score_buttons[ScoreButtonId_count];
 	Str * score_str;
 	u32 score_value_index;
 	ScoreValue score_values[ScoreValueId_count];
 
 	u32 quit_transition_id;
+	u32 restart_transition_id;
 	u32 death_transition_id;
 };
 
