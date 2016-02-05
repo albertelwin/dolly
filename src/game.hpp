@@ -81,14 +81,15 @@ struct MazeChunk {
 
 enum LocationId {
 	LocationId_city,
-	LocationId_mountains,
 	LocationId_space,
+	LocationId_mountains,
 
 	LocationId_count,
 	LocationId_null = LocationId_count,
 };
 
 struct Location {
+	AssetId asset_id;
 	Entity * layers[PARALLAX_LAYER_COUNT];
 	f32 y;
 

@@ -433,18 +433,23 @@ void init_main_meta_state(MetaState * meta_state) {
 	f32 location_max_z = layer_z_offsets[0];
 	f32 location_y_offset = (f32)screen_height / (1.0f / (location_max_z + 1.0f));
 
+	main_state->locations[LocationId_city].y = 0.0f;
+	main_state->locations[LocationId_city].asset_id = AssetId_city;
+
 	main_state->locations[LocationId_mountains].y = location_y_offset * 2;
+	main_state->locations[LocationId_mountains].asset_id = AssetId_city;
+
 	main_state->locations[LocationId_space].y = location_y_offset;
+	main_state->locations[LocationId_space].asset_id = AssetId_space;
 
 	main_state->ground_height = -(f32)screen_height * 0.5f;
 
 	AssetId first_location_asset_id = AssetId_city;
 	for(u32 i = 0; i < LocationId_count; i++) {
 		Location * location = main_state->locations + i;
-		AssetId asset_id = (AssetId)(first_location_asset_id + i);
 	
 		for(u32 layer_index = 0; layer_index < ARRAY_COUNT(location->layers) - 1; layer_index++) {
-			Entity * entity = push_entity(entities, meta_state->assets, asset_id, layer_index);
+			Entity * entity = push_entity(entities, meta_state->assets, location->asset_id, layer_index);
 
 			entity->pos.y = location->y;
 			entity->pos.z = layer_z_offsets[layer_index];
@@ -569,11 +574,10 @@ void init_main_meta_state(MetaState * meta_state) {
 	//TODO: Adding foreground layer at the end until we have sorting!!
 	for(u32 i = 0; i < LocationId_count; i++) {
 		Location * location = main_state->locations + i;
-		AssetId asset_id = (AssetId)(first_location_asset_id + i);
 
 		u32 layer_index = ARRAY_COUNT(location->layers) - 1;
 
-		Entity * entity = push_entity(entities, assets, asset_id, layer_index);
+		Entity * entity = push_entity(entities, assets, location->asset_id, layer_index);
 		entity->pos.y = location->y;
 		entity->pos.z = layer_z_offsets[layer_index];
 		entity->scrollable = true;

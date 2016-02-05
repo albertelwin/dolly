@@ -33,8 +33,8 @@ enum AssetId {
 	// AssetId_menu_score_page,
 
 	AssetId_city,
-	AssetId_mountains,
 	AssetId_space,
+	AssetId_mountains,
 
 	AssetId_atlas,
 

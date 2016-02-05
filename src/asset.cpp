@@ -64,6 +64,8 @@ void load_assets(AssetState * assets, MemoryArena * arena) {
 	file_buf.ptr = (u8 *)mz_zip_extract_archive_file_to_heap("asset.zip", "asset.pak", &file_buf.size, 0);
 	u8 * file_ptr = file_buf.ptr;
 
+	std::printf("LOG: %u\n", file_buf.size);
+
 	AssetPackHeader * pack = (AssetPackHeader *)file_ptr;
 	file_ptr += sizeof(AssetPackHeader);
 

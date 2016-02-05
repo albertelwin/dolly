@@ -410,6 +410,17 @@ int main() {
 		{ AssetId_collectable_speech, "collectable_speech.png" },
 		{ AssetId_collectable_speed_up, "collectable_speed_up.png" },
 
+		{ AssetId_display_blob, "display_blob.png" },
+		{ AssetId_display_clock, "display_clock.png" },
+		{ AssetId_display_diamond, "display_diamond.png" },
+		{ AssetId_display_flower, "display_flower.png" },
+		{ AssetId_display_heart, "display_heart.png" },
+		{ AssetId_display_paw, "display_paw.png" },
+		{ AssetId_display_smiley, "display_smiley.png" },
+		{ AssetId_display_speech, "display_speech.png" },
+		{ AssetId_display_speed_up, "display_speed_up.png" },
+		{ AssetId_display_telly, "display_telly.png" },
+
 		{ AssetId_maze_top, "maze_top0.png" },
 		{ AssetId_maze_top, "maze_top1.png" },
 		{ AssetId_maze_top, "maze_top2.png" },
@@ -429,26 +440,9 @@ int main() {
 	};
 	push_packed_texture(&packer, sprite_files, ARRAY_COUNT(sprite_files));
 
-	AssetFile display_sprite_files[] = {
-		{ AssetId_display_blob, "display_blob.png" },
-		{ AssetId_display_clock, "display_clock.png" },
-		{ AssetId_display_diamond, "display_diamond.png" },
-		{ AssetId_display_flower, "display_flower.png" },
-		{ AssetId_display_heart, "display_heart.png" },
-		{ AssetId_display_paw, "display_paw.png" },
-		{ AssetId_display_smiley, "display_smiley.png" },
-		{ AssetId_display_speech, "display_speech.png" },
-		{ AssetId_display_speed_up, "display_speed_up.png" },
-		{ AssetId_display_telly, "display_telly.png" },
-	};
-	push_packed_texture(&packer, display_sprite_files, ARRAY_COUNT(display_sprite_files));
-
 	AssetFile ui_sprite_files[] = {
 		{ AssetId_score_background, "score_background.png" },
-	};
-	push_packed_texture(&packer, ui_sprite_files, ARRAY_COUNT(ui_sprite_files));
 
-	AssetFile menu_sprite_files[] = {
 		{ AssetId_menu_btn_credits, "menu_btn_credits0.png" },
 		{ AssetId_menu_btn_credits, "menu_btn_credits1.png" },
 		{ AssetId_menu_btn_play, "menu_btn_play0.png" },
@@ -460,16 +454,13 @@ int main() {
 		{ AssetId_score_btn_menu, "score_btn_menu1.png" },
 		{ AssetId_score_btn_replay, "score_btn_replay0.png" },
 		{ AssetId_score_btn_replay, "score_btn_replay1.png" },
-	};
-	push_packed_texture(&packer, menu_sprite_files, ARRAY_COUNT(menu_sprite_files));
 
-	AssetFile intro_sprite_files[] = {
 		{ AssetId_intro, "intro0.png" },
 		{ AssetId_intro, "intro1.png" },
 		{ AssetId_intro, "intro2.png" },
 		{ AssetId_intro, "intro3.png" },
 	};
-	push_packed_texture(&packer, intro_sprite_files, ARRAY_COUNT(intro_sprite_files));
+	push_packed_texture(&packer, ui_sprite_files, ARRAY_COUNT(ui_sprite_files));
 
 	push_sprite_sheet(&packer, "telly_sheet.png", AssetId_collectable_telly, 192, 192, 39);
 	push_sprite_sheet(&packer, "dolly_run.png", AssetId_dolly, 97, 80, 15);
@@ -487,11 +478,11 @@ int main() {
 		load_texture("city_layer3.png", AssetId_city),
 		load_texture("city_layer4.png", AssetId_city),
 
-		load_texture("city_layer0.png", AssetId_mountains),
-		load_texture("mountains_layer1.png", AssetId_mountains),
-		load_texture("mountains_layer2.png", AssetId_mountains),
-		load_texture("mountains_layer3.png", AssetId_mountains),
-		load_texture("mountains_layer4.png", AssetId_mountains),
+		// load_texture("city_layer0.png", AssetId_mountains),
+		// load_texture("mountains_layer1.png", AssetId_mountains),
+		// load_texture("mountains_layer2.png", AssetId_mountains),
+		// load_texture("mountains_layer3.png", AssetId_mountains),
+		// load_texture("mountains_layer4.png", AssetId_mountains),
 
 		load_texture("space_layer0.png", AssetId_space),
 		load_texture("space_layer1.png", AssetId_space),
