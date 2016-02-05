@@ -449,8 +449,8 @@ void render_entities(RenderState * render_state, RenderTransform * render_transf
 				gl::VertexBuffer * v_buf = entity->scrollable ? &render_state->scrollable_quad_v_buf : &render_state->quad_v_buf;
 
 				//TODO: Remove epsilon!!
-				f32 epsilon = 0.2f;
-				if(math::rec_overlap(screen_bounds, math::rec2_pos_dim(pos, dim * 1.0f + epsilon))) {
+				f32 epsilon = 0.1f;
+				if(math::rec_overlap(screen_bounds, math::rec2_pos_dim(pos, dim * (1.0f + epsilon)))) {
 					if(current_atlas_index != null_atlas_index) {
 						render_and_clear_render_batch(render_batch, basic_shader, &projection);
 						current_atlas_index = null_atlas_index;
