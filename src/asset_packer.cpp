@@ -96,7 +96,7 @@ Texture load_texture(char const * file_name, AssetId id, TextureSampling samplin
 
 	i32 width, height, channels;
 	u8 * img_data = stbi_load(file_name, &width, &height, &channels, 0);
-	ASSERT(channels == TEXTURE_CHANNELS);
+	ASSERT(img_data != 0);
 
 	Texture tex = {};
 	tex.id = id;
@@ -104,21 +104,44 @@ Texture load_texture(char const * file_name, AssetId id, TextureSampling samplin
 	tex.height = (u32)height;	
 	tex.sampling = sampling;
 
-	//NOTE: Premultiplied alpha!!
-	f32 r_255 = 1.0f / 255.0f;
-	for(u32 y = 0, i = 0; y < tex.height; y++) {
-		for(u32 x = 0; x < tex.width; x++, i += 4) {
-			f32 a = (f32)img_data[i + 3] * r_255;
+	if(channels == 4) {
+		//NOTE: Premultiplied alpha!!
+		f32 r_255 = 1.0f / 255.0f;
+		for(u32 y = 0, i = 0; y < tex.height; y++) {
+			for(u32 x = 0; x < tex.width; x++, i += 4) {
+				f32 a = (f32)img_data[i + 3] * r_255;
 
-			f32 r = (f32)img_data[i + 0] * r_255 * a;
-			f32 g = (f32)img_data[i + 1] * r_255 * a;
-			f32 b = (f32)img_data[i + 2] * r_255 * a;
+				f32 r = (f32)img_data[i + 0] * r_255 * a;
+				f32 g = (f32)img_data[i + 1] * r_255 * a;
+				f32 b = (f32)img_data[i + 2] * r_255 * a;
 
-			img_data[i + 0] = (u8)(r * 255.0f);
-			img_data[i + 1] = (u8)(g * 255.0f);
-			img_data[i + 2] = (u8)(b * 255.0f);
-		}	
+				img_data[i + 0] = (u8)(r * 255.0f);
+				img_data[i + 1] = (u8)(g * 255.0f);
+				img_data[i + 2] = (u8)(b * 255.0f);
+			}
+		}		
 	}
+	else {
+		ASSERT(channels == 3);
+
+		u8 * img_data_ = ALLOC_MEMORY(u8, tex.width * tex.height * TEXTURE_CHANNELS);
+
+		for(u32 y = 0, i = 0; y < tex.height; y++) {
+			for(u32 x = 0; x < tex.width; x++, i++) {
+				u32 i3 = i * 3;
+				u32 i4 = i * 4;
+
+				img_data_[i4 + 0] = img_data[i3 + 0];
+				img_data_[i4 + 1] = img_data[i3 + 1];
+				img_data_[i4 + 2] = img_data[i3 + 2];
+				img_data_[i4 + 3] = 255;
+			}
+		}
+
+		stbi_image_free(img_data);
+		img_data = img_data_;
+	}
+
 
 	tex.size = tex.width * tex.height * TEXTURE_CHANNELS;
 	tex.ptr = img_data;

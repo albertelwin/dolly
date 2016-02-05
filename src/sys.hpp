@@ -108,6 +108,16 @@ void c_str_copy(char * dst, char const * src) {
 	*dst = 0;
 }
 
+b32 c_str_comp(char const * str0, char const * str1) {
+	while(*str0 && *str1) {
+		if(*str0++ != *str1++) {
+			break;
+		}
+	}
+
+	return *str0 == 0;
+}
+
 struct MemoryPtr {
 	size_t size;
 	u8 * ptr;

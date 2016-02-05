@@ -56,6 +56,8 @@ Asset * push_asset(AssetState * assets, AssetId id, AssetType type) {
 }
 
 void load_assets(AssetState * assets, MemoryArena * arena) {
+	DEBUG_TIME_BLOCK();
+
 	assets->arena = arena;
 
 	MemoryPtr file_buf;
@@ -125,7 +127,6 @@ void load_assets(AssetState * assets, MemoryArena * arena) {
 				break;
 			}
 		}
-
 	}
  
 	// free(file_buf.ptr);

@@ -14,11 +14,11 @@ IF %COMPILE_AND_RUN_ASSET_PACKER%==1 (
 	cd ../bin
 )
 
-set COMMON_COMPILER_FLAGS=-s TOTAL_MEMORY=268435456 -std=c++11 -Werror -Wall -Wno-missing-braces -Wno-unused-variable
+REM set COMMON_COMPILER_FLAGS=-s TOTAL_MEMORY=268435456 -std=c++11 -Werror -Wall -Wno-missing-braces -Wno-unused-variable
+set COMMON_COMPILER_FLAGS=-s TOTAL_MEMORY=536870912 -std=c++11 -Werror -Wall -Wno-missing-braces -Wno-unused-variable
 
 REM set COMPILER_FLAGS=%COMMON_COMPILER_FLAGS% -s SAFE_HEAP=0
-set COMPILER_FLAGS=%COMMON_COMPILER_FLAGS% -O3
+set COMPILER_FLAGS=%COMMON_COMPILER_FLAGS% -s GL_UNSAFE_OPTS=1 -O3
 
-REM em++ %COMPILER_FLAGS% -s BUILD_AS_WORKER=1 -I../src ../src/asm_js_worker.cpp -o worker.js --preload-file ../dat/asset.zip@asset.zip
 em++ %COMPILER_FLAGS% -I../src --js-library ../src/web_audio.js ../src/asm_js_main.cpp -o dolly.html --shell-file ../src/template.html --preload-file ../dat/asset.zip@asset.zip
 cd ..

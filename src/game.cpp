@@ -707,6 +707,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 	if(game_input->buttons[ButtonId_mute] & KEY_PRESSED) {
 		game_state->audio_state.master_volume = game_state->audio_state.master_volume > 0.0f ? 0.0f : 1.0f;
+		ASSERT(false);
 	}
 
 	switch(game_state->meta_state) {
@@ -1387,7 +1388,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	FontLayout debug_font_layout = create_font_layout(debug_font, math::vec2(render_state->back_buffer_width, render_state->back_buffer_height), 4.0f, FontLayoutAnchor_top_left);
 	push_str(debug_font, &debug_font_layout, game_state->str);
 #if 0
-	push_str(debug_font, game_state->debug_str, &debug_font_layout);
+	push_str(debug_font, &debug_font_layout, game_state->debug_str);
 #endif
 
 	end_render(render_state);
