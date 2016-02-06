@@ -584,8 +584,7 @@ void init_main_meta_state(MetaState * meta_state) {
 	main_state->d_speed = 0.0f;
 	main_state->dd_speed = 0.0f;
 
-	// main_state->start_time = 30.0f;
-	main_state->start_time = 5.0f;
+	main_state->start_time = 30.0f;
 	main_state->max_time = main_state->start_time;
 	main_state->countdown_time = 10.0f;
 	main_state->time_remaining = main_state->start_time;
@@ -1343,46 +1342,32 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			EntityArray * entities = &main_state->entities;
 			for(u32 i = 0; i < entities->count; i++) {
 				Entity * entity = entities->elems + i;
-				push_render_elem(main_state->render_group, entity->asset_id, entity->asset_index, entity->pos, entity->scale, entity->color, entity->scrollable);
+				push_render_elem(main_state->render_group, entity->asset_id, entity->asset_index, entity->pos, math::vec2(entity->scale), entity->color, entity->scrollable);
 			}
 
 			render_and_clear_render_group(meta_state->render_state, main_state->render_group);
 
-			math::Vec2 screen_dim = math::vec2(render_state->screen_width, render_state->screen_height);
-			math::Mat4 screen_projection = math::orthographic_projection((f32)render_state->screen_width, (f32)render_state->screen_height);
-			math::Mat4 screen_scale = math::scale(screen_dim.x, screen_dim.y, 1.0f);
+			RenderGroup * ui_render_group = main_state->ui_render_group;
+			math::Vec2 projection_dim = math::vec2(ui_render_group->transform.projection_width, ui_render_group->transform.projection_height);
 
-			Shader * basic_shader = &render_state->basic_shader;
-			Texture * white_tex = get_texture_asset(render_state->assets, AssetId_white, 0);
-
-			f32 letterbox_pixels = (render_state->screen_height - main_state->letterboxed_height) * 0.5f;
+			f32 letterbox_pixels = (projection_dim.y - main_state->letterboxed_height) * 0.5f;
 			if(letterbox_pixels > 0.0f) {
-				math::Mat4 transform0 = screen_projection * math::translate(0.0f, screen_dim.y - letterbox_pixels, 0.0f) * screen_scale;
-				render_v_buf(&render_state->quad_v_buf, RenderMode_triangles, basic_shader, &transform0, white_tex, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-
-				math::Mat4 transform1 = screen_projection * math::translate(0.0f,-screen_dim.y + letterbox_pixels, 0.0f) * screen_scale;
-				render_v_buf(&render_state->quad_v_buf, RenderMode_triangles, basic_shader, &transform1, white_tex, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+				push_colored_quad(ui_render_group, math::vec3(0.0f, projection_dim.y - letterbox_pixels, 0.0f), projection_dim, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+				push_colored_quad(ui_render_group, math::vec3(0.0f,-projection_dim.y + letterbox_pixels, 0.0f), projection_dim, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 			}
 
-			RenderGroup * ui_render_group = main_state->ui_render_group;
-
 			if(main_state->show_score_overlay) {
-				{
-					math::Mat4 transform = screen_projection * screen_scale;
-					render_v_buf(&render_state->quad_v_buf, RenderMode_triangles, basic_shader, &transform, white_tex, math::vec4(0.0f, 0.0f, 0.0f, 0.25f));					
-				}
-
+				push_colored_quad(ui_render_group, math::vec3(0.0f), projection_dim, math::vec4(0.0f, 0.0f, 0.0f, 0.5f));
 				push_render_elem(ui_render_group, AssetId_score_background, 0);
 
 				for(u32 i = 0; i < ARRAY_COUNT(main_state->score_buttons); i++) {
 					UiElement * elem = main_state->score_buttons + i;
 					push_render_elem(ui_render_group, elem->asset_id, elem->asset_index);
 				}
-
-				render_and_clear_render_group(meta_state->render_state, ui_render_group);				
 			}
 
-			math::Vec2 font_render_dim = math::vec2(ui_render_group->transform.projection_width, ui_render_group->transform.projection_height);
+			render_and_clear_render_group(meta_state->render_state, ui_render_group);
+
 			f32 font_scale = 8.0f;
 
 			{
@@ -1392,7 +1377,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 				f32 scale = font_scale * main_state->clock_scale;
 				f32 render_width = get_str_render_width(main_state->font, scale, &time_str);
-				FontLayout font_layout = create_font_layout(main_state->font, font_render_dim, scale, FontLayoutAnchor_top_centre, math::vec2(-render_width * 0.5f, 0.0f));
+				FontLayout font_layout = create_font_layout(main_state->font, projection_dim, scale, FontLayoutAnchor_top_centre, math::vec2(-render_width * 0.5f, 0.0f));
 				push_str_to_batch(main_state->font, &font_layout, &time_str);
 			}
 
@@ -1417,7 +1402,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					INVALID_CASE();
 				}
 
-				FontLayout font_layout = create_font_layout(main_state->font, font_render_dim, font_scale, FontLayoutAnchor_bottom_left);
+				FontLayout font_layout = create_font_layout(main_state->font, projection_dim, font_scale, FontLayoutAnchor_bottom_left);
 				push_c_str_to_batch(main_state->font, &font_layout, location_str);
 			}
 
