@@ -430,15 +430,12 @@ RenderGroup * allocate_render_group(RenderState * render_state, MemoryArena * ar
 	return render_group;
 }
 
-void push_render_elem(RenderGroup * render_group, AssetId asset_id, u32 asset_index, math::Vec3 pos = math::vec3(0.0f), math::Vec2 scale = math::vec2(1.0f), math::Vec4 color = math::vec4(1.0f), b32 scrollable = false) {
+RenderElement * push_render_elem(RenderGroup * render_group, Asset * asset, math::Vec3 pos, math::Vec2 dim, math::Vec4 color, b32 scrollable = false) {
 	ASSERT(render_group);
+	ASSERT(asset);
 	ASSERT(render_group->elem_count < ARRAY_COUNT(render_group->elems));
 
-	Asset * asset = get_asset(render_group->assets, asset_id, asset_index);
-	ASSERT(asset->type == AssetType_texture || asset->type == AssetType_sprite);
-
-	math::Vec2 pos2 = project_pos(&render_group->transform, pos + math::vec3(asset->texture.offset, 0.0f));
-	math::Vec2 dim = asset->texture.dim * scale;
+	math::Vec2 pos2 = project_pos(&render_group->transform, pos);
 
 	b32 culled = true;
 	if(color.a > 0.0f) {
@@ -456,19 +453,31 @@ void push_render_elem(RenderGroup * render_group, AssetId asset_id, u32 asset_in
 		}
 	}
 
+	RenderElement * elem = 0;
 	if(!culled) {
-		RenderElement * elem = render_group->elems + render_group->elem_count++;
+		elem = render_group->elems + render_group->elem_count++;
 		elem->pos = pos2;
 		elem->dim = dim;
 		elem->color = color;
 		elem->scrollable = scrollable;
 		elem->asset = asset;
 	}
+
+	return elem;
 }
 
 void push_colored_quad(RenderGroup * render_group, math::Vec3 pos, math::Vec2 dim, math::Vec4 color) {
-	//TODO: Set the dim directly!!
-	push_render_elem(render_group, AssetId_white, 0, pos, dim / 64.0f, color);
+	ASSERT(render_group);
+
+	push_render_elem(render_group, get_asset(render_group->assets, AssetId_white, 0), pos, dim, color);
+}
+
+void push_textured_quad(RenderGroup * render_group, AssetId asset_id, u32 asset_index, math::Vec3 pos = math::vec3(0.0f), f32 scale = 1.0f, math::Vec4 color = math::vec4(1.0f), b32 scrollable = false) {
+	ASSERT(render_group);
+
+	Asset * asset = get_asset(render_group->assets, asset_id, asset_index);
+	ASSERT(asset->type == AssetType_texture || asset->type == AssetType_sprite);
+	push_render_elem(render_group, asset, pos + math::vec3(asset->texture.offset, 0.0f), asset->texture.dim * scale, color, scrollable);
 }
 
 void render_and_clear_render_group(RenderState * render_state, RenderGroup * render_group) {

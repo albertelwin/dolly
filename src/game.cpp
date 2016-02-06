@@ -1301,18 +1301,18 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			MetaState * meta_state = get_meta_state(game_state, MetaStateType_menu);
 			MenuMetaState * menu_state = meta_state->menu;
 
-			push_render_elem(menu_state->render_group, AssetId_menu_background, 0);
+			push_textured_quad(menu_state->render_group, AssetId_menu_background, 0);
 
 			u32 display_item_count = ASSET_GROUP_COUNT(display);
 			for(u32 i = 0; i < ARRAY_COUNT(game_state->save.collectable_unlock_states); i++) {
 				if(game_state->save.collectable_unlock_states[i]) {
-					push_render_elem(menu_state->render_group, (AssetId)(AssetId_first_display + i), 0);
+					push_textured_quad(menu_state->render_group, (AssetId)(AssetId_first_display + i), 0);
 				}
 			}
 
 			for(u32 i = 0; i < ARRAY_COUNT(menu_state->buttons); i++) {
 				UiElement * elem = menu_state->buttons + i;
-				push_render_elem(menu_state->render_group, elem->asset_id, elem->asset_index);
+				push_textured_quad(menu_state->render_group, elem->asset_id, elem->asset_index);
 			}
 
 			render_and_clear_render_group(meta_state->render_state, menu_state->render_group);
@@ -1328,7 +1328,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 			for(u32 i = 0; i < ARRAY_COUNT(intro_state->frames); i++) {
 				IntroFrame * frame = intro_state->frames + i;
-				push_render_elem(render_group, AssetId_intro, i, math::vec3(0.0f), math::vec2(1.0f), math::vec4(1.0f, 1.0f, 1.0f, frame->alpha));
+				push_textured_quad(render_group, AssetId_intro, i, math::vec3(0.0f), 1.0f, math::vec4(1.0f, 1.0f, 1.0f, frame->alpha));
 			}
 
 			render_and_clear_render_group(meta_state->render_state, render_group);
@@ -1343,7 +1343,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			EntityArray * entities = &main_state->entities;
 			for(u32 i = 0; i < entities->count; i++) {
 				Entity * entity = entities->elems + i;
-				push_render_elem(main_state->render_group, entity->asset_id, entity->asset_index, entity->pos, math::vec2(entity->scale), entity->color, entity->scrollable);
+				push_textured_quad(main_state->render_group, entity->asset_id, entity->asset_index, entity->pos, entity->scale, entity->color, entity->scrollable);
 			}
 
 			render_and_clear_render_group(meta_state->render_state, main_state->render_group);
@@ -1359,11 +1359,11 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 			if(main_state->show_score_overlay) {
 				push_colored_quad(ui_render_group, math::vec3(0.0f), projection_dim, math::vec4(0.0f, 0.0f, 0.0f, 0.5f));
-				push_render_elem(ui_render_group, AssetId_score_background, 0);
+				push_textured_quad(ui_render_group, AssetId_score_background, 0);
 
 				for(u32 i = 0; i < ARRAY_COUNT(main_state->score_buttons); i++) {
 					UiElement * elem = main_state->score_buttons + i;
-					push_render_elem(ui_render_group, elem->asset_id, elem->asset_index);
+					push_textured_quad(ui_render_group, elem->asset_id, elem->asset_index);
 				}
 			}
 
@@ -1422,7 +1422,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			MetaState * meta_state = get_meta_state(game_state, MetaStateType_game_over);
 			GameOverMetaState * game_over_state = meta_state->game_over;
 
-			push_render_elem(game_over_state->render_group, AssetId_car, 0);
+			push_textured_quad(game_over_state->render_group, AssetId_car, 0);
 			render_and_clear_render_group(meta_state->render_state, game_over_state->render_group);
 
 			break;
