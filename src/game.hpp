@@ -27,6 +27,7 @@ struct Entity {
 	math::Vec4 color;
 	b32 scrollable;
 
+	//TODO: Stop storing the asset type!!
 	AssetType asset_type;
 	AssetId asset_id;
 	u32 asset_index;
@@ -161,6 +162,11 @@ enum TransitionType {
 	TransitionType_null = TransitionType_count,
 };
 
+struct UiElement {
+	AssetId asset_id;
+	u32 asset_index;
+};
+
 enum ButtonId {
 	ButtonId_start,
 	ButtonId_left,
@@ -203,14 +209,8 @@ enum MetaStateType {
 };
 
 struct MenuMetaState {
-	RenderTransform render_transform;
-
-	//TODO: Should entities be part of the meta state??
-	EntityArray entities;
-
-	Entity * background;
-	Entity * display_items[ASSET_GROUP_COUNT(display)];
-	Entity * buttons[MenuButtonId_count];
+	RenderGroup * render_group;
+	UiElement buttons[MenuButtonId_count];
 
 	u32 transition_id;
 };
@@ -230,8 +230,8 @@ struct MainMetaState {
 	AudioSource * music;
 	AudioSource * tick_tock;
 
-	RenderTransform render_transform;
-	RenderTransform ui_render_transform;
+	RenderGroup * render_group;
+	RenderGroup * ui_render_group;
 	f32 letterboxed_height;
 	Font * font;
 
@@ -265,8 +265,7 @@ struct MainMetaState {
 	f32 clock_scale;
 
 	b32 show_score_overlay;
-	Entity * score_background;
-	Entity * score_buttons[ScoreButtonId_count];
+	UiElement score_buttons[ScoreButtonId_count];
 	Str * score_str;
 	u32 score_value_index;
 	ScoreValue score_values[ScoreValueId_count];

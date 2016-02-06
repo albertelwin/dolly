@@ -89,7 +89,7 @@ FontLayout create_font_layout(Font * font, math::Vec2 dim, f32 scale, FontLayout
 	return layout;
 }
 
-void push_quad(RenderBatch * batch, math::Vec2 pos0, math::Vec2 pos1, math::Vec2 uv0, math::Vec2 uv1, math::Vec4 color) {
+void push_quad_to_batch(RenderBatch * batch, math::Vec2 pos0, math::Vec2 pos1, math::Vec2 uv0, math::Vec2 uv1, math::Vec4 color) {
 	ASSERT(batch->v_len >= QUAD_ELEM_COUNT);
 	ASSERT(batch->e <= (batch->v_len - QUAD_ELEM_COUNT));
 	f32 * v = batch->v_arr;
@@ -115,7 +115,7 @@ void push_quad(RenderBatch * batch, math::Vec2 pos0, math::Vec2 pos1, math::Vec2
 	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
 }
 
-void push_quad_lines(RenderBatch * batch, math::Rec2 * rec, math::Vec4 color) {
+void push_quad_lines_to_batch(RenderBatch * batch, math::Rec2 * rec, math::Vec4 color) {
 	ASSERT(batch->v_len >= QUAD_LINES_ELEM_COUNT);
 	ASSERT(batch->e <= (batch->v_len - QUAD_LINES_ELEM_COUNT));
 	f32 * v = batch->v_arr;
@@ -146,17 +146,17 @@ void push_quad_lines(RenderBatch * batch, math::Rec2 * rec, math::Vec4 color) {
 	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;	
 }
 
-void push_sprite(RenderBatch * batch, Texture * sprite, math::Vec2 pos, math::Vec2 dim, math::Vec4 color) {
+void push_sprite_to_batch(RenderBatch * batch, Texture * sprite, math::Vec2 pos, math::Vec2 dim, math::Vec4 color) {
 	math::Vec2 pos0 = pos - dim * 0.5f;
 	math::Vec2 pos1 = pos + dim * 0.5f;
 
 	math::Vec2 uv0 = sprite->tex_coords[0];
 	math::Vec2 uv1 = sprite->tex_coords[1];
 
-	push_quad(batch, pos0, pos1, uv0, uv1, color);
+	push_quad_to_batch(batch, pos0, pos1, uv0, uv1, color);
 }
 
-void push_str(Font * font, FontLayout * layout, Str * str) {
+void push_str_to_batch(Font * font, FontLayout * layout, Str * str) {
 	DEBUG_TIME_BLOCK();
 
 	RenderBatch * batch = font->batch;
@@ -192,15 +192,15 @@ void push_str(Font * font, FontLayout * layout, Str * str) {
 				math::Vec2 uv0 = math::vec2(u, (u32)tex_dim.y - (v + font->glyph_height)) * r_tex_dim;
 				math::Vec2 uv1 = math::vec2(u + font->glyph_width, (u32)tex_dim.y - v) * r_tex_dim;
 
-				push_quad(batch, pos0, pos1, uv0, uv1, color);
+				push_quad_to_batch(batch, pos0, pos1, uv0, uv1, color);
 			}
 		}
 	}
 }
 
-void push_c_str(Font * font, FontLayout * layout, char const * c_str) {
+void push_c_str_to_batch(Font * font, FontLayout * layout, char const * c_str) {
 	Str str = str_from_c_str(c_str);
-	push_str(font, layout, &str);
+	push_str_to_batch(font, layout, &str);
 }
 
 f32 get_str_render_width(Font * font, f32 scale, Str * str) {
@@ -417,6 +417,131 @@ void end_render(RenderState * render_state) {
 	glDisable(GL_BLEND);
 }
 
+RenderGroup * allocate_render_group(RenderState * render_state, MemoryArena * arena, u32 projection_width, u32 projection_height) {
+	RenderGroup * render_group = PUSH_STRUCT(arena, RenderGroup);
+
+	render_group->elem_count = 0;
+
+	render_group->assets = render_state->assets;
+
+	render_group->transform = create_render_transform(projection_width, projection_height);
+	render_group->projection_bounds = math::rec2_pos_dim(math::vec2(0.0f), math::vec2(projection_width, projection_height));
+
+	return render_group;
+}
+
+void push_render_elem(RenderGroup * render_group, AssetId asset_id, u32 asset_index, math::Vec3 pos = math::vec3(0.0f), f32 scale = 1.0f, math::Vec4 color = math::vec4(1.0f), b32 scrollable = false) {
+	ASSERT(render_group->elem_count < ARRAY_COUNT(render_group->elems));
+
+	Asset * asset = get_asset(render_group->assets, asset_id, asset_index);
+	ASSERT(asset->type == AssetType_texture || asset->type == AssetType_sprite);
+
+	math::Vec2 pos2 = project_pos(&render_group->transform, pos + math::vec3(asset->texture.offset, 0.0f));
+	math::Vec2 dim = asset->texture.dim * scale;
+
+	b32 culled = true;
+	if(color.a > 0.0f) {
+		if(asset->type == AssetType_texture) {
+			//TODO: Remove epsilon!!
+			f32 epsilon = 0.1f;
+			if(math::rec_overlap(render_group->projection_bounds, math::rec2_pos_dim(pos2, dim * (1.0f + epsilon)))) {
+				culled = false;
+			}			
+		}
+		else {
+			if(math::rec_overlap(render_group->projection_bounds, math::rec2_pos_dim(pos2, dim))) {
+				culled = false;
+			}
+		}
+	}
+
+	if(!culled) {
+		RenderElement * elem = render_group->elems + render_group->elem_count++;
+		elem->pos = pos2;
+		elem->dim = dim;
+		elem->color = color;
+		elem->scrollable = scrollable;
+		elem->asset = asset;
+	}
+}
+
+void render_and_clear_render_group(RenderState * render_state, RenderGroup * render_group) {
+	DEBUG_TIME_BLOCK();
+
+	RenderTransform * render_transform = &render_group->transform;
+	math::Mat4 projection = math::orthographic_projection((f32)render_transform->projection_width, (f32)render_transform->projection_height);
+
+	u32 null_atlas_index = U32_MAX;
+	u32 current_atlas_index = null_atlas_index;
+	RenderBatch * render_batch = render_state->render_batch;
+	ASSERT(!render_batch->e);
+	render_batch->mode = RenderMode_triangles;
+
+	Shader * basic_shader = &render_state->basic_shader;
+
+	for(u32 i = 0; i < render_group->elem_count; i++) {
+		RenderElement * elem = render_group->elems + i;
+		Asset * asset = elem->asset;
+
+		if(asset->type == AssetType_texture) {
+			Texture * tex = &asset->texture;
+
+			if(current_atlas_index != null_atlas_index) {
+				render_and_clear_render_batch(render_batch, basic_shader, &projection);
+				current_atlas_index = null_atlas_index;
+			}
+
+			math::Mat4 transform = projection * math::translate(elem->pos.x, elem->pos.y, 0.0f) * math::scale(elem->dim.x, elem->dim.y, 1.0f);
+			gl::VertexBuffer * v_buf = elem->scrollable ? &render_state->scrollable_quad_v_buf : &render_state->quad_v_buf;
+			render_v_buf(v_buf, RenderMode_triangles, basic_shader, &transform, tex, elem->color);
+		}
+		else {
+			Texture * sprite = &asset->sprite;
+
+			u32 elems_remaining = render_batch->v_len - render_batch->e;
+			if(current_atlas_index != sprite->atlas_index || elems_remaining < QUAD_ELEM_COUNT) {
+				render_and_clear_render_batch(render_batch, basic_shader, &projection);
+
+				current_atlas_index = sprite->atlas_index;
+				render_batch->tex = get_texture_asset(render_state->assets, AssetId_atlas, sprite->atlas_index);
+			}
+
+			push_sprite_to_batch(render_batch, sprite, elem->pos, elem->dim, elem->color);
+		}
+	}
+
+	if(current_atlas_index != null_atlas_index) {
+		render_and_clear_render_batch(render_batch, basic_shader, &projection);
+	}
+	
+#if 0
+	if(render_state->debug_render_entity_bounds) {
+		render_batch->tex = get_texture_asset(render_state->assets, AssetId_white, 0);
+		render_batch->mode = RenderMode_lines;
+
+		for(u32 i = 0; i < entity_count; i++) {
+			Entity * entity = entities + i;
+
+			// math::Rec2 bounds = get_entity_render_bounds(assets, entity);
+			math::Rec2 bounds = math::rec_scale(entity->collider, entity->scale);
+			math::Vec2 pos = project_pos(render_transform, entity->pos + math::vec3(math::rec_pos(bounds), 0.0f));
+			bounds = math::rec2_pos_dim(pos, math::rec_dim(bounds));
+
+			u32 elems_remaining = render_batch->v_len - render_batch->e;
+			if(elems_remaining < QUAD_LINES_ELEM_COUNT) {
+				render_and_clear_render_batch(render_batch, basic_shader, &projection);
+			}
+
+			push_quad_lines_to_batch(render_batch, &bounds, math::vec4(1.0f));
+		}
+
+		render_and_clear_render_batch(render_batch, basic_shader, &projection);
+	}
+#endif
+
+	render_group->elem_count = 0;
+}
+
 //TODO: Remove entities from renderer??
 void render_entities(RenderState * render_state, RenderTransform * render_transform, Entity * entities, u32 entity_count) {
 	DEBUG_TIME_BLOCK();
@@ -472,7 +597,7 @@ void render_entities(RenderState * render_state, RenderTransform * render_transf
 						render_batch->tex = get_texture_asset(render_state->assets, AssetId_atlas, sprite->atlas_index);
 					}
 
-					push_sprite(render_batch, sprite, pos, dim, color);
+					push_sprite_to_batch(render_batch, sprite, pos, dim, color);
 				}
 			}			
 		}
@@ -499,7 +624,7 @@ void render_entities(RenderState * render_state, RenderTransform * render_transf
 				render_and_clear_render_batch(render_batch, basic_shader, &projection);
 			}
 
-			push_quad_lines(render_batch, &bounds, math::vec4(1.0f));
+			push_quad_lines_to_batch(render_batch, &bounds, math::vec4(1.0f));
 		}
 
 		render_and_clear_render_batch(render_batch, basic_shader, &projection);

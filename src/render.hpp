@@ -51,17 +51,32 @@ struct RenderTransform {
 	u32 projection_height;
 };
 
+struct RenderElement {
+	math::Vec2 pos;
+	math::Vec2 dim;
+	math::Vec4 color;
+	//TODO: Temp!!
+	b32 scrollable;
+
+	Asset * asset;
+};
+
+struct RenderGroup {
+	u32 elem_count;
+	RenderElement elems[256];
+
+	AssetState * assets;
+
+	RenderTransform transform;
+	math::Rec2 projection_bounds;
+};
+
 struct Font {
 	RenderBatch * batch;
 
 	u32 glyph_width;
 	u32 glyph_height;
 	u32 glyph_spacing;
-};
-
-enum PushStrFunc {
-	PushStrFunc_push,
-	PushStrFunc_get_width,
 };
 
 enum FontLayoutAnchor {
