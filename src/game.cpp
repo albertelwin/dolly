@@ -60,7 +60,6 @@ void change_entity_asset(Entity * entity, AssetState * assets, AssetId asset_id,
 	ASSERT(asset);
 	ASSERT(asset->type == AssetType_texture || asset->type == AssetType_sprite);
 	
-	entity->asset_type = asset->type;
 	entity->asset_id = asset_id;
 	entity->asset_index = asset_index;
 
@@ -373,17 +372,13 @@ void init_intro_meta_state(MetaState * meta_state) {
 	zero_memory_arena(&meta_state->arena);
 	zero_memory(intro_state, sizeof(IntroMetaState));
 
-	EntityArray * entities = &intro_state->entities;
+	RenderState * render_state = meta_state->render_state;
+	intro_state->render_group = allocate_render_group(render_state, &meta_state->arena, render_state->screen_width, render_state->screen_height);
 
-	for(u32 i = 0; i < ARRAY_COUNT(intro_state->panels); i++) {
-		Entity * entity = push_entity(entities, meta_state->assets, AssetId_intro, i);
-		entity->color.a = 0.0f;
-
-		intro_state->panels[i] = entity;
+	for(u32 i = 0; i < ARRAY_COUNT(intro_state->frames); i++) {
+		IntroFrame * frame = intro_state->frames + i;
+		frame->alpha = 0.0f;
 	}
-
-	intro_state->last_panel = push_entity(entities, meta_state->assets, AssetId_intro, 3);
-	intro_state->last_panel->color.a = 0.0f;
 }
 
 void init_main_meta_state(MetaState * meta_state) {
@@ -613,8 +608,8 @@ void init_game_over_meta_state(MetaState * meta_state) {
 	change_volume(game_over_state->music, math::vec2(0.0f), 0.0f);
 	change_volume(game_over_state->music, math::vec2(1.0f), 1.0f);
 
-	EntityArray * entities = &game_over_state->entities;
-	push_entity(entities, assets, AssetId_car, 0);	
+	RenderState * render_state = meta_state->render_state;
+	game_over_state->render_group = allocate_render_group(render_state, &meta_state->arena, render_state->screen_width, render_state->screen_height);
 }
 
 void change_meta_state(GameState * game_state, MetaStateType type) {
@@ -667,8 +662,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			game_state->meta_states[i] = allocate_meta_state(game_state, (MetaStateType)i);
 		}
 
-		// change_meta_state(game_state, MetaStateType_menu);
-		change_meta_state(game_state, MetaStateType_main);
+		change_meta_state(game_state, MetaStateType_menu);
 
 		game_state->auto_save_time = 5.0f;
 		game_state->save.code = SAVE_FILE_CODE;
@@ -776,26 +770,28 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				intro_state->anim_time += game_input->delta_time * 1.5f;
 				f32 fade_dt = game_input->delta_time * 8.0f;
 
-				if(frame_index <= ARRAY_COUNT(intro_state->panels)) {
-					for(u32 i = 0; i < math::min(frame_index, ARRAY_COUNT(intro_state->panels)); i++) {
-						Entity * entity = intro_state->panels[i];
-						entity->color.a += fade_dt;
-						entity->color.a = math::clamp01(entity->color.a);
+				u32 last_frame_index = ARRAY_COUNT(intro_state->frames) - 1;
+				if(frame_index <= last_frame_index) {
+					for(u32 i = 0; i < math::min(frame_index, last_frame_index); i++) {
+						IntroFrame * frame = intro_state->frames + i;
+						frame->alpha += fade_dt;
+						frame->alpha = math::clamp01(frame->alpha);
 					}
 				}
 				else {
-					for(u32 i = 0; i < ARRAY_COUNT(intro_state->panels); i++) {
-						Entity * entity = intro_state->panels[i];
-						entity->color.a -= fade_dt;
-						entity->color.a = math::clamp01(entity->color.a);
+					for(u32 i = 0; i < last_frame_index; i++) {
+						IntroFrame * frame = intro_state->frames + i;
+						frame->alpha -= fade_dt;
+						frame->alpha = math::clamp01(frame->alpha);
 					}
 
-					if(frame_index > (ARRAY_COUNT(intro_state->panels) + 1)) {
-						intro_state->last_panel->color.a += fade_dt;
-						intro_state->last_panel->color.a = math::clamp01(intro_state->last_panel->color.a);
+					if(frame_index > ARRAY_COUNT(intro_state->frames)) {
+						IntroFrame * frame = intro_state->frames + last_frame_index;
+						frame->alpha += fade_dt;
+						frame->alpha = math::clamp01(frame->alpha);
 					}
 
-					if(frame_index > (ARRAY_COUNT(intro_state->panels) + 3)) {
+					if(frame_index > ARRAY_COUNT(intro_state->frames) + 2) {
 						intro_state->transition_id = begin_transition(game_state);
 					}
 				}
@@ -1326,11 +1322,16 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		case MetaStateType_intro: {
 			MetaState * meta_state = get_meta_state(game_state, MetaStateType_intro);
+			IntroMetaState * intro_state = meta_state->intro;
 
-			RenderTransform render_transform = create_render_transform(render_state->screen_width, render_state->screen_height);
+			RenderGroup * render_group = intro_state->render_group;
 
-			EntityArray * entities = &meta_state->intro->entities;
-			render_entities(render_state, &render_transform, entities->elems, entities->count);
+			for(u32 i = 0; i < ARRAY_COUNT(intro_state->frames); i++) {
+				IntroFrame * frame = intro_state->frames + i;
+				push_render_elem(render_group, AssetId_intro, i, math::vec3(0.0f), math::vec2(1.0f), math::vec4(1.0f, 1.0f, 1.0f, frame->alpha));
+			}
+
+			render_and_clear_render_group(meta_state->render_state, render_group);
 
 			break;
 		}
@@ -1419,11 +1420,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		case MetaStateType_game_over: {
 			MetaState * meta_state = get_meta_state(game_state, MetaStateType_game_over);
+			GameOverMetaState * game_over_state = meta_state->game_over;
 
-			RenderTransform render_transform = create_render_transform(render_state->screen_width, render_state->screen_height);
-
-			EntityArray * entities = &meta_state->game_over->entities;
-			render_entities(render_state, &render_transform, entities->elems, entities->count);
+			push_render_elem(game_over_state->render_group, AssetId_car, 0);
+			render_and_clear_render_group(meta_state->render_state, game_over_state->render_group);
 
 			break;
 		}

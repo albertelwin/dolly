@@ -431,6 +431,7 @@ RenderGroup * allocate_render_group(RenderState * render_state, MemoryArena * ar
 }
 
 void push_render_elem(RenderGroup * render_group, AssetId asset_id, u32 asset_index, math::Vec3 pos = math::vec3(0.0f), math::Vec2 scale = math::vec2(1.0f), math::Vec4 color = math::vec4(1.0f), b32 scrollable = false) {
+	ASSERT(render_group);
 	ASSERT(render_group->elem_count < ARRAY_COUNT(render_group->elems));
 
 	Asset * asset = get_asset(render_group->assets, asset_id, asset_index);
@@ -471,6 +472,7 @@ void push_colored_quad(RenderGroup * render_group, math::Vec3 pos, math::Vec2 di
 }
 
 void render_and_clear_render_group(RenderState * render_state, RenderGroup * render_group) {
+	ASSERT(render_group);
 	DEBUG_TIME_BLOCK();
 
 	RenderTransform * render_transform = &render_group->transform;
@@ -519,6 +521,7 @@ void render_and_clear_render_group(RenderState * render_state, RenderGroup * ren
 		render_and_clear_render_batch(render_batch, basic_shader, &projection);
 	}
 	
+	//TODO: Port this!!
 #if 0
 	if(render_state->debug_render_entity_bounds) {
 		render_batch->tex = get_texture_asset(render_state->assets, AssetId_white, 0);
@@ -545,93 +548,4 @@ void render_and_clear_render_group(RenderState * render_state, RenderGroup * ren
 #endif
 
 	render_group->elem_count = 0;
-}
-
-//TODO: Remove entities from renderer??
-void render_entities(RenderState * render_state, RenderTransform * render_transform, Entity * entities, u32 entity_count) {
-	DEBUG_TIME_BLOCK();
-
-	math::Rec2 screen_bounds = math::rec2_pos_dim(math::vec2(0.0f), math::vec2((f32)render_state->screen_width, (f32)render_state->screen_height));
-	math::Mat4 projection = math::orthographic_projection((f32)render_transform->projection_width, (f32)render_transform->projection_height);
-
-	u32 null_atlas_index = U32_MAX;
-	u32 current_atlas_index = null_atlas_index;
-	RenderBatch * render_batch = render_state->render_batch;
-	ASSERT(!render_batch->e);
-	render_batch->mode = RenderMode_triangles;
-
-	Shader * basic_shader = &render_state->basic_shader;
-
-	//TODO: Sorting!!
-	for(u32 i = 0; i < entity_count; i++) {
-		Entity * entity = entities + i;
-
-		Asset * asset = get_asset(render_state->assets, entity->asset_id, entity->asset_index);
-		ASSERT(asset->type == AssetType_texture || asset->type == AssetType_sprite);
-
-		math::Vec2 pos = project_pos(render_transform, entity->pos + math::vec3(asset->texture.offset, 0.0f));
-		math::Vec2 dim = asset->texture.dim * entity->scale;
-
-		math::Vec4 color = entity->color;
-		if(color.a > 0.0f) {
-			if(entity->asset_type == AssetType_texture) {
-				Texture * tex = &asset->texture;
-				gl::VertexBuffer * v_buf = entity->scrollable ? &render_state->scrollable_quad_v_buf : &render_state->quad_v_buf;
-
-				//TODO: Remove epsilon!!
-				f32 epsilon = 0.1f;
-				if(math::rec_overlap(screen_bounds, math::rec2_pos_dim(pos, dim * (1.0f + epsilon)))) {
-					if(current_atlas_index != null_atlas_index) {
-						render_and_clear_render_batch(render_batch, basic_shader, &projection);
-						current_atlas_index = null_atlas_index;
-					}
-
-					math::Mat4 transform = projection * math::translate(pos.x, pos.y, 0.0f) * math::scale(dim.x, dim.y, 1.0f);
-					render_v_buf(v_buf, RenderMode_triangles, basic_shader, &transform, tex, color);
-				}
-			}
-			else {
-				Texture * sprite = &asset->sprite;
-
-				if(math::rec_overlap(screen_bounds, math::rec2_pos_dim(pos, dim))) {
-					u32 elems_remaining = render_batch->v_len - render_batch->e;
-					if(current_atlas_index != sprite->atlas_index || elems_remaining < QUAD_ELEM_COUNT) {
-						render_and_clear_render_batch(render_state->render_batch, basic_shader, &projection);
-
-						current_atlas_index = sprite->atlas_index;
-						render_batch->tex = get_texture_asset(render_state->assets, AssetId_atlas, sprite->atlas_index);
-					}
-
-					push_sprite_to_batch(render_batch, sprite, pos, dim, color);
-				}
-			}			
-		}
-	}
-
-	if(current_atlas_index != null_atlas_index) {
-		render_and_clear_render_batch(render_batch, basic_shader, &projection);
-	}
-	
-	if(render_state->debug_render_entity_bounds) {
-		render_batch->tex = get_texture_asset(render_state->assets, AssetId_white, 0);
-		render_batch->mode = RenderMode_lines;
-
-		for(u32 i = 0; i < entity_count; i++) {
-			Entity * entity = entities + i;
-
-			// math::Rec2 bounds = get_entity_render_bounds(assets, entity);
-			math::Rec2 bounds = math::rec_scale(entity->collider, entity->scale);
-			math::Vec2 pos = project_pos(render_transform, entity->pos + math::vec3(math::rec_pos(bounds), 0.0f));
-			bounds = math::rec2_pos_dim(pos, math::rec_dim(bounds));
-
-			u32 elems_remaining = render_batch->v_len - render_batch->e;
-			if(elems_remaining < QUAD_LINES_ELEM_COUNT) {
-				render_and_clear_render_batch(render_batch, basic_shader, &projection);
-			}
-
-			push_quad_lines_to_batch(render_batch, &bounds, math::vec4(1.0f));
-		}
-
-		render_and_clear_render_batch(render_batch, basic_shader, &projection);
-	}
 }

@@ -27,8 +27,6 @@ struct Entity {
 	math::Vec4 color;
 	b32 scrollable;
 
-	//TODO: Stop storing the asset type!!
-	AssetType asset_type;
 	AssetId asset_id;
 	u32 asset_index;
 
@@ -167,6 +165,10 @@ struct UiElement {
 	u32 asset_index;
 };
 
+struct IntroFrame {
+	f32 alpha;
+};
+
 enum ButtonId {
 	ButtonId_start,
 	ButtonId_left,
@@ -216,11 +218,9 @@ struct MenuMetaState {
 };
 
 struct IntroMetaState {
-	EntityArray entities;
+	RenderGroup * render_group;
 
-	//TODO: Tidy this up!!
-	Entity * panels[3];
-	Entity * last_panel;
+	IntroFrame frames[4];
 	f32 anim_time;
 
 	u32 transition_id;
@@ -278,7 +278,7 @@ struct MainMetaState {
 struct GameOverMetaState {
 	AudioSource * music;
 
-	EntityArray entities;
+	RenderGroup * render_group;
 
 	u32 transition_id;
 };
