@@ -246,23 +246,18 @@ void main_loop(void * user_ptr) {
 }
 
 int main() {
-	ASSERT(SDL_Init(SDL_INIT_VIDEO) == 0);
+	if(!SDL_Init(SDL_INIT_VIDEO)) {
+		ASSERT(!"Failed to initialise SDL!");
+	}
 
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 0);
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 1);
 
-	// u32 window_width = 640;
-	// u32 window_height = 360;
-	u32 window_width = 960;
-	u32 window_height = 540;
-	// u32 window_width = 1280;
-	// u32 window_height = 720;
-
+	// u32 window_width = 640, window_height = 360;
+	u32 window_width = 960, window_height = 540;
+	// u32 window_width = 1280, window_height = 720;
 	SDL_Surface * surface = SDL_SetVideoMode(window_width, window_height, 32, SDL_OPENGL);
-
-	//TODO: GL extensions!!
-	// emscripten_webgl_enable_extension(emscripten_webgl_get_current_context(), "OES_texture_float");
 
 	MainLoopArgs args = {};
 	args.game_memory.size = MEGABYTES(16);
