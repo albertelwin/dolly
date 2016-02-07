@@ -348,7 +348,6 @@ void load_render(RenderState * render_state, MemoryArena * arena, AssetState * a
 	render_state->scrollable_quad_v_buf = gl::create_vertex_buffer(scrollable_quad_verts, ARRAY_COUNT(scrollable_quad_verts), VERT_ELEM_COUNT, GL_STATIC_DRAW);
 
 	render_state->debug_font = allocate_font(render_state, 65536, render_state->back_buffer_width, render_state->back_buffer_height);
-	render_state->debug_render_entity_bounds = false;
 
 	render_state->render_batch = allocate_render_batch(render_state->arena, get_texture_asset(assets, AssetId_white, 0), QUAD_ELEM_COUNT * 512);
 
@@ -529,32 +528,6 @@ void render_and_clear_render_group(RenderState * render_state, RenderGroup * ren
 	if(current_atlas_index != null_atlas_index) {
 		render_and_clear_render_batch(render_batch, basic_shader, &projection);
 	}
-	
-	//TODO: Port this!!
-#if 0
-	if(render_state->debug_render_entity_bounds) {
-		render_batch->tex = get_texture_asset(render_state->assets, AssetId_white, 0);
-		render_batch->mode = RenderMode_lines;
-
-		for(u32 i = 0; i < entity_count; i++) {
-			Entity * entity = entities + i;
-
-			// math::Rec2 bounds = get_entity_render_bounds(assets, entity);
-			math::Rec2 bounds = math::rec_scale(entity->collider, entity->scale);
-			math::Vec2 pos = project_pos(render_transform, entity->pos + math::vec3(math::rec_pos(bounds), 0.0f));
-			bounds = math::rec2_pos_dim(pos, math::rec_dim(bounds));
-
-			u32 elems_remaining = render_batch->v_len - render_batch->e;
-			if(elems_remaining < QUAD_LINES_ELEM_COUNT) {
-				render_and_clear_render_batch(render_batch, basic_shader, &projection);
-			}
-
-			push_quad_lines_to_batch(render_batch, &bounds, math::vec4(1.0f));
-		}
-
-		render_and_clear_render_batch(render_batch, basic_shader, &projection);
-	}
-#endif
 
 	render_group->elem_count = 0;
 }

@@ -344,6 +344,8 @@ struct GameState {
 
 	Str * debug_str;
 	Str * str;
+
+	b32 debug_render_entity_bounds;
 };
 
 #endif

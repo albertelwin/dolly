@@ -672,6 +672,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		game_state->debug_str = allocate_str(&game_state->memory_arena, 1024);
 		game_state->str = allocate_str(&game_state->memory_arena, 256);
+
+		game_state->debug_render_entity_bounds = false;
 	}
 
 	if(!game_state->save_file) {
@@ -727,7 +729,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 #endif
 
 	if(game_input->buttons[ButtonId_debug] & KEY_PRESSED) {
-		render_state->debug_render_entity_bounds = !render_state->debug_render_entity_bounds;
+		game_state->debug_render_entity_bounds = !game_state->debug_render_entity_bounds;
 	}
 
 	if(game_input->buttons[ButtonId_mute] & KEY_PRESSED) {
@@ -1347,6 +1349,33 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			}
 
 			render_and_clear_render_group(meta_state->render_state, main_state->render_group);
+
+			if(game_state->debug_render_entity_bounds) {
+				RenderBatch * render_batch = render_state->render_batch;
+				render_batch->tex = get_texture_asset(render_state->assets, AssetId_white, 0);
+				render_batch->mode = RenderMode_lines;
+				
+				RenderTransform * render_transform = &main_state->render_group->transform;
+				math::Mat4 projection = math::orthographic_projection((f32)render_transform->projection_width, (f32)render_transform->projection_height);
+
+				for(u32 i = 0; i < entities->count; i++) {
+					Entity * entity = entities->elems + i;
+
+					// math::Rec2 bounds = get_entity_render_bounds(assets, entity);
+					math::Rec2 bounds = math::rec_scale(entity->collider, entity->scale);
+					math::Vec2 pos = project_pos(render_transform, entity->pos + math::vec3(math::rec_pos(bounds), 0.0f));
+					bounds = math::rec2_pos_dim(pos, math::rec_dim(bounds));
+
+					u32 elems_remaining = render_batch->v_len - render_batch->e;
+					if(elems_remaining < QUAD_LINES_ELEM_COUNT) {
+						render_and_clear_render_batch(render_batch, &render_state->basic_shader, &projection);
+					}
+
+					push_quad_lines_to_batch(render_batch, &bounds, math::vec4(1.0f));
+				}
+
+				render_and_clear_render_batch(render_batch, &render_state->basic_shader, &projection);
+			}
 
 			RenderGroup * ui_render_group = main_state->ui_render_group;
 			math::Vec2 projection_dim = math::vec2(ui_render_group->transform.projection_width, ui_render_group->transform.projection_height);

@@ -114,8 +114,7 @@ struct RenderState {
 	f32 fade_amount;
 
 	Font * debug_font;
-	b32 debug_render_entity_bounds;
-
+	
 	RenderBatch * render_batch;
 };
 
