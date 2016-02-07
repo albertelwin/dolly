@@ -1502,6 +1502,7 @@ void game_sample(GameMemory * game_memory, i16 * sample_memory_ptr, u32 samples_
 }
 #endif
 
+#if DEBUG_ENABLED
 DebugBlockProfile debug_block_profiles[__COUNTER__];
 
 void debug_game_tick(GameMemory * game_memory, GameInput * game_input) {
@@ -1523,3 +1524,4 @@ void debug_game_tick(GameMemory * game_memory, GameInput * game_input) {
 		}
 	}
 }
+#endif

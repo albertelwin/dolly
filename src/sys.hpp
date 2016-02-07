@@ -16,7 +16,7 @@
 #define __TOKEN_STRINGIFY(x) #x
 #define TOKEN_STRINGIFY(x) __TOKEN_STRINGIFY(x)
 
-#ifdef DEBUG_ENABLED
+#if DEBUG_ENABLED
 	#define __ASSERT(x) __assert_func(x, "" #x " : " __FILE__ " : " TOKEN_STRINGIFY(__LINE__))
 	void __assert_func(bool expression, char const * message) {
 		if(!expression) {

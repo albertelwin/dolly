@@ -2,9 +2,15 @@
 #ifndef DEBUG_HPP_INCLUDED
 #define DEBUG_HPP_INCLUDED
 
-#define DEBUG_TIME_BLOCK__(x) DebugTimedBlock __timed_block_##x(__COUNTER__, (char *)__FUNCTION__, (char *)__FILE__, __LINE__)
-#define DEBUG_TIME_BLOCK_(x) DEBUG_TIME_BLOCK__(x)
-#define DEBUG_TIME_BLOCK() DEBUG_TIME_BLOCK_(__LINE__)
+#if DEBUG_ENABLED
+	#define DEBUG_TIME_BLOCK__(x) DebugTimedBlock __timed_block_##x(__COUNTER__, (char *)__FUNCTION__, (char *)__FILE__, __LINE__)
+	#define DEBUG_TIME_BLOCK_(x) DEBUG_TIME_BLOCK__(x)
+	#define DEBUG_TIME_BLOCK() DEBUG_TIME_BLOCK_(__LINE__)
+#else
+	#define DEBUG_TIME_BLOCK__(...)
+	#define DEBUG_TIME_BLOCK_(...)
+	#define DEBUG_TIME_BLOCK(...)
+#endif
 
 struct DebugBlockProfile {
 	char * func;

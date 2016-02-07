@@ -239,14 +239,16 @@ void main_loop(void * user_ptr) {
 
 		web_audio_request_samples();
 
+#if DEBUG_ENABLED
 		debug_game_tick(&args->game_memory, &args->game_input);
+#endif
 
 		SDL_GL_SwapBuffers();
 	}
 }
 
 int main() {
-	if(!SDL_Init(SDL_INIT_VIDEO)) {
+	if(SDL_Init(SDL_INIT_VIDEO)) {
 		ASSERT(!"Failed to initialise SDL!");
 	}
 
