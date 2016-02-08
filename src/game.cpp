@@ -299,6 +299,26 @@ b32 move_entity(MetaState * meta_state, RenderTransform * transform, Entity * en
 	return off_screen;
 }
 
+UiElement * push_button(MenuPage * page, u32 id, AssetId asset_id) {
+	ASSERT(page->button_count < ARRAY_COUNT(page->buttons));
+
+	UiElement * elem = page->buttons + page->button_count++;
+	elem->id = id;
+	elem->asset_id = asset_id;
+	elem->asset_index = 0;
+	return elem;
+}
+
+void change_page(MenuMetaState * menu_state, MenuPageId next_page) {
+	MenuPage * current_page = menu_state->pages + menu_state->current_page;
+	for(u32 i = 0; i < current_page->button_count; i++) {
+		UiElement * elem = current_page->buttons + i;
+		elem->asset_index = 0;
+	}
+
+	menu_state->current_page = next_page;
+}
+
 MetaState * allocate_meta_state(GameState * game_state, MetaStateType type) {
 	MemoryArena * arena = &game_state->memory_arena;
 
@@ -357,12 +377,13 @@ void init_menu_meta_state(MetaState * meta_state) {
 	RenderState * render_state = meta_state->render_state;
 	menu_state->render_group = allocate_render_group(render_state, &meta_state->arena, render_state->screen_width, render_state->screen_height);
 
-	menu_state->buttons[MenuButtonId_credits].asset_id = AssetId_menu_btn_credits;
-	menu_state->buttons[MenuButtonId_score].asset_id = AssetId_menu_btn_score;
-	menu_state->buttons[MenuButtonId_play].asset_id = AssetId_menu_btn_play;
-	for(u32 i = 0; i < ARRAY_COUNT(menu_state->buttons); i++) {
-		ASSERT(menu_state->buttons[i].asset_id);
-	}
+	push_button(menu_state->pages + MenuPageId_main, MenuButtonId_play, AssetId_menu_btn_play);
+	push_button(menu_state->pages + MenuPageId_main, MenuButtonId_score, AssetId_menu_btn_score);
+	push_button(menu_state->pages + MenuPageId_main, MenuButtonId_credits, AssetId_menu_btn_credits);
+
+	push_button(menu_state->pages + MenuPageId_hiscore, MenuButtonId_back, AssetId_menu_btn_back);
+
+	push_button(menu_state->pages + MenuPageId_credits, MenuButtonId_back, AssetId_menu_btn_back);
 }
 
 void init_intro_meta_state(MetaState * meta_state) {
@@ -742,15 +763,43 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			MenuMetaState * menu_state = meta_state->menu;
 
 			if(!game_state->transitioning) {
-				UiElement * hot_elem = pick_ui_elem(meta_state->render_state, menu_state->render_group, menu_state->buttons, ARRAY_COUNT(menu_state->buttons), game_input->mouse_pos);
+				MenuPage * current_page = menu_state->pages + menu_state->current_page;
+				UiElement * hot_elem = pick_ui_elem(meta_state->render_state, menu_state->render_group, current_page->buttons, current_page->button_count, game_input->mouse_pos);
+
 				if(hot_elem) {
 					hot_elem->asset_index = 1;
 
-					if(game_input->mouse_button & KEY_PRESSED) {
-						if(hot_elem == &menu_state->buttons[MenuButtonId_play]) {
-							menu_state->transition_id = begin_transition(game_state);
+					u32 hot_id = hot_elem->id;
+					switch(menu_state->current_page) {
+						case MenuPageId_main: {
+							if(game_input->mouse_button & KEY_PRESSED) {
+								if(hot_id == MenuButtonId_play) {
+									menu_state->transition_id = begin_transition(game_state);
+								}
+								else if(hot_id == MenuButtonId_score) {
+									change_page(menu_state, MenuPageId_hiscore);
+								}
+								else if(hot_id == MenuButtonId_credits) {
+									change_page(menu_state, MenuPageId_credits);
+								}
+							}
+
+							break;
 						}
-					}
+
+						case MenuPageId_hiscore:
+						case MenuPageId_credits: {
+							if(game_input->mouse_button & KEY_PRESSED) {
+								if(hot_id == MenuButtonId_back) {
+									change_page(menu_state, MenuPageId_main);
+								}
+							}
+
+							break;
+						}
+
+						INVALID_CASE();
+					}					
 				}
 			}
 			else {
@@ -1303,17 +1352,20 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			MetaState * meta_state = get_meta_state(game_state, MetaStateType_menu);
 			MenuMetaState * menu_state = meta_state->menu;
 
-			push_textured_quad(menu_state->render_group, AssetId_menu_background, 0);
+			push_textured_quad(menu_state->render_group, AssetId_menu_background, menu_state->current_page);
 
-			u32 display_item_count = ASSET_GROUP_COUNT(display);
-			for(u32 i = 0; i < ARRAY_COUNT(game_state->save.collectable_unlock_states); i++) {
-				if(game_state->save.collectable_unlock_states[i]) {
-					push_textured_quad(menu_state->render_group, (AssetId)(AssetId_first_display + i), 0);
-				}
+			if(menu_state->current_page == MenuPageId_main) {
+				u32 display_item_count = ASSET_GROUP_COUNT(display);
+				for(u32 i = 0; i < ARRAY_COUNT(game_state->save.collectable_unlock_states); i++) {
+					if(game_state->save.collectable_unlock_states[i]) {
+						push_textured_quad(menu_state->render_group, (AssetId)(AssetId_first_display + i), 0);
+					}
+				}				
 			}
 
-			for(u32 i = 0; i < ARRAY_COUNT(menu_state->buttons); i++) {
-				UiElement * elem = menu_state->buttons + i;
+			MenuPage * current_page = menu_state->pages + menu_state->current_page;
+			for(u32 i = 0; i < current_page->button_count; i++) {
+				UiElement * elem = current_page->buttons + i;
 				push_textured_quad(menu_state->render_group, elem->asset_id, elem->asset_index);
 			}
 

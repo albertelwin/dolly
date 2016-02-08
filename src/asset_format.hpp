@@ -29,8 +29,6 @@ enum AssetId {
 	AssetId_font,
 
 	AssetId_menu_background,
-	// AssetId_menu_credits_page,
-	// AssetId_menu_score_page,
 
 	AssetId_city,
 	AssetId_space,
@@ -78,7 +76,7 @@ enum AssetId {
 	AssetId_menu_btn_credits,
 	AssetId_menu_btn_play,
 	AssetId_menu_btn_score,
-	// AssetId_menu_btn_back,
+	AssetId_menu_btn_back,
 
 	AssetId_score_btn_menu,
 	AssetId_score_btn_replay,

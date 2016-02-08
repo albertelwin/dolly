@@ -21,6 +21,13 @@
 // 	f32 anim_time;
 // };
 
+struct UiElement {
+	u32 id;
+
+	AssetId asset_id;
+	u32 asset_index;
+};
+
 struct Entity {
 	math::Vec3 pos;
 	f32 scale;
@@ -126,14 +133,14 @@ enum MenuButtonId {
 	MenuButtonId_play,
 	MenuButtonId_score,
 	MenuButtonId_credits,
+	MenuButtonId_back,
 
 	MenuButtonId_count,
 };
 
-#if 0
 enum MenuPageId {
 	MenuPageId_main,
-	MenuPageId_score,
+	MenuPageId_hiscore,
 	MenuPageId_credits,
 
 	MenuPageId_count,
@@ -141,9 +148,8 @@ enum MenuPageId {
 
 struct MenuPage {
 	u32 button_count;
-	MenuButtonId buttons[4];
+	UiElement buttons[3];
 };
-#endif
 
 enum ScoreButtonId {
 	ScoreButtonId_menu,
@@ -158,11 +164,6 @@ enum TransitionType {
 
 	TransitionType_count,
 	TransitionType_null = TransitionType_count,
-};
-
-struct UiElement {
-	AssetId asset_id;
-	u32 asset_index;
 };
 
 struct IntroFrame {
@@ -212,7 +213,9 @@ enum MetaStateType {
 
 struct MenuMetaState {
 	RenderGroup * render_group;
-	UiElement buttons[MenuButtonId_count];
+
+	MenuPage pages[MenuPageId_count];
+	MenuPageId current_page;
 
 	u32 transition_id;
 };

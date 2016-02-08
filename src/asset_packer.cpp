@@ -449,6 +449,8 @@ int main() {
 		{ AssetId_menu_btn_play, "menu_btn_play1.png" },
 		{ AssetId_menu_btn_score, "menu_btn_score0.png" },
 		{ AssetId_menu_btn_score, "menu_btn_score1.png" },
+		{ AssetId_menu_btn_back, "menu_btn_back0.png" },
+		{ AssetId_menu_btn_back, "menu_btn_back1.png" },
 
 		{ AssetId_score_btn_menu, "score_btn_menu0.png" },
 		{ AssetId_score_btn_menu, "score_btn_menu1.png" },
@@ -471,6 +473,8 @@ int main() {
 		load_texture("font.png", AssetId_font, TextureSampling_point),
 
 		load_texture("menu_background.png", AssetId_menu_background),
+		load_texture("menu_credits_temp.png", AssetId_menu_background),
+		load_texture("menu_hiscore_temp.png", AssetId_menu_background),
 
 		load_texture("city_layer0.png", AssetId_city),
 		load_texture("city_layer1.png", AssetId_city),
