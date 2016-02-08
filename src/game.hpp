@@ -73,11 +73,14 @@ struct Player {
 };
 
 struct EntityEmitter {
+	f32 cursor;
+	u32 last_read_pos;
+
 	math::Vec3 pos;
 	f32 time_until_next_spawn;
 
 	u32 entity_count;
-	Entity * entity_array[16];
+	Entity * entity_array[128];
 };
 
 struct MazeChunk {
@@ -98,6 +101,7 @@ struct Location {
 	AssetId asset_id;
 	Entity * layers[PARALLAX_LAYER_COUNT];
 	f32 y;
+	math::Vec4 tint;
 
 	u32 emitter_type_count;
 	AssetId * emitter_types;

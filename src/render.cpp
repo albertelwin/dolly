@@ -6,6 +6,11 @@
 #include <screen_quad.vert>
 #include <post_filter.frag>
 
+math::Vec4 color_255(u32 r, u32 g, u32 b) {
+	f32 r_255 = 1.0f / 255.0f;
+	return math::vec4((f32)r * r_255, (f32)g * r_255, (f32)b * r_255, 1.0f);
+}
+
 RenderTransform create_render_transform(u32 projection_width, u32 projection_height, math::Vec2 pos = math::vec2(0.0f), math::Vec2 offset = math::vec2(0.0f)) {
 	RenderTransform transform = {};
 	transform.pos = pos;

@@ -64,7 +64,7 @@ void load_assets(AssetState * assets, MemoryArena * arena) {
 	file_buf.ptr = (u8 *)mz_zip_extract_archive_file_to_heap("asset.zip", "asset.pak", &file_buf.size, 0);
 	u8 * file_ptr = file_buf.ptr;
 
-	std::printf("LOG: %u\n", file_buf.size);
+	std::printf("LOG: Uncompressed asset footprint: %uKB\n", file_buf.size / 1024);
 
 	AssetPackHeader * pack = (AssetPackHeader *)file_ptr;
 	file_ptr += sizeof(AssetPackHeader);
@@ -117,17 +117,26 @@ void load_assets(AssetState * assets, MemoryArena * arena) {
 
 				Asset * asset = push_asset(assets, asset_info->id, AssetType_audio_clip);
 				asset->audio_clip.samples = info->samples;
-				asset->audio_clip.sample_data = (i16 *)(info + 1);
+				asset->audio_clip.sample_data = (i16 *)file_ptr;
 
 				file_ptr += info->size;
 
 				break;
 			}
 
-			default: {
-				ASSERT(!"Invalid asset type!!");
+			case AssetType_placement_map: {
+				PlacementMapInfo * info = (PlacementMapInfo *)&asset_info->placement_map;
+
+				Asset * asset = push_asset(assets, asset_info->id, AssetType_placement_map);
+				asset->placement_map.count = info->count;
+				asset->placement_map.placements = (Placement *)file_ptr;
+
+				file_ptr += info->count * sizeof(Placement);
+
 				break;
 			}
+
+			INVALID_CASE();
 		}
 	}
  

@@ -18,6 +18,20 @@ enum TextureSampling {
 #define AUDIO_PADDING_SAMPLES 1
 #define AUDIO_CHANNELS 2
 
+#define PLACEMENT_WIDTH 32
+#define PLACEMENT_HEIGHT 18
+
+#pragma pack(push, 1)
+struct Placement {
+	u32 ids[PLACEMENT_HEIGHT];
+};
+
+struct PlacementMap {
+	u32 count;
+	Placement * placements;
+};
+#pragma pack(pop)
+
 #define ASSET_GROUP_COUNT(name) (AssetId_one_past_last_##name - AssetId_first_##name)
 
 enum AssetId {
@@ -95,6 +109,9 @@ enum AssetId {
 	AssetId_game_music,
 	AssetId_death_music,
 
+	//NOTE: Placements
+	AssetId_debug_placement,
+
 	AssetId_count,
 };
 
@@ -102,7 +119,8 @@ enum AssetType {
 #define ASSET_TYPE_NAME_STRUCT_X	\
 	X(texture, Texture)				\
 	X(sprite, Texture)				\
-	X(audio_clip, AudioClip)
+	X(audio_clip, AudioClip)		\
+	X(placement_map, PlacementMap)
 
 #define X(NAME, STRUCT) AssetType_##NAME,
 	ASSET_TYPE_NAME_STRUCT_X
@@ -138,6 +156,10 @@ struct AudioClipInfo {
 	u32 size;
 };
 
+struct PlacementMapInfo {
+	u32 count;
+};
+
 struct AssetInfo {
 	AssetId id;
 	AssetType type;
@@ -146,9 +168,9 @@ struct AssetInfo {
 		TextureInfo texture;
 		SpriteInfo sprite;
 		AudioClipInfo audio_clip;
+		PlacementMapInfo placement_map;
 	};
 };
-
 #pragma pack(pop)
 
 #endif

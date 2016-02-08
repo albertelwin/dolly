@@ -140,12 +140,19 @@ void push_player_clone(Player * player) {
 void pop_player_clones(Player * player, u32 count) {
 	ASSERT(count);
 
+	count = ARRAY_COUNT(player->clones);
+
 	u32 remaining = count;
 	for(i32 i = ARRAY_COUNT(player->clones) - 1; i >= 0; i--) {
 		Entity * entity = player->clones[i];
 
 		if(!entity->hidden && !entity->hit) {
 			entity->hit = true;
+
+			entity->d_pos = math::vec2(0.0f);
+			entity->d_pos.x = math::rand_f32() * 2.0f - 1.0f;
+			entity->d_pos.y = math::rand_f32();
+			entity->d_pos *= 1000.0f;
 
 			if(!--remaining) {
 				break;
@@ -447,12 +454,15 @@ void init_main_meta_state(MetaState * meta_state) {
 
 	main_state->locations[LocationId_city].y = 0.0f;
 	main_state->locations[LocationId_city].asset_id = AssetId_city;
+	main_state->locations[LocationId_city].tint = math::vec4(1.0f);
 
 	main_state->locations[LocationId_mountains].y = location_y_offset * 2;
-	main_state->locations[LocationId_mountains].asset_id = AssetId_city;
+	main_state->locations[LocationId_mountains].asset_id = AssetId_mountains;
+	main_state->locations[LocationId_mountains].tint = color_255(34, 177, 76);
 
 	main_state->locations[LocationId_space].y = location_y_offset;
 	main_state->locations[LocationId_space].asset_id = AssetId_space;
+	main_state->locations[LocationId_space].tint = math::vec4(1.0f);
 
 	main_state->ground_height = -(f32)screen_height * 0.5f;
 
@@ -465,6 +475,7 @@ void init_main_meta_state(MetaState * meta_state) {
 
 			entity->pos.y = location->y;
 			entity->pos.z = layer_z_offsets[layer_index];
+			entity->color = layer_index == 0 ? math::vec4(1.0f) : location->tint;
 			entity->scrollable = true;
 
 			location->layers[layer_index] = entity;
@@ -473,10 +484,9 @@ void init_main_meta_state(MetaState * meta_state) {
 
 	//TODO: Collapse this!!
 	{
-		//TODO: We probably want to have a probability tree!!
 		AssetId emitter_types[] = {
 			AssetId_rocket,
-			// AssetId_boots,
+			AssetId_boots,
 
 			AssetId_collectable_telly,
 			AssetId_collectable_telly,
@@ -506,6 +516,35 @@ void init_main_meta_state(MetaState * meta_state) {
 
 		main_state->locations[LocationId_city].emitter_type_count = ARRAY_COUNT(emitter_types);
 		main_state->locations[LocationId_city].emitter_types = PUSH_COPY_ARRAY(&meta_state->arena, AssetId, emitter_types, ARRAY_COUNT(emitter_types));
+	}
+
+	{
+		AssetId emitter_types[] = {
+			AssetId_collectable_telly,
+			AssetId_collectable_telly,
+			AssetId_collectable_telly,
+			AssetId_collectable_telly,
+			AssetId_collectable_telly,
+			AssetId_collectable_telly,
+			AssetId_collectable_telly,
+			AssetId_collectable_telly,
+			AssetId_collectable_telly,
+			AssetId_collectable_telly,
+			AssetId_collectable_telly,
+			AssetId_collectable_telly,
+			AssetId_collectable_telly,
+			AssetId_collectable_telly,
+
+			AssetId_collectable_blob,
+			AssetId_collectable_clock,
+			AssetId_collectable_diamond,
+			AssetId_collectable_flower,
+			AssetId_collectable_heart,
+			AssetId_collectable_paw,
+			AssetId_collectable_smiley,
+			AssetId_collectable_speech,
+			AssetId_collectable_speed_up,
+		};
 
 		main_state->locations[LocationId_mountains].emitter_type_count = ARRAY_COUNT(emitter_types);
 		main_state->locations[LocationId_mountains].emitter_types = PUSH_COPY_ARRAY(&meta_state->arena, AssetId, emitter_types, ARRAY_COUNT(emitter_types));
@@ -553,8 +592,6 @@ void init_main_meta_state(MetaState * meta_state) {
 
 	EntityEmitter * emitter = &main_state->entity_emitter;
 	emitter->pos = math::vec3(screen_width * 0.75f, 0.0f, 0.0f);
-	emitter->time_until_next_spawn = 0.0f;
-	emitter->entity_count = 0;
 	for(u32 i = 0; i < ARRAY_COUNT(emitter->entity_array); i++) {
 		emitter->entity_array[i] = push_entity(entities, assets, AssetId_first_collectable, 0, emitter->pos);
 	}
@@ -565,13 +602,14 @@ void init_main_meta_state(MetaState * meta_state) {
 	seq->playing = false;
 	seq->time_ = 0.0f;
 
+	//TODO: Are we still doing the maze??
 #if 0
 	//TODO: Support arbitary sized maze chunks??
 	f32 maze_chunk_width = 64.0f;
 	main_state->maze_chunk_count = get_asset_count(assets, AssetId_maze_top);
 	ASSERT(main_state->maze_chunk_count == get_asset_count(assets, AssetId_maze_bottom));
 	main_state->maze_chunks = PUSH_ARRAY(&meta_state->arena, MazeChunk, main_state->maze_chunk_count);
-	f32 x = -(f32)render_state->screen_width;
+	f32 x = -(f32)screen_width * 0.5f;
 	for(u32 i = 0; i < main_state->maze_chunk_count; i++) {
 		MazeChunk * chunk = main_state->maze_chunks + i;
 
@@ -592,6 +630,7 @@ void init_main_meta_state(MetaState * meta_state) {
 		Entity * entity = push_entity(entities, assets, location->asset_id, layer_index);
 		entity->pos.y = location->y;
 		entity->pos.z = layer_z_offsets[layer_index];
+		entity->color = layer_index == 0 ? math::vec4(1.0f) : location->tint;
 		entity->scrollable = true;
 
 		location->layers[layer_index] = entity;
@@ -600,7 +639,8 @@ void init_main_meta_state(MetaState * meta_state) {
 	main_state->d_speed = 0.0f;
 	main_state->dd_speed = 0.0f;
 
-	main_state->start_time = 30.0f;
+	// main_state->start_time = 30.0f;
+	main_state->start_time = 600.0f;
 	main_state->max_time = main_state->start_time;
 	main_state->countdown_time = 10.0f;
 	main_state->time_remaining = main_state->start_time;
@@ -634,9 +674,9 @@ void init_game_over_meta_state(MetaState * meta_state) {
 }
 
 void change_meta_state(GameState * game_state, MetaStateType type) {
-	// ASSERT(game_state->meta_state != type);
 	game_state->meta_state = type;
 
+	//TODO: We should probably defer the init to the end of frame!!
 	MetaState * meta_state = get_meta_state(game_state, type);
 	switch(type) {
 		case MetaStateType_menu: {
@@ -683,7 +723,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			game_state->meta_states[i] = allocate_meta_state(game_state, (MetaStateType)i);
 		}
 
-		change_meta_state(game_state, MetaStateType_menu);
+		change_meta_state(game_state, MetaStateType_main);
 
 		game_state->auto_save_time = 5.0f;
 		game_state->save.code = SAVE_FILE_CODE;
@@ -963,12 +1003,15 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					entity->chain_pos = next_entity->chain_pos + player->clone_offset;
 				}
 
-				entity->pos.xy = entity->chain_pos;
-				entity->pos.y += math::sin((game_input->total_time * 0.25f + i * (3.0f / 13.0f)) * math::TAU) * 50.0f;
 
 				if(!entity->hidden) {
 					if(entity->hit) {
 						entity->color.a = (u32)(entity->hit_time * 30.0f) & 1;
+
+						math::Vec2 dd_pos = main_state->entity_gravity;
+						entity->d_pos += dd_pos * game_input->delta_time;
+						// entity->d_pos *= (1.0f - entity->damp);
+						entity->pos.xy += entity->d_pos * game_input->delta_time;
 
 						entity->hit_time += game_input->delta_time;
 						if(entity->hit_time >= 1.0f) {
@@ -979,6 +1022,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 						}
 					}
 					else {
+						entity->d_pos = math::vec2(0.0f);
+						entity->pos.xy = entity->chain_pos;
+						entity->pos.y += math::sin((game_input->total_time * 0.25f + i * (3.0f / 13.0f)) * math::TAU) * 50.0f;
+
 						entity->color.a += 4.0f * game_input->delta_time;
 						entity->color.a = math::min(entity->color.a, 1.0f);
 
@@ -1066,6 +1113,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			math::Rec2 player_bounds = get_entity_collider_bounds(player->e);
 
 			EntityEmitter * emitter = &main_state->entity_emitter;
+#if 0
 			emitter->time_until_next_spawn -= adjusted_dt;
 			if(!player->dead && emitter->time_until_next_spawn <= 0.0f) {
 				if(emitter->entity_count < ARRAY_COUNT(emitter->entity_array)) {
@@ -1089,6 +1137,53 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				}
 
 				emitter->time_until_next_spawn = 0.5f;
+			}
+#endif
+
+			if(!player->dead) {
+				math::Vec2 projection_dim = math::vec2(main_state->render_group->transform.projection_width, main_state->render_group->transform.projection_height);
+
+				PlacementMap * placement_map = get_placement_map_asset(meta_state->assets, AssetId_debug_placement, 1);
+				ASSERT(placement_map);
+
+				f32 placement_width_pixels = projection_dim.x / (f32)PLACEMENT_WIDTH;
+
+				emitter->cursor += 500.0f * adjusted_dt;
+
+				f32 read_cursor = emitter->cursor / placement_width_pixels;
+				u32 read_pos = (u32)read_cursor;
+				u32 reads_ahead = read_pos - emitter->last_read_pos;
+
+				if(reads_ahead > 0) {
+					u32 x = read_pos % placement_map->count;
+					Placement * placement = placement_map->placements + x;
+
+					for(u32 y = 0; y < PLACEMENT_HEIGHT; y++) {
+						u32 id = placement->ids[y];
+						if(id) {
+							if(emitter->entity_count < ARRAY_COUNT(emitter->entity_array)) {
+								Entity * entity = emitter->entity_array[emitter->entity_count++];
+
+								entity->pos = emitter->pos;
+								entity->pos.y += (((f32)y + 0.5f) / (f32)PLACEMENT_HEIGHT) * projection_dim.y - projection_dim.y * 0.5f;
+								entity->scale = 1.0f;
+								entity->color = math::vec4(1.0f);
+
+								AssetId asset_id = (AssetId)(AssetId_first_collectable + id);
+
+								change_entity_asset(entity, assets, asset_id, 0);
+								if(entity->asset_id == AssetId_collectable_telly) {
+									entity->collider = math::rec_scale(entity->collider, 0.5f);
+								}
+
+								entity->hit = false;
+							}
+						}
+					}
+
+					
+					emitter->last_read_pos = read_pos;
+				}
 			}
 
 			for(u32 i = 0; i < emitter->entity_count; i++) {

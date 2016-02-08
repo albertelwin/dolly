@@ -84,6 +84,17 @@ struct TextureAtlas {
 	AssetInfo sprites[128];
 };
 
+struct LoadedPlacementMap {
+	PlacementMap map;
+	AssetId id;
+};
+
+struct ColorRGB8 {
+	u8 r;
+	u8 g;
+	u8 b;
+};
+
 struct AssetPacker {
 	AssetPackHeader header;
 
@@ -91,15 +102,72 @@ struct AssetPacker {
 	TextureAtlas atlases[64];
 };
 
-Texture load_texture(char const * file_name, AssetId id, TextureSampling sampling = TextureSampling_bilinear) {
+u8 * load_image_from_file(char const * file_name, i32 * width, i32 * height, i32 * channels) {
 	stbi_set_flip_vertically_on_load(true);
 
-	i32 width, height, channels;
-	u8 * img_data = stbi_load(file_name, &width, &height, &channels, 0);
+	u8 * img_data = stbi_load(file_name, width, height, channels, 0);
 	if(!img_data) {
 		std::printf("LOG: Could not find %s!!\n", file_name);
 		ASSERT(!"Texture not found!");
 	}
+
+	return img_data;
+}
+
+ColorRGB8 color_rgb8(u8 r, u8 g, u8 b) {
+	ColorRGB8 color = {};
+	color.r = r;
+	color.g = g;
+	color.b = b;
+	return color;
+}
+
+b32 colors_are_equal(ColorRGB8 color0, ColorRGB8 color1) {
+	return color0.r == color1.r && color0.g == color1.g && color0.b == color1.b;
+}
+
+LoadedPlacementMap load_placement_map(char const * file_name, AssetId asset_id) {
+	u32 null_id = U32_MAX;
+	ColorRGB8 color_table[] = {
+		color_rgb8(255, 0, 0),
+		color_rgb8(0, 255, 0),
+		color_rgb8(0, 0, 255),
+	};
+
+	i32 width, height, channels;
+	u8 * img_data = load_image_from_file(file_name, &width, &height, &channels);
+	ASSERT(channels == 3 || channels == 4);
+	ASSERT(height = PLACEMENT_HEIGHT);
+
+	LoadedPlacementMap map = {};
+	map.id = asset_id;
+	map.map.count = width;
+	map.map.placements = ALLOC_ARRAY(Placement, width);
+
+	for(u32 x = 0; x < (u32)width; x++) {
+		Placement * placement = map.map.placements + x;
+
+		for(u32 y = 0; y < PLACEMENT_HEIGHT; y++) {
+			u32 i = (y * (u32)width + x) * channels;
+			ColorRGB8 color = color_rgb8(img_data[i + 0], img_data[i + 1], img_data[i + 2]);
+
+			u32 id = 0;
+			for(u32 ii = 0; ii < ARRAY_COUNT(color_table); ii++) {
+				if(colors_are_equal(color, color_table[ii])) {
+					id = ii + 1;
+				}
+			}
+
+			placement->ids[y] = id;
+		}
+	}
+
+	return map;
+}
+
+Texture load_texture(char const * file_name, AssetId id, TextureSampling sampling = TextureSampling_bilinear) {
+	i32 width, height, channels;
+	u8 * img_data = load_image_from_file(file_name, &width, &height, &channels);
 
 	Texture tex = {};
 	tex.id = id;
@@ -482,11 +550,11 @@ int main() {
 		load_texture("city_layer3.png", AssetId_city),
 		load_texture("city_layer4.png", AssetId_city),
 
-		// load_texture("city_layer0.png", AssetId_mountains),
-		// load_texture("mountains_layer1.png", AssetId_mountains),
-		// load_texture("mountains_layer2.png", AssetId_mountains),
-		// load_texture("mountains_layer3.png", AssetId_mountains),
-		// load_texture("mountains_layer4.png", AssetId_mountains),
+		load_texture("city_layer0.png", AssetId_mountains),
+		load_texture("mountains_layer1.png", AssetId_mountains),
+		load_texture("mountains_layer2.png", AssetId_mountains),
+		load_texture("mountains_layer3.png", AssetId_mountains),
+		load_texture("mountains_layer4.png", AssetId_mountains),
 
 		load_texture("space_layer0.png", AssetId_space),
 		load_texture("space_layer1.png", AssetId_space),
@@ -520,6 +588,13 @@ int main() {
 	};
 
 	packer.header.asset_count += ARRAY_COUNT(clips);
+
+	LoadedPlacementMap placement_maps[] = {
+		load_placement_map("placement0.png", AssetId_debug_placement),
+		load_placement_map("placement1.png", AssetId_debug_placement),
+	};
+
+	packer.header.asset_count += ARRAY_COUNT(placement_maps);
 
 	std::FILE * file_ptr = std::fopen("asset.pak", "wb");
 	ASSERT(file_ptr != 0);
@@ -572,6 +647,18 @@ int main() {
 
 		std::fwrite(&info, sizeof(AssetInfo), 1, file_ptr);
 		std::fwrite(clip->ptr, clip->size, 1, file_ptr);
+	}
+
+	for(u32 i = 0; i < ARRAY_COUNT(placement_maps); i++) {
+		LoadedPlacementMap * loaded_map = placement_maps + i;
+
+		AssetInfo info = {};
+		info.id = loaded_map->id;
+		info.type = AssetType_placement_map;
+		info.placement_map.count = loaded_map->map.count;
+
+		std::fwrite(&info, sizeof(AssetInfo), 1, file_ptr);
+		std::fwrite(loaded_map->map.placements, sizeof(Placement), loaded_map->map.count, file_ptr);
 	}
 
 	std::fclose(file_ptr);
