@@ -9,6 +9,35 @@
 
 #include <asset_format.hpp>
 
+struct ColorRGB8 {
+	u8 r;
+	u8 g;
+	u8 b;
+};
+
+struct AssetIdColorRGB8 {
+	AssetId id;
+	ColorRGB8 color;
+};
+
+ColorRGB8 color_rgb8(u8 r, u8 g, u8 b) {
+	ColorRGB8 color = {};
+	color.r = r;
+	color.g = g;
+	color.b = b;
+	return color;
+}
+
+b32 colors_are_equal(ColorRGB8 color0, ColorRGB8 color1) {
+	return color0.r == color1.r && color0.g == color1.g && color0.b == color1.b;
+}
+
+static AssetIdColorRGB8 asset_id_color_table[] = {
+	{ AssetId_collectable_telly, color_rgb8(255, 0, 0) },
+	{ AssetId_collectable_clock, color_rgb8(0, 255, 0) },
+	{ AssetId_collectable_speed_up, color_rgb8(0, 0, 255) },
+};
+
 #define PACK_RIFF_CODE(x, y, z, w) ((u32)(x) << 0) | ((u32)(y) << 8) | ((u32)(z) << 16) | ((u32)(w) << 24)
 enum RiffCode {
 	RiffCode_RIFF = PACK_RIFF_CODE('R', 'I', 'F', 'F'),
@@ -84,15 +113,9 @@ struct TextureAtlas {
 	AssetInfo sprites[128];
 };
 
-struct LoadedPlacementMap {
+struct PlacementMapAsset {
 	PlacementMap map;
 	AssetId id;
-};
-
-struct ColorRGB8 {
-	u8 r;
-	u8 g;
-	u8 b;
 };
 
 struct AssetPacker {
@@ -114,32 +137,13 @@ u8 * load_image_from_file(char const * file_name, i32 * width, i32 * height, i32
 	return img_data;
 }
 
-ColorRGB8 color_rgb8(u8 r, u8 g, u8 b) {
-	ColorRGB8 color = {};
-	color.r = r;
-	color.g = g;
-	color.b = b;
-	return color;
-}
-
-b32 colors_are_equal(ColorRGB8 color0, ColorRGB8 color1) {
-	return color0.r == color1.r && color0.g == color1.g && color0.b == color1.b;
-}
-
-LoadedPlacementMap load_placement_map(char const * file_name, AssetId asset_id) {
-	u32 null_id = U32_MAX;
-	ColorRGB8 color_table[] = {
-		color_rgb8(255, 0, 0),
-		color_rgb8(0, 255, 0),
-		color_rgb8(0, 0, 255),
-	};
-
+PlacementMapAsset load_placement_map(char const * file_name, AssetId asset_id) {
 	i32 width, height, channels;
 	u8 * img_data = load_image_from_file(file_name, &width, &height, &channels);
 	ASSERT(channels == 3 || channels == 4);
 	ASSERT(height = PLACEMENT_HEIGHT);
 
-	LoadedPlacementMap map = {};
+	PlacementMapAsset map = {};
 	map.id = asset_id;
 	map.map.count = width;
 	map.map.placements = ALLOC_ARRAY(Placement, width);
@@ -151,10 +155,12 @@ LoadedPlacementMap load_placement_map(char const * file_name, AssetId asset_id) 
 			u32 i = (y * (u32)width + x) * channels;
 			ColorRGB8 color = color_rgb8(img_data[i + 0], img_data[i + 1], img_data[i + 2]);
 
-			u32 id = 0;
-			for(u32 ii = 0; ii < ARRAY_COUNT(color_table); ii++) {
-				if(colors_are_equal(color, color_table[ii])) {
-					id = ii + 1;
+			u32 id = AssetId_null;
+			for(u32 ii = 0; ii < ARRAY_COUNT(asset_id_color_table); ii++) {
+				AssetIdColorRGB8 id_color = asset_id_color_table[ii];
+				if(colors_are_equal(color, id_color.color)) {
+					id = id_color.id;
+					break;
 				}
 			}
 
@@ -589,7 +595,7 @@ int main() {
 
 	packer.header.asset_count += ARRAY_COUNT(clips);
 
-	LoadedPlacementMap placement_maps[] = {
+	PlacementMapAsset placement_maps[] = {
 		load_placement_map("placement0.png", AssetId_debug_placement),
 		load_placement_map("placement1.png", AssetId_debug_placement),
 	};
@@ -650,7 +656,7 @@ int main() {
 	}
 
 	for(u32 i = 0; i < ARRAY_COUNT(placement_maps); i++) {
-		LoadedPlacementMap * loaded_map = placement_maps + i;
+		PlacementMapAsset * loaded_map = placement_maps + i;
 
 		AssetInfo info = {};
 		info.id = loaded_map->id;

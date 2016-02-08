@@ -639,8 +639,7 @@ void init_main_meta_state(MetaState * meta_state) {
 	main_state->d_speed = 0.0f;
 	main_state->dd_speed = 0.0f;
 
-	// main_state->start_time = 30.0f;
-	main_state->start_time = 600.0f;
+	main_state->start_time = 30.0f;
 	main_state->max_time = main_state->start_time;
 	main_state->countdown_time = 10.0f;
 	main_state->time_remaining = main_state->start_time;
@@ -723,7 +722,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			game_state->meta_states[i] = allocate_meta_state(game_state, (MetaStateType)i);
 		}
 
-		change_meta_state(game_state, MetaStateType_main);
+		change_meta_state(game_state, MetaStateType_menu);
 
 		game_state->auto_save_time = 5.0f;
 		game_state->save.code = SAVE_FILE_CODE;
@@ -984,9 +983,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				change_pitch(main_state->music, pitch);				
 			}
 
-			f32 zero_speed = 1.5f;
-			f32 d_time = math::clamp(main_state->d_speed + zero_speed, 0.5f, 4.0f);
-			f32 adjusted_dt = d_time * game_input->delta_time;
+			f32 speed = math::clamp(main_state->d_speed + 1.5f, 0.5f, 4.0f);
+			f32 adjusted_dt = speed * game_input->delta_time;
 
 			main_state->letterboxed_height = render_state->screen_height - math::max(main_state->d_speed, 0.0f) * 40.0f;
 			main_state->letterboxed_height = math::max(main_state->letterboxed_height, render_state->screen_height / 3.0f);
@@ -1143,7 +1141,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			if(!player->dead) {
 				math::Vec2 projection_dim = math::vec2(main_state->render_group->transform.projection_width, main_state->render_group->transform.projection_height);
 
-				PlacementMap * placement_map = get_placement_map_asset(meta_state->assets, AssetId_debug_placement, 1);
+				PlacementMap * placement_map = get_placement_map_asset(meta_state->assets, AssetId_debug_placement, emitter->map_index);
 				ASSERT(placement_map);
 
 				f32 placement_width_pixels = projection_dim.x / (f32)PLACEMENT_WIDTH;
@@ -1154,24 +1152,36 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				u32 read_pos = (u32)read_cursor;
 				u32 reads_ahead = read_pos - emitter->last_read_pos;
 
+				//TODO: Emit multiple placements if reads_ahead > 1!!
 				if(reads_ahead > 0) {
-					u32 x = read_pos % placement_map->count;
-					Placement * placement = placement_map->placements + x;
+					if(read_pos >= placement_map->count) {
+						emitter->cursor -= placement_map->count * placement_width_pixels;
 
+						emitter->map_index++;
+						if(emitter->map_index >= get_asset_count(meta_state->assets, AssetId_debug_placement)) {
+							emitter->map_index = 0;
+						}
+
+						placement_map = get_placement_map_asset(meta_state->assets, AssetId_debug_placement, emitter->map_index);
+						ASSERT(placement_map);
+
+						read_pos = 0;
+					}
+
+					Placement * placement = placement_map->placements + read_pos;
 					for(u32 y = 0; y < PLACEMENT_HEIGHT; y++) {
 						u32 id = placement->ids[y];
-						if(id) {
+						if(id != AssetId_null) {
 							if(emitter->entity_count < ARRAY_COUNT(emitter->entity_array)) {
 								Entity * entity = emitter->entity_array[emitter->entity_count++];
 
+								//TODO: Offset x so entities are lined up perfectly with the placement map!!
 								entity->pos = emitter->pos;
 								entity->pos.y += (((f32)y + 0.5f) / (f32)PLACEMENT_HEIGHT) * projection_dim.y - projection_dim.y * 0.5f;
 								entity->scale = 1.0f;
 								entity->color = math::vec4(1.0f);
 
-								AssetId asset_id = (AssetId)(AssetId_first_collectable + id);
-
-								change_entity_asset(entity, assets, asset_id, 0);
+								change_entity_asset(entity, assets, (AssetId)id, 0);
 								if(entity->asset_id == AssetId_collectable_telly) {
 									entity->collider = math::rec_scale(entity->collider, 0.5f);
 								}
@@ -1179,9 +1189,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 								entity->hit = false;
 							}
 						}
-					}
+					}					
 
-					
 					emitter->last_read_pos = read_pos;
 				}
 			}

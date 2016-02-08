@@ -75,6 +75,7 @@ struct Player {
 struct EntityEmitter {
 	f32 cursor;
 	u32 last_read_pos;
+	u32 map_index;
 
 	math::Vec3 pos;
 	f32 time_until_next_spawn;
