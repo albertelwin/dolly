@@ -9,35 +9,6 @@
 
 #include <asset_format.hpp>
 
-struct ColorRGB8 {
-	u8 r;
-	u8 g;
-	u8 b;
-};
-
-struct AssetIdColorRGB8 {
-	AssetId id;
-	ColorRGB8 color;
-};
-
-ColorRGB8 color_rgb8(u8 r, u8 g, u8 b) {
-	ColorRGB8 color = {};
-	color.r = r;
-	color.g = g;
-	color.b = b;
-	return color;
-}
-
-b32 colors_are_equal(ColorRGB8 color0, ColorRGB8 color1) {
-	return color0.r == color1.r && color0.g == color1.g && color0.b == color1.b;
-}
-
-static AssetIdColorRGB8 asset_id_color_table[] = {
-	{ AssetId_collectable_telly, color_rgb8(255, 0, 0) },
-	{ AssetId_collectable_clock, color_rgb8(0, 255, 0) },
-	{ AssetId_collectable_speed_up, color_rgb8(0, 0, 255) },
-};
-
 #define PACK_RIFF_CODE(x, y, z, w) ((u32)(x) << 0) | ((u32)(y) << 8) | ((u32)(z) << 16) | ((u32)(w) << 24)
 enum RiffCode {
 	RiffCode_RIFF = PACK_RIFF_CODE('R', 'I', 'F', 'F'),
@@ -596,8 +567,8 @@ int main() {
 	packer.header.asset_count += ARRAY_COUNT(clips);
 
 	PlacementMapAsset placement_maps[] = {
-		load_placement_map("placement0.png", AssetId_debug_placement),
-		load_placement_map("placement1.png", AssetId_debug_placement),
+		load_placement_map("placement0.png", AssetId_placement),
+		load_placement_map("placement1.png", AssetId_placement),
 	};
 
 	packer.header.asset_count += ARRAY_COUNT(placement_maps);

@@ -18,7 +18,7 @@
 
 #if DEBUG_ENABLED
 	#define __ASSERT(x) __assert_func(x, "" #x " : " __FILE__ " : " TOKEN_STRINGIFY(__LINE__))
-	void __assert_func(bool expression, char const * message) {
+	inline void __assert_func(bool expression, char const * message) {
 		if(!expression) {
 	#ifdef WIN32
 			MessageBoxA(0, message, "ASSERT", MB_OK | MB_ICONERROR);
@@ -79,22 +79,22 @@ typedef uint32_t b32;
 #define F32_EXPONENT_MASK 0x7F800000
 #define F32_MANTISSA_MASK 0x007FFFFF
 
-b32 f32_is_nan(f32 val) {
+inline b32 f32_is_nan(f32 val) {
 	u32 bits = *((u32 *)&val);
 	return (bits & F32_EXPONENT_MASK) == F32_EXPONENT_MASK && (bits & F32_MANTISSA_MASK) != 0;
 }
 
-b32 f32_is_inf(f32 val) {
+inline b32 f32_is_inf(f32 val) {
 	u32 bits = *((u32 *)&val);
 	return (bits & F32_EXPONENT_MASK) == F32_EXPONENT_MASK && (bits & F32_MANTISSA_MASK) == 0;
 }
 
-b32 f32_is_neg(f32 val) {
+inline b32 f32_is_neg(f32 val) {
 	u32 bits = *((u32 *)&val);
 	return (bits & F32_SIGN_MASK) == F32_SIGN_MASK;
 }
 
-u32 c_str_len(char const * str) {
+inline u32 c_str_len(char const * str) {
 	u32 len = 0;
 	while(*str) {
 		str++;
@@ -104,7 +104,7 @@ u32 c_str_len(char const * str) {
 	return len;
 }
 
-void c_str_copy(char * dst, char const * src) {
+inline void c_str_copy(char * dst, char const * src) {
 	while(*src) {
 		*dst++ = *src++;
 	}
@@ -112,7 +112,7 @@ void c_str_copy(char * dst, char const * src) {
 	*dst = 0;
 }
 
-b32 c_str_comp(char const * str0, char const * str1) {
+inline b32 c_str_comp(char const * str0, char const * str1) {
 	while(*str0 && *str1) {
 		if(*str0++ != *str1++) {
 			break;
@@ -134,7 +134,7 @@ struct MemoryArena {
 	u8 * base_address;
 };
 
-MemoryArena create_memory_arena(void * base_address, size_t size) {
+inline MemoryArena create_memory_arena(void * base_address, size_t size) {
 	MemoryArena arena = {};
 	arena.size = size;
 	arena.used = 0;
@@ -142,21 +142,21 @@ MemoryArena create_memory_arena(void * base_address, size_t size) {
 	return arena;
 }
 
-void zero_memory_arena(MemoryArena * arena) {
+inline void zero_memory_arena(MemoryArena * arena) {
 	arena->used = 0;
 	for(size_t i = 0; i < arena->size; i++) {
 		arena->base_address[i] = 0;
 	}
 }
 
-void zero_memory(void * ptr, size_t size) {
+inline void zero_memory(void * ptr, size_t size) {
 	u8 * ptr_u8 = (u8 *)ptr;
 	for(size_t i = 0; i < size; i++) {
 		ptr_u8[i] = 0;
 	}
 }
 
-void copy_memory(void * dst, void * src, size_t size) {
+inline void copy_memory(void * dst, void * src, size_t size) {
 	u8 * dst_u8 = (u8 *)dst;
 	u8 * src_u8 = (u8 *)src;
 	for(size_t i = 0; i < size; i++) {
@@ -167,7 +167,7 @@ void copy_memory(void * dst, void * src, size_t size) {
 #define PUSH_STRUCT(arena, type) (type *)push_memory_(arena, sizeof(type))
 #define PUSH_ARRAY(arena, type, length) (type *)push_memory_(arena, sizeof(type) * (length))
 #define PUSH_MEMORY(arena, type, size) (type *)push_memory_(arena, size)
-void * push_memory_(MemoryArena * arena, size_t size) {
+inline void * push_memory_(MemoryArena * arena, size_t size) {
 	size_t aligned_size = ALIGN16(size);
 	ASSERT((arena->used + aligned_size) <= arena->size);
 	
@@ -176,7 +176,7 @@ void * push_memory_(MemoryArena * arena, size_t size) {
 	return ptr;
 }
 
-MemoryArena allocate_sub_arena(MemoryArena * arena, size_t size) {
+inline MemoryArena allocate_sub_arena(MemoryArena * arena, size_t size) {
 	size_t aligned_size = ALIGN16(size);
 
 	MemoryArena sub_arena = {};
@@ -187,7 +187,7 @@ MemoryArena allocate_sub_arena(MemoryArena * arena, size_t size) {
 }
 
 #define PUSH_COPY_ARRAY(arena, type, array, length) (type *)push_copy_memory_(arena, array, sizeof(type) * (length))
-void * push_copy_memory_(MemoryArena * arena, void * src, size_t size) {
+inline void * push_copy_memory_(MemoryArena * arena, void * src, size_t size) {
 	void * dst = push_memory_(arena, size);
 	copy_memory(dst, src, size);
 	return dst;
@@ -196,13 +196,13 @@ void * push_copy_memory_(MemoryArena * arena, void * src, size_t size) {
 #define ALLOC_STRUCT(type) (type *)alloc_memory_(sizeof(type))
 #define ALLOC_ARRAY(type, length) (type *)alloc_memory_(sizeof(type) * length)
 #define ALLOC_MEMORY(type, size) (type *)alloc_memory_(size)
-void * alloc_memory_(size_t size) {
+inline void * alloc_memory_(size_t size) {
 	void * ptr = std::malloc(size);
 	return ptr;
 }
 
 #define FREE_MEMORY(ptr) free_memory_(ptr)
-void free_memory_(void * ptr) {
+inline void free_memory_(void * ptr) {
 	std::free(ptr);
 }
 
@@ -212,7 +212,7 @@ struct Str {
 	u32 max_len;
 };
 
-Str * allocate_str(MemoryArena * arena, u32 max_len) {
+inline Str * allocate_str(MemoryArena * arena, u32 max_len) {
 	Str * str = PUSH_STRUCT(arena, Str);
 	str->max_len = max_len;
 	str->len = 0;
@@ -220,7 +220,7 @@ Str * allocate_str(MemoryArena * arena, u32 max_len) {
 	return str;
 }
 
-Str str_fixed_size(char const * ptr, u32 max_len) {
+inline Str str_fixed_size(char const * ptr, u32 max_len) {
 	Str str;
 	str.ptr = (char *)ptr;
 	str.len = 0;
@@ -228,19 +228,19 @@ Str str_fixed_size(char const * ptr, u32 max_len) {
 	return str;
 }
 
-Str str_from_c_str(char const * c_str) {
+inline Str str_from_c_str(char const * c_str) {
 	Str str;
 	str.max_len = str.len = c_str_len(c_str);
 	str.ptr = (char *)c_str;
 	return str;
 }
 
-void str_clear(Str * str) {
+inline void str_clear(Str * str) {
 	str->len = 0;
 	str->ptr[0] = 0;
 }
 
-b32 str_equal(Str * str_x, Str * str_y) {
+inline b32 str_equal(Str * str_x, Str * str_y) {
 	b32 equal;
 	if(str_x->len == str_y->len) {
 		equal = true;
@@ -259,25 +259,25 @@ b32 str_equal(Str * str_x, Str * str_y) {
 	return equal;
 }
 
-b32 str_equal(Str * str_x, char const * c_str) {
+inline b32 str_equal(Str * str_x, char const * c_str) {
 	Str str_y = str_from_c_str(c_str);
 	return str_equal(str_x, &str_y);
 }
 
-void str_push(Str * str, char char_) {
+inline void str_push(Str * str, char char_) {
 	ASSERT(str->len < (str->max_len - 1));
 
 	str->ptr[str->len++] = char_;
 	str->ptr[str->len] = 0;
 }
 
-void str_push_c_str(Str * str, char const * val) {
+inline void str_push_c_str(Str * str, char const * val) {
 	while(*val) {
 		str_push(str, *val++);
 	}
 }
 
-void str_push_u32(Str * str, u32 val) {
+inline void str_push_u32(Str * str, u32 val) {
 	if(!val) {
 		str_push(str, '0');
 	}
@@ -300,7 +300,7 @@ void str_push_u32(Str * str, u32 val) {
 	}
 }
 
-void str_push_f32(Str * str, f32 val, u32 precision = 0) {
+inline void str_push_f32(Str * str, f32 val, u32 precision = 0) {
 	if(f32_is_neg(val)) {
 		str_push(str, '-');
 		val = -val;
@@ -336,7 +336,7 @@ void str_push_f32(Str * str, f32 val, u32 precision = 0) {
 	}
 }
 
-void str_print(Str * str, char const * fmt, ...) {
+inline void str_print(Str * str, char const * fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
 
@@ -390,7 +390,7 @@ void str_print(Str * str, char const * fmt, ...) {
 #define KEY_PRESSED (1 << KEY_PRESSED_BIT)
 #define KEY_RELEASED (1 << KEY_RELEASED_BIT)
 
-MemoryPtr read_file_to_memory(char const * file_name) {
+inline MemoryPtr read_file_to_memory(char const * file_name) {
 	MemoryPtr mem_ptr = {};
 
 	std::FILE * file_ptr = std::fopen(file_name, "rb");

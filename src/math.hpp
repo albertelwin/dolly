@@ -10,96 +10,96 @@ namespace math {
 	f32 const PI = 3.14159265359f;
 	f32 const TAU = 6.28318530718f;
 
-	f32 to_radians(f32 x) {
+	inline f32 to_radians(f32 x) {
 		return (PI / 180.0f) * x;
 	}
 
-	f32 to_degrees(f32 x) {
+	inline f32 to_degrees(f32 x) {
 		return (180.0f / PI) * x;
 	}
 
-	f32 abs(f32 x) {
+	inline f32 abs(f32 x) {
 		return std::fabsf(x);
 	}
 
-	f32 sin(f32 x) {
+	inline f32 sin(f32 x) {
 		return std::sinf(x);
 	}
 
-	f32 cos(f32 x) {
+	inline f32 cos(f32 x) {
 		return std::cosf(x);
 	}
 
-	f32 tan(f32 x) {
+	inline f32 tan(f32 x) {
 		return std::tanf(x);
 	}
 
-	f32 acos(f32 x) {
+	inline f32 acos(f32 x) {
 		return std::acosf(x);
 	}
 
-	f32 min(f32 x, f32 y) {
+	inline f32 min(f32 x, f32 y) {
 		return (x < y) ? x : y;
 	}
 
-	f32 max(f32 x, f32 y) {
+	inline f32 max(f32 x, f32 y) {
 		return (x > y) ? x : y;
 	}
 
-	f32 clamp(f32 x, f32 u, f32 v) {
+	inline f32 clamp(f32 x, f32 u, f32 v) {
 		return max(min(x, v), u);
 	}
 
-	f32 clamp01(f32 x) {
+	inline f32 clamp01(f32 x) {
 		return max(min(x, 1.0f), 0.0f);
 	}
 
-	f32 frac(f32 x) {
+	inline f32 frac(f32 x) {
 		return x - (i32)x;
 	}
 
-	f32 pow(f32 x, f32 e) {
+	inline f32 pow(f32 x, f32 e) {
 		return std::pow(x, e);
 	}
 
-	f32 sqr(f32 x) {
+	inline f32 sqr(f32 x) {
 		return x * x;
 	}
 
-	f32 sqrt(f32 x) {
+	inline f32 sqrt(f32 x) {
 		//TODO: Optimize this??
 		return std::sqrtf(x);
 	}
 
-	f32 lerp(f32 x, f32 y, f32 t) {
+	inline f32 lerp(f32 x, f32 y, f32 t) {
 		//TODO: Assert 0 <= t <= 1??
 		return x * (1.0f - t) + y * t;
 	}
 
-	f32 ease(f32 x, f32 y, f32 t) {
+	inline f32 ease(f32 x, f32 y, f32 t) {
 		f32 u = (1.0f - t);
 		f32 t_sqr = sqr(t);
 		f32 u_sqr = sqr(u);
 		return 3.0f * t * u_sqr * x + 3.0f * t_sqr * u * y + (t_sqr * t);
 	}
 
-	i32 rand_i32() {
+	inline i32 rand_i32() {
 		return rand();
 	}
 
-	u32 rand_u32() {
+	inline u32 rand_u32() {
 		return (u32)rand();
 	}
 
-	f32 rand_f32() {
+	inline f32 rand_f32() {
 		return (f32)rand() / (f32)RAND_MAX;
 	}
 
-	i32 round_to_i32(f32 x) {
+	inline i32 round_to_i32(f32 x) {
 		return (i32)(x + 0.5f);
 	}
 
-	i32 ceil_to_i32(f32 x) {
+	inline i32 ceil_to_i32(f32 x) {
 		return (i32)std::ceil(x);
 	}
 
@@ -108,163 +108,163 @@ namespace math {
 		f32 v[2];
 	};
 
-	Vec2 vec2(f32 x, f32 y) {
+	inline Vec2 vec2(f32 x, f32 y) {
 		return { x, y };
 	}
 
-	Vec2 vec2(u32 x, u32 y) {
+	inline Vec2 vec2(u32 x, u32 y) {
 		Vec2 v;
 		v.x = (f32)x;
 		v.y = (f32)y;
 		return v;
 	}
 
-	Vec2 vec2(i32 x, i32 y) {
+	inline Vec2 vec2(i32 x, i32 y) {
 		Vec2 v;
 		v.x = (f32)x;
 		v.y = (f32)y;
 		return v;
 	}
 
-	Vec2 vec2(f32 x) {
+	inline Vec2 vec2(f32 x) {
 		return { x, x };
 	}
 
-	b32 operator==(Vec2 const & x, Vec2 const & y) {
+	inline b32 operator==(Vec2 const & x, Vec2 const & y) {
 		return (x.x == y.x && x.y == y.y);
 	}
 
-	Vec2 operator+(Vec2 const & x, Vec2 const & y) {
+	inline Vec2 operator+(Vec2 const & x, Vec2 const & y) {
 		Vec2 tmp = x;
 		tmp.x += y.x;
 		tmp.y += y.y;
 		return tmp;
 	}
 
-	Vec2 operator+(Vec2 const & v, f32 x) {
+	inline Vec2 operator+(Vec2 const & v, f32 x) {
 		Vec2 tmp = v;
 		tmp.x += x;
 		tmp.y += x;
 		return tmp;
 	}
 
-	Vec2 & operator+=(Vec2 & x, Vec2 const & y) {
+	inline Vec2 & operator+=(Vec2 & x, Vec2 const & y) {
 		x.x += y.x;
 		x.y += y.y;
 		return x;
 	}
 
-	Vec2 & operator+=(Vec2 & v, f32 x) {
+	inline Vec2 & operator+=(Vec2 & v, f32 x) {
 		v.x += x;
 		v.y += x;
 		return v;
 	}
 
-	Vec2 operator-(Vec2 const & v) {
+	inline Vec2 operator-(Vec2 const & v) {
 		Vec2 tmp = v;
 		tmp.x = -v.x;
 		tmp.y = -v.y;
 		return tmp;
 	}
 
-	Vec2 operator-(Vec2 const & x, Vec2 const & y) {
+	inline Vec2 operator-(Vec2 const & x, Vec2 const & y) {
 		Vec2 tmp = x;
 		tmp.x -= y.x;
 		tmp.y -= y.y;
 		return tmp;
 	}
 
-	Vec2 operator-(Vec2 const & v, f32 x) {
+	inline Vec2 operator-(Vec2 const & v, f32 x) {
 		Vec2 tmp = v;
 		tmp.x -= x;
 		tmp.y -= x;
 		return tmp;
 	}
 
-	Vec2 & operator-=(Vec2 & x, Vec2 const & y) {
+	inline Vec2 & operator-=(Vec2 & x, Vec2 const & y) {
 		x.x -= y.x;
 		x.y -= y.y;
 		return x;
 	}
 
-	Vec2 & operator-=(Vec2 & v, f32 x) {
+	inline Vec2 & operator-=(Vec2 & v, f32 x) {
 		v.x -= x;
 		v.y -= x;
 		return v;
 	}
 
-	Vec2 operator*(Vec2 const & x, Vec2 const & y) {
+	inline Vec2 operator*(Vec2 const & x, Vec2 const & y) {
 		Vec2 tmp = x;
 		tmp.x *= y.x;
 		tmp.y *= y.y;
 		return tmp;
 	}
 
-	Vec2 operator*(Vec2 const & v, f32 x) {
+	inline Vec2 operator*(Vec2 const & v, f32 x) {
 		Vec2 tmp = v;
 		tmp.x *= x;
 		tmp.y *= x;
 		return tmp;
 	}
 
-	Vec2 & operator*=(Vec2 & v, f32 x) {
+	inline Vec2 & operator*=(Vec2 & v, f32 x) {
 		v.x *= x;
 		v.y *= x;
 		return v;
 	}
 
-	Vec2 operator/(Vec2 const & x, Vec2 const & y) {
+	inline Vec2 operator/(Vec2 const & x, Vec2 const & y) {
 		Vec2 tmp = x;
 		tmp.x /= y.x;
 		tmp.y /= y.y;
 		return tmp;
 	}
 
-	Vec2 operator/(Vec2 const & v, f32 x) {
+	inline Vec2 operator/(Vec2 const & v, f32 x) {
 		Vec2 tmp = v;
 		tmp.x /= x;
 		tmp.y /= x;
 		return tmp;
 	}
 
-	Vec2 & operator/=(Vec2 & x, Vec2 const & y) {
+	inline Vec2 & operator/=(Vec2 & x, Vec2 const & y) {
 		x.x /= y.x;
 		x.y /= y.y;
 		return x;
 	}
 
-	Vec2 & operator/=(Vec2 & v, f32 x) {
+	inline Vec2 & operator/=(Vec2 & v, f32 x) {
 		v.x /= x;
 		v.y /= x;
 		return v;
 	}
 
-	Vec2 clamp01(Vec2 const & x) {
+	inline Vec2 clamp01(Vec2 const & x) {
 		return math::vec2(math::clamp01(x.x), math::clamp01(x.y));
 	}
 
-	f32 dot(Vec2 const & x, Vec2 const & y) {
+	inline f32 dot(Vec2 const & x, Vec2 const & y) {
 		return x.x * y.x + x.y * y.y;
 	}
 
-	Vec2 lerp(Vec2 const & x, Vec2 const & y, f32 t) {
+	inline Vec2 lerp(Vec2 const & x, Vec2 const & y, f32 t) {
 		return x * (1.0f - t) + y * t;
 	}
 
-	f32 length(Vec2 const & v) {
+	inline f32 length(Vec2 const & v) {
 		return std::sqrt(v.x * v.x + v.y * v.y);
 	}
 
-	f32 length_squared(Vec2 const & v) {
+	inline f32 length_squared(Vec2 const & v) {
 		return v.x * v.x + v.y * v.y;
 	}
 
-	Vec2 normalize(Vec2 const & v) {
+	inline Vec2 normalize(Vec2 const & v) {
 		f32 const len = std::sqrt(v.x * v.x + v.y * v.y);
 		return (len > 0.0f) ? v / len : vec2(0.0f);
 	}
 
-	Vec2 rand_vec2() {
+	inline Vec2 rand_vec2() {
 		return { rand_f32(), rand_f32() };
 	}
 
@@ -279,23 +279,23 @@ namespace math {
 	Vec3 const VEC3_UP = { 0.0f, 1.0f, 0.0f };
 	Vec3 const VEC3_FORWARD = { 0.0f, 0.0f, 1.0f };
 
-	Vec3 vec3(f32 x, f32 y, f32 z) {
+	inline Vec3 vec3(f32 x, f32 y, f32 z) {
 		return { x, y, z };
 	}
 
-	Vec3 vec3(f32 x) {
+	inline Vec3 vec3(f32 x) {
 		return { x, x, x };
 	}
 
-	Vec3 vec3(Vec2 const & xy, f32 z) {
+	inline Vec3 vec3(Vec2 const & xy, f32 z) {
 		return { xy.x, xy.y, z };
 	}
 
-	b32 operator==(Vec3 const & x, Vec3 const & y) {
+	inline b32 operator==(Vec3 const & x, Vec3 const & y) {
 		return (x.x == y.x && x.y == y.y && x.z == y.z);
 	}
 
-	Vec3 operator+(Vec3 const & x, Vec3 const & y) {
+	inline Vec3 operator+(Vec3 const & x, Vec3 const & y) {
 		Vec3 tmp = x;
 		tmp.x += y.x;
 		tmp.y += y.y;
@@ -303,7 +303,7 @@ namespace math {
 		return tmp;
 	}
 
-	Vec3 operator+(Vec3 const & v, f32 x) {
+	inline Vec3 operator+(Vec3 const & v, f32 x) {
 		Vec3 tmp = v;
 		tmp.x += x;
 		tmp.y += x;
@@ -311,21 +311,21 @@ namespace math {
 		return tmp;
 	}
 
-	Vec3 & operator+=(Vec3 & x, Vec3 const & y) {
+	inline Vec3 & operator+=(Vec3 & x, Vec3 const & y) {
 		x.x += y.x;
 		x.y += y.y;
 		x.z += y.z;
 		return x;
 	}
 
-	Vec3 & operator+=(Vec3 & v, f32 x) {
+	inline Vec3 & operator+=(Vec3 & v, f32 x) {
 		v.x += x;
 		v.y += x;
 		v.z += x;
 		return v;
 	}
 
-	Vec3 operator-(Vec3 const & x, Vec3 const & y) {
+	inline Vec3 operator-(Vec3 const & x, Vec3 const & y) {
 		Vec3 tmp = x;
 		tmp.x -= y.x;
 		tmp.y -= y.y;
@@ -333,7 +333,7 @@ namespace math {
 		return tmp;
 	}
 
-	Vec3 operator-(Vec3 const & v) {
+	inline Vec3 operator-(Vec3 const & v) {
 		Vec3 tmp;
 		tmp.x = -v.x;
 		tmp.y = -v.y;
@@ -341,7 +341,7 @@ namespace math {
 		return tmp;
 	}
 
-	Vec3 operator-(Vec3 const & v, f32 x) {
+	inline Vec3 operator-(Vec3 const & v, f32 x) {
 		Vec3 tmp = v;
 		tmp.x -= x;
 		tmp.y -= x;
@@ -349,21 +349,21 @@ namespace math {
 		return tmp;
 	}
 
-	Vec3 & operator-=(Vec3 & x, Vec3 const & y) {
+	inline Vec3 & operator-=(Vec3 & x, Vec3 const & y) {
 		x.x -= y.x;
 		x.y -= y.y;
 		x.z -= y.z;
 		return x;
 	}
 
-	Vec3 & operator-=(Vec3 & v, f32 x) {
+	inline Vec3 & operator-=(Vec3 & v, f32 x) {
 		v.x -= x;
 		v.y -= x;
 		v.z -= x;
 		return v;
 	}
 
-	Vec3 operator*(Vec3 const & x, Vec3 const & y) {
+	inline Vec3 operator*(Vec3 const & x, Vec3 const & y) {
 		Vec3 tmp = x;
 		tmp.x *= y.x;
 		tmp.y *= y.y;
@@ -371,7 +371,7 @@ namespace math {
 		return tmp;
 	}
 
-	Vec3 operator*(Vec3 const & v, f32 x) {
+	inline Vec3 operator*(Vec3 const & v, f32 x) {
 		Vec3 tmp = v;
 		tmp.x *= x;
 		tmp.y *= x;
@@ -379,21 +379,21 @@ namespace math {
 		return tmp;
 	}
 
-	Vec3 & operator*=(Vec3 & x, Vec3 const & y) {
+	inline Vec3 & operator*=(Vec3 & x, Vec3 const & y) {
 		x.x *= y.x;
 		x.y *= y.y;
 		x.z *= y.z;
 		return x;
 	}
 
-	Vec3 & operator*=(Vec3 & v, f32 x) {
+	inline Vec3 & operator*=(Vec3 & v, f32 x) {
 		v.x *= x;
 		v.y *= x;
 		v.z *= x;
 		return v;
 	}
 
-	Vec3 operator/(Vec3 const & x, Vec3 const & y) {
+	inline Vec3 operator/(Vec3 const & x, Vec3 const & y) {
 		Vec3 tmp = x;
 		tmp.x /= y.x;
 		tmp.y /= y.y;
@@ -401,7 +401,7 @@ namespace math {
 		return tmp;
 	}
 
-	Vec3 operator/(Vec3 const & v, f32 x) {
+	inline Vec3 operator/(Vec3 const & v, f32 x) {
 		Vec3 tmp = v;
 		tmp.x /= x;
 		tmp.y /= x;
@@ -409,43 +409,43 @@ namespace math {
 		return tmp;
 	}
 
-	Vec3 & operator/=(Vec3 & v, f32 x) {
+	inline Vec3 & operator/=(Vec3 & v, f32 x) {
 		v.x /= x;
 		v.y /= x;
 		v.z /= x;
 		return v;
 	}
 
-	Vec3 lerp(Vec3 const & x, Vec3 const & y, f32 t) {
+	inline Vec3 lerp(Vec3 const & x, Vec3 const & y, f32 t) {
 		return x * (1.0f - t) + y * t;
 	}
 
-	f32 length(Vec3 const & v) {
+	inline f32 length(Vec3 const & v) {
 		return std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
 	}
 
-	f32 length_squared(Vec3 const & v) {
+	inline f32 length_squared(Vec3 const & v) {
 		return v.x * v.x + v.y * v.y + v.z * v.z;
 	}
 
-	Vec3 normalize(Vec3 const & v) {
+	inline Vec3 normalize(Vec3 const & v) {
 		f32 const len = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
 		return (len > 0.0f) ? v / len : vec3(0.0f);
 	}
 
-	f32 dot(Vec3 const & x, Vec3 const & y) {
+	inline f32 dot(Vec3 const & x, Vec3 const & y) {
 		return x.x * y.x + x.y * y.y + x.z * y.z;
 	}
 
-	Vec3 cross(Vec3 const & x, Vec3 const & y) {
+	inline Vec3 cross(Vec3 const & x, Vec3 const & y) {
 		return { x.y * y.z - x.z * y.y, x.z * y.x - x.x * y.z, x.x * y.y - x.y * y.x };
 	}
 
-	Vec3 rand_vec3() {
+	inline Vec3 rand_vec3() {
 		return { rand_f32(), rand_f32(), rand_f32() };
 	}
 
-	Vec3 rand_sample_in_sphere(f32 d = 1.0f) {
+	inline Vec3 rand_sample_in_sphere(f32 d = 1.0f) {
 		f32 t = rand_f32() * TAU;
 		f32 p = std::acosf(rand_f32() * 2.0f - 1.0f);
 		f32 r = std::pow(rand_f32(), (1.0f / 3.0f) * d);
@@ -466,23 +466,23 @@ namespace math {
 		f32 v[4];
 	};
 
-	Vec4 vec4(f32 x, f32 y, f32 z, f32 w) {
+	inline Vec4 vec4(f32 x, f32 y, f32 z, f32 w) {
 		return { x, y, z, w };
 	}
 
-	Vec4 vec4(f32 x) {
+	inline Vec4 vec4(f32 x) {
 		return { x, x, x, x };
 	}
 
-	Vec4 vec4(Vec3 const & v, f32 w) {
+	inline Vec4 vec4(Vec3 const & v, f32 w) {
 		return { v.x, v.y, v.z, w };
 	}
 
-	Vec4 vec4(Vec2 const & v, f32 z, f32 w) {
+	inline Vec4 vec4(Vec2 const & v, f32 z, f32 w) {
 		return { v.x, v.y, z, w };
 	}
 
-	Vec4 operator+(Vec4 const & x, Vec4 const & y) {
+	inline Vec4 operator+(Vec4 const & x, Vec4 const & y) {
 		Vec4 tmp = x;
 		tmp.x += y.x;
 		tmp.y += y.y;
@@ -491,7 +491,7 @@ namespace math {
 		return tmp;
 	}
 
-	Vec4 operator-(Vec4 const & x, Vec4 const & y) {
+	inline Vec4 operator-(Vec4 const & x, Vec4 const & y) {
 		Vec4 tmp = x;
 		tmp.x -= y.x;
 		tmp.y -= y.y;
@@ -500,7 +500,7 @@ namespace math {
 		return tmp;
 	}
 
-	Vec4 operator*(Vec4 const & x, Vec4 const & y) {
+	inline Vec4 operator*(Vec4 const & x, Vec4 const & y) {
 		Vec4 tmp = x;
 		tmp.x *= y.x;
 		tmp.y *= y.y;
@@ -509,11 +509,11 @@ namespace math {
 		return tmp;
 	}
 
-	f32 dot(Vec4 const & x, Vec4 const & y) {
+	inline f32 dot(Vec4 const & x, Vec4 const & y) {
 		return x.x * y.x + x.y * y.y + x.z * y.z + x.w * y.w;
 	}
 
-	Vec4 rand_vec4() {
+	inline Vec4 rand_vec4() {
 		return vec4(rand_f32(), rand_f32(), rand_f32(), rand_f32());
 	}
 
@@ -528,7 +528,7 @@ namespace math {
 		 0.0f, 0.0f, 0.0f, 1.0f,
 	};
 
-	Mat4 operator*(Mat4 const & x, Mat4 const & y) {
+	inline Mat4 operator*(Mat4 const & x, Mat4 const & y) {
 		Mat4 tmp;
 
 		tmp.v[ 0] = y.v[ 0] * x.v[ 0] + y.v[ 1] * x.v[ 4] + y.v[ 2] * x.v[ 8] + y.v[ 3] * x.v[12];
@@ -554,7 +554,7 @@ namespace math {
 		return tmp;
 	}
 
-	Vec4 operator*(Mat4 const & m, Vec4 const & v) {
+	inline Vec4 operator*(Mat4 const & m, Vec4 const & v) {
 		Vec4 tmp;
 		tmp.x = v.x * m.v[ 0] + v.y * m.v[ 4] + v.z * m.v[ 8] + v.w * m.v[12];
 		tmp.y = v.x * m.v[ 1] + v.y * m.v[ 5] + v.z * m.v[ 9] + v.w * m.v[13];
@@ -563,7 +563,7 @@ namespace math {
 		return tmp;
 	}
 
-	Mat4 inverse(Mat4 const & x) {
+	inline Mat4 inverse(Mat4 const & x) {
 		f32 c_00 = x.v[10] * x.v[15] - x.v[14] * x.v[11];
 		f32 c_02 = x.v[ 6] * x.v[15] - x.v[14] * x.v[ 7];
 		f32 c_03 = x.v[ 6] * x.v[11] - x.v[10] * x.v[ 7];
@@ -620,7 +620,7 @@ namespace math {
 		};
 	}
 
-	Mat4 translate(f32 x, f32 y, f32 z) {
+	inline Mat4 translate(f32 x, f32 y, f32 z) {
 		return {
 			1.0f, 0.0f, 0.0f, 0.0f,
 			0.0f, 1.0f, 0.0f, 0.0f,
@@ -629,7 +629,7 @@ namespace math {
 		};		
 	}
 
-	Mat4 translate(Vec3 const & v) {
+	inline Mat4 translate(Vec3 const & v) {
 		return {
 			1.0f, 0.0f, 0.0f, 0.0f,
 			0.0f, 1.0f, 0.0f, 0.0f,
@@ -638,7 +638,7 @@ namespace math {
 		};
 	}
 
-	Mat4 rotate_around_axis(Vec3 const & a, f32 t) {
+	inline Mat4 rotate_around_axis(Vec3 const & a, f32 t) {
 		f32 sin_t = math::sin(t);
 		f32 cos_t = math::cos(t);
 		f32 i_cos_t = (1.0f - cos_t);
@@ -660,7 +660,7 @@ namespace math {
 
 	}
 
-	Mat4 rotate_around_x(f32 t) {
+	inline Mat4 rotate_around_x(f32 t) {
 		f32 sin_t = math::sin(t);
 		f32 cos_t = math::cos(t);
 
@@ -672,7 +672,7 @@ namespace math {
 		};		
 	}
 
-	Mat4 rotate_around_y(f32 t) {
+	inline Mat4 rotate_around_y(f32 t) {
 		f32 sin_t = math::sin(t);
 		f32 cos_t = math::cos(t);
 
@@ -684,7 +684,7 @@ namespace math {
 		};
 	}
 
-	Mat4 rotate_around_z(f32 t) {
+	inline Mat4 rotate_around_z(f32 t) {
 		f32 sin_t = math::sin(t);
 		f32 cos_t = math::cos(t);
 
@@ -696,7 +696,7 @@ namespace math {
 		};
 	}
 
-	Mat4 scale(f32 x) {
+	inline Mat4 scale(f32 x) {
 		return {
 			  x, 0.0f, 0.0f, 0.0f,
 			0.0f,   x, 0.0f, 0.0f,
@@ -705,7 +705,7 @@ namespace math {
 		};		
 	}
 
-	Mat4 scale(f32 x, f32 y, f32 z) {
+	inline Mat4 scale(f32 x, f32 y, f32 z) {
 		return {
 			  x, 0.0f, 0.0f, 0.0f,
 			0.0f,   y, 0.0f, 0.0f,
@@ -714,7 +714,7 @@ namespace math {
 		};
 	}
 
-	Mat4 scale(Vec3 const & v) {
+	inline Mat4 scale(Vec3 const & v) {
 		return {
 			 v.x, 0.0f, 0.0f, 0.0f,
 			0.0f,  v.y, 0.0f, 0.0f,
@@ -723,7 +723,7 @@ namespace math {
 		};
 	}
 
-	Mat4 look_at(Vec3 const & pos, Vec3 const & at, Vec3 const & up) {
+	inline Mat4 look_at(Vec3 const & pos, Vec3 const & at, Vec3 const & up) {
 		Vec3 z = normalize(at - pos);
 		Vec3 x = normalize(cross(z, normalize(up)));
 		Vec3 y = cross(x, z);
@@ -735,7 +735,7 @@ namespace math {
 		};
 	}
 
-	Mat4 perspective_projection(f32 aspect_ratio, f32 field_of_view, f32 near_plane, f32 far_plane) {
+	inline Mat4 perspective_projection(f32 aspect_ratio, f32 field_of_view, f32 near_plane, f32 far_plane) {
 		f32 tan_fov_over_2 = math::tan(math::to_radians(field_of_view) / 2.0f);
 		return {
 			1.0f / (aspect_ratio * tan_fov_over_2), 0.0f, 0.0f, 0.0f,
@@ -745,7 +745,7 @@ namespace math {
 		};
 	}
 
-	Mat4 orthographic_projection(f32 width, f32 height) {
+	inline Mat4 orthographic_projection(f32 width, f32 height) {
 		return {
 			2.0f / width, 0.0f, 0.0f, 0.0f,
 			0.0f, 2.0f / height, 0.0f, 0.0f,
@@ -759,51 +759,51 @@ namespace math {
 		Vec2 max;
 	};
 
-	Rec2 rec2(Vec2 const & min, Vec2 const & max) {
+	inline Rec2 rec2(Vec2 const & min, Vec2 const & max) {
 		Rec2 r;
 		r.min = min;
 		r.max = max;
 		return r;
 	}
 
-	Rec2 rec2_pos_dim(Vec2 const & pos, Vec2 const & dim) {
+	inline Rec2 rec2_pos_dim(Vec2 const & pos, Vec2 const & dim) {
 		Rec2 r;
 		r.min = pos - dim * 0.5f;
 		r.max = pos + dim * 0.5f;
 		return r;
 	}
 
-	Rec2 rec2_min_dim(Vec2 const & min, Vec2 const & dim) {
+	inline Rec2 rec2_min_dim(Vec2 const & min, Vec2 const & dim) {
 		Rec2 r;
 		r.min = min;
 		r.max = min + dim;
 		return r;
 	}
 
-	Rec2 rec_offset(Rec2 const & r, Vec2 const & v) {
+	inline Rec2 rec_offset(Rec2 const & r, Vec2 const & v) {
 		Rec2 r2 = r;
 		r2.min += v;
 		r2.max += v;
 		return r2;
 	}
 
-	Rec2 rec_scale(Rec2 const & r, f32 x) {
+	inline Rec2 rec_scale(Rec2 const & r, f32 x) {
 		return rec2_pos_dim(r.min + (r.max - r.min) * 0.5f, (r.max - r.min) * x);
 	}
 
-	Vec2 rec_pos(Rec2 const & r) {
+	inline Vec2 rec_pos(Rec2 const & r) {
 		return r.min + (r.max - r.min) * 0.5f;
 	}
 
-	Vec2 rec_dim(Rec2 const & r) {
+	inline Vec2 rec_dim(Rec2 const & r) {
 		return r.max - r.min;
 	}
 
-	b32 rec_overlap(Rec2 const & r0, Rec2 const & r1) {
+	inline b32 rec_overlap(Rec2 const & r0, Rec2 const & r1) {
 		return ((r0.min.x < r1.min.x && r0.max.x > r1.min.x) || (r0.min.x >= r1.min.x && r0.min.x < r1.max.x)) && ((r0.min.y < r1.min.y && r0.max.y > r1.min.y) || (r0.min.y >= r1.min.y && r0.min.y < r1.max.y));
 	}
 
-	b32 inside_rec(Rec2 const & r, math::Vec2 const v) {
+	inline b32 inside_rec(Rec2 const & r, math::Vec2 const v) {
 		return (v.x >= r.min.x && v.x < r.max.x && v.y >= r.min.y && v.y < r.max.y);
 	}
 
@@ -812,11 +812,11 @@ namespace math {
 		Vec3 d;
 	};
 
-	Ray ray(Vec3 o, Vec3 d) {
+	inline Ray ray(Vec3 o, Vec3 d) {
 		return { o, d };
 	}
 
-	f32 ray_plane_intersection(Ray const & r, Vec3 const & p_n, f32 p_d) {
+	inline f32 ray_plane_intersection(Ray const & r, Vec3 const & p_n, f32 p_d) {
 		f32 t = -1.0f;
 
 		f32 denom = dot(p_n, r.d);

@@ -1,6 +1,10 @@
 
 #include <asset.hpp>
 
+#define STBI_ONLY_PNG
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
 #define MINIZ_NO_TIME
 #include <miniz.c>
 
@@ -69,7 +73,13 @@ void load_assets(AssetState * assets, MemoryArena * arena) {
 	AssetPackHeader * pack = (AssetPackHeader *)file_ptr;
 	file_ptr += sizeof(AssetPackHeader);
 
-	assets->assets = PUSH_ARRAY(assets->arena, Asset, pack->asset_count);
+	u32 total_asset_count = pack->asset_count;
+
+#if DEV_ENABLED
+	total_asset_count += ARRAY_COUNT(debug_global_asset_file_names);
+#endif
+
+	assets->assets = PUSH_ARRAY(assets->arena, Asset, total_asset_count);
  
 	for(u32 i = 0; i < pack->asset_count; i++) {
 		AssetInfo * asset_info = (AssetInfo *)file_ptr;
@@ -139,6 +149,46 @@ void load_assets(AssetState * assets, MemoryArena * arena) {
 			INVALID_CASE();
 		}
 	}
+
+#if DEV_ENABLED
+	for(u32 i = 0; i < ARRAY_COUNT(debug_global_asset_file_names); i++) {
+		char const * file_name = debug_global_asset_file_names[i];
+
+		i32 width, height, channels;
+		stbi_set_flip_vertically_on_load(true);
+		u8 * img_data = stbi_load(file_name, &width, &height, &channels, 0);
+		if(img_data) {
+			ASSERT(channels == 3 || channels == 4);
+			ASSERT(height = PLACEMENT_HEIGHT);
+
+			Asset * asset = push_asset(assets, AssetId_debug_placement, AssetType_placement_map);
+			asset->placement_map.count = (u32)width;
+			asset->placement_map.placements = ALLOC_ARRAY(Placement, (u32)width);
+
+			for(u32 x = 0; x < (u32)width; x++) {
+				Placement * placement = asset->placement_map.placements + x;
+
+				for(u32 y = 0; y < PLACEMENT_HEIGHT; y++) {
+					u32 i = (y * (u32)width + x) * channels;
+					ColorRGB8 color = color_rgb8(img_data[i + 0], img_data[i + 1], img_data[i + 2]);
+
+					u32 id = AssetId_null;
+					for(u32 ii = 0; ii < ARRAY_COUNT(asset_id_color_table); ii++) {
+						AssetIdColorRGB8 id_color = asset_id_color_table[ii];
+						if(colors_are_equal(color, id_color.color)) {
+							id = id_color.id;
+							break;
+						}
+					}
+
+					placement->ids[y] = id;
+				}
+			}
+
+			stbi_image_free(img_data);			
+		}
+	}
+#endif
  
 	// free(file_buf.ptr);
 }

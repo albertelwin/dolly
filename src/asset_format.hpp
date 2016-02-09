@@ -110,6 +110,7 @@ enum AssetId {
 	AssetId_death_music,
 
 	//NOTE: Placements
+	AssetId_placement,
 	AssetId_debug_placement,
 
 	AssetId_count,
@@ -172,5 +173,34 @@ struct AssetInfo {
 	};
 };
 #pragma pack(pop)
+
+struct ColorRGB8 {
+	u8 r;
+	u8 g;
+	u8 b;
+};
+
+struct AssetIdColorRGB8 {
+	AssetId id;
+	ColorRGB8 color;
+};
+
+inline ColorRGB8 color_rgb8(u8 r, u8 g, u8 b) {
+	ColorRGB8 color = {};
+	color.r = r;
+	color.g = g;
+	color.b = b;
+	return color;
+}
+
+inline b32 colors_are_equal(ColorRGB8 color0, ColorRGB8 color1) {
+	return color0.r == color1.r && color0.g == color1.g && color0.b == color1.b;
+}
+
+static AssetIdColorRGB8 asset_id_color_table[] = {
+	{ AssetId_collectable_telly, color_rgb8(255, 0, 0) },
+	{ AssetId_collectable_clock, color_rgb8(0, 255, 0) },
+	{ AssetId_collectable_speed_up, color_rgb8(0, 0, 255) },
+};
 
 #endif

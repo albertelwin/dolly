@@ -482,7 +482,7 @@ void init_main_meta_state(MetaState * meta_state) {
 		}
 	}
 
-	//TODO: Collapse this!!
+	//TODO: All this can pretty much be deleted now that we have placement maps!!
 	{
 		AssetId emitter_types[] = {
 			AssetId_rocket,
@@ -639,7 +639,8 @@ void init_main_meta_state(MetaState * meta_state) {
 	main_state->d_speed = 0.0f;
 	main_state->dd_speed = 0.0f;
 
-	main_state->start_time = 30.0f;
+	// main_state->start_time = 30.0f;
+	main_state->start_time = 120.0f;
 	main_state->max_time = main_state->start_time;
 	main_state->countdown_time = 10.0f;
 	main_state->time_remaining = main_state->start_time;
@@ -722,7 +723,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			game_state->meta_states[i] = allocate_meta_state(game_state, (MetaStateType)i);
 		}
 
-		change_meta_state(game_state, MetaStateType_menu);
+		change_meta_state(game_state, MetaStateType_main);
 
 		game_state->auto_save_time = 5.0f;
 		game_state->save.code = SAVE_FILE_CODE;
@@ -984,7 +985,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			}
 
 			f32 speed = math::clamp(main_state->d_speed + 1.5f, 0.5f, 4.0f);
-			f32 adjusted_dt = speed * game_input->delta_time;
+			f32 adjusted_dt = speed * game_input->delta_time * 0.5f;
 
 			main_state->letterboxed_height = render_state->screen_height - math::max(main_state->d_speed, 0.0f) * 40.0f;
 			main_state->letterboxed_height = math::max(main_state->letterboxed_height, render_state->screen_height / 3.0f);
@@ -1138,63 +1139,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			}
 #endif
 
-			if(!player->dead) {
-				math::Vec2 projection_dim = math::vec2(main_state->render_group->transform.projection_width, main_state->render_group->transform.projection_height);
-
-				PlacementMap * placement_map = get_placement_map_asset(meta_state->assets, AssetId_debug_placement, emitter->map_index);
-				ASSERT(placement_map);
-
-				f32 placement_width_pixels = projection_dim.x / (f32)PLACEMENT_WIDTH;
-
-				emitter->cursor += 500.0f * adjusted_dt;
-
-				f32 read_cursor = emitter->cursor / placement_width_pixels;
-				u32 read_pos = (u32)read_cursor;
-				u32 reads_ahead = read_pos - emitter->last_read_pos;
-
-				//TODO: Emit multiple placements if reads_ahead > 1!!
-				if(reads_ahead > 0) {
-					if(read_pos >= placement_map->count) {
-						emitter->cursor -= placement_map->count * placement_width_pixels;
-
-						emitter->map_index++;
-						if(emitter->map_index >= get_asset_count(meta_state->assets, AssetId_debug_placement)) {
-							emitter->map_index = 0;
-						}
-
-						placement_map = get_placement_map_asset(meta_state->assets, AssetId_debug_placement, emitter->map_index);
-						ASSERT(placement_map);
-
-						read_pos = 0;
-					}
-
-					Placement * placement = placement_map->placements + read_pos;
-					for(u32 y = 0; y < PLACEMENT_HEIGHT; y++) {
-						u32 id = placement->ids[y];
-						if(id != AssetId_null) {
-							if(emitter->entity_count < ARRAY_COUNT(emitter->entity_array)) {
-								Entity * entity = emitter->entity_array[emitter->entity_count++];
-
-								//TODO: Offset x so entities are lined up perfectly with the placement map!!
-								entity->pos = emitter->pos;
-								entity->pos.y += (((f32)y + 0.5f) / (f32)PLACEMENT_HEIGHT) * projection_dim.y - projection_dim.y * 0.5f;
-								entity->scale = 1.0f;
-								entity->color = math::vec4(1.0f);
-
-								change_entity_asset(entity, assets, (AssetId)id, 0);
-								if(entity->asset_id == AssetId_collectable_telly) {
-									entity->collider = math::rec_scale(entity->collider, 0.5f);
-								}
-
-								entity->hit = false;
-							}
-						}
-					}					
-
-					emitter->last_read_pos = read_pos;
-				}
-			}
-
 			for(u32 i = 0; i < emitter->entity_count; i++) {
 				Entity * entity = emitter->entity_array[i];
 				b32 destroy = false;
@@ -1323,6 +1267,74 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					emitter->entity_count--;
 					i--;
 				}
+			}
+
+			if(!player->dead) {
+				math::Vec2 projection_dim = math::vec2(main_state->render_group->transform.projection_width, main_state->render_group->transform.projection_height);
+
+				// AssetId map_id = AssetId_placement;
+				AssetId map_id = AssetId_debug_placement;
+				u32 map_asset_count = get_asset_count(meta_state->assets, map_id);
+				ASSERT(map_asset_count);
+
+				PlacementMap * map = get_placement_map_asset(meta_state->assets, map_id, emitter->map_index);
+				ASSERT(map);
+
+				f32 placement_width_pixels = projection_dim.x / (f32)PLACEMENT_WIDTH;
+
+				emitter->cursor += 500.0f * adjusted_dt;
+
+				f32 read_cursor = emitter->cursor / placement_width_pixels;
+				u32 read_cursor_int = (u32)read_cursor;
+				f32 read_cursor_frac = read_cursor - read_cursor_int;
+				u32 reads_ahead = read_cursor_int - emitter->last_read_pos;
+
+				u32 read_pos = emitter->last_read_pos;
+				while(reads_ahead) {
+					if(read_pos >= map->count) {
+						emitter->cursor -= map->count * placement_width_pixels;
+
+						emitter->map_index++;
+						if(emitter->map_index >= map_asset_count) {
+							emitter->map_index = 0;
+						}
+
+						map = get_placement_map_asset(meta_state->assets, map_id, emitter->map_index);
+						ASSERT(map);
+
+						read_pos = 0;
+					}
+
+					f32 x_offset = (read_cursor_frac + (reads_ahead - 1)) * placement_width_pixels;
+
+					Placement * placement = map->placements + read_pos;
+					for(u32 y = 0; y < PLACEMENT_HEIGHT; y++) {
+						u32 id = placement->ids[y];
+						if(id != AssetId_null) {
+							if(emitter->entity_count < ARRAY_COUNT(emitter->entity_array)) {
+								Entity * entity = emitter->entity_array[emitter->entity_count++];
+
+								entity->pos = emitter->pos;
+								entity->pos.x -= x_offset;
+								entity->pos.y += (((f32)y + 0.5f) / (f32)PLACEMENT_HEIGHT) * projection_dim.y - projection_dim.y * 0.5f;
+								entity->scale = 1.0f;
+								entity->color = math::vec4(1.0f);
+
+								change_entity_asset(entity, assets, (AssetId)id, 0);
+								if(entity->asset_id == AssetId_collectable_telly) {
+									entity->collider = math::rec_scale(entity->collider, 0.5f);
+								}
+
+								entity->hit = false;
+							}
+						}
+					}					
+
+					read_pos++;
+					reads_ahead--;
+				}
+
+				emitter->last_read_pos = read_pos;
 			}
 
 			for(u32 i = 0; i < LocationId_count; i++) {

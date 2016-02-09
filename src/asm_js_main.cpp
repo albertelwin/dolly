@@ -7,10 +7,6 @@
 
 #include <sys.hpp>
 
-#define STBI_ONLY_PNG
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
-
 #include <game.cpp>
 
 extern "C" {
@@ -247,7 +243,7 @@ void main_loop(void * user_ptr) {
 	}
 }
 
-int main() {
+int main_init() {
 	if(SDL_Init(SDL_INIT_VIDEO)) {
 		ASSERT(!"Failed to initialise SDL!");
 	}
@@ -315,3 +311,28 @@ int main() {
 
 	return 0;
 }
+
+#if DEV_ENABLED
+static u32 debug_global_file_loaded_counter = 0;
+
+void wget_callback(char const * str) {
+	debug_global_file_loaded_counter--;
+	if(!debug_global_file_loaded_counter) {
+		main_init();
+	}
+}
+
+int main() {
+	for(u32 i = 0; i < ARRAY_COUNT(debug_global_asset_file_names); i++) {
+		char const * file_name = debug_global_asset_file_names[i];
+		emscripten_async_wget(file_name, file_name, wget_callback, wget_callback);
+		debug_global_file_loaded_counter++;
+	}
+
+	return 0;
+}
+#else
+int main() {
+	return main_init();
+}
+#endif

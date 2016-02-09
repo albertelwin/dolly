@@ -50,4 +50,19 @@ struct AssetState {
 	AssetGroup asset_groups[AssetId_count];
 };
 
+#if DEV_ENABLED
+static char const * debug_global_asset_file_names[] = {
+	"/dev/placement0.png",
+	"/dev/placement1.png",
+	// "/dev/placement2.png",
+	// "/dev/placement3.png",
+	// "/dev/placement4.png",
+	// "/dev/placement5.png",
+	// "/dev/placement6.png",
+	// "/dev/placement7.png",
+	// "/dev/placement8.png",
+	// "/dev/placement9.png",
+};
+#endif
+
 #endif

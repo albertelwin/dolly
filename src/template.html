@@ -86,7 +86,22 @@
 			};
 
 			window.onerror = function(event) {
-				Module.setStatus('EXCEPTION: ' + event + '\n');
+				var event_str = event.toString();
+
+				var ignored = false;
+				var ignored_exceptions = [
+					"SimulateInfiniteLoop",
+				];
+				for(var i = 0; i < ignored_exceptions.length; i++) {
+					if(event_str.indexOf(ignored_exceptions[i] > -1)) {
+						ignored = true;
+						break;
+					}
+				}
+
+				if(ignored === false) {
+					Module.setStatus('EXCEPTION: ' + event + '\n');
+				}
 			};
 		</script>
 		{{{ SCRIPT }}}
