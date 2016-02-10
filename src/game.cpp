@@ -427,7 +427,7 @@ void init_main_meta_state(MetaState * meta_state) {
 	change_volume(main_state->music, math::vec2(0.0f), 0.0f);
 	change_volume(main_state->music, math::vec2(1.0f), 1.0f);
 
-	main_state->render_group = allocate_render_group(meta_state->render_state, &meta_state->arena, screen_width, screen_height);
+	main_state->render_group = allocate_render_group(meta_state->render_state, &meta_state->arena, screen_width, screen_height, 512);
 	main_state->ui_render_group = allocate_render_group(meta_state->render_state, &meta_state->arena, screen_width, screen_height);
 	main_state->letterboxed_height = (f32)screen_height;
 	main_state->font = allocate_font(meta_state->render_state, 65536, screen_width, screen_height);
@@ -441,13 +441,33 @@ void init_main_meta_state(MetaState * meta_state) {
 	main_state->last_location = LocationId_null;
 	main_state->location_transition_id = 0;
 
+#if VERTICAL_PARALLAX
+#if 1
 	f32 layer_z_offsets[PARALLAX_LAYER_COUNT] = {
-		 10.0f,
-		 10.0f,
+		 8.0f,
+		 8.0f,
+		 4.0f,
+		 2.0f,
+		 0.0f,
+	};
+#else
+	f32 layer_z_offsets[PARALLAX_LAYER_COUNT] = {
+		  7.5f,
 		  7.5f,
 		  5.0f,
-		 -0.5f,
+		  2.5f,
+		  0.0f,
 	};
+#endif
+#else
+	f32 layer_z_offsets[PARALLAX_LAYER_COUNT] = {
+		15.0f,
+		15.0f,
+		10.0f,
+		 5.0f,
+		 0.0f,
+	};
+#endif
 
 	f32 location_max_z = layer_z_offsets[0];
 	f32 location_y_offset = (f32)screen_height / (1.0f / (location_max_z + 1.0f));
@@ -455,16 +475,25 @@ void init_main_meta_state(MetaState * meta_state) {
 	main_state->locations[LocationId_city].y = 0.0f;
 	main_state->locations[LocationId_city].asset_id = AssetId_city;
 	main_state->locations[LocationId_city].tint = math::vec4(1.0f);
+	main_state->locations[LocationId_city].tile_to_asset_table[TileId_good] = AssetId_collectable_speed_up;
+	main_state->locations[LocationId_city].tile_to_asset_table[TileId_bad] = AssetId_glitched_telly;
+	main_state->locations[LocationId_city].tile_to_asset_table[TileId_time] = AssetId_collectable_clock;
 
 	main_state->locations[LocationId_mountains].y = location_y_offset * 2;
 	main_state->locations[LocationId_mountains].asset_id = AssetId_mountains;
 	main_state->locations[LocationId_mountains].tint = color_255(34, 177, 76);
+	main_state->locations[LocationId_mountains].tile_to_asset_table[TileId_good] = AssetId_collectable_speed_up;
+	main_state->locations[LocationId_mountains].tile_to_asset_table[TileId_bad] = AssetId_glitched_telly;
+	main_state->locations[LocationId_mountains].tile_to_asset_table[TileId_time] = AssetId_collectable_clock;
 
 	main_state->locations[LocationId_space].y = location_y_offset;
 	main_state->locations[LocationId_space].asset_id = AssetId_space;
 	main_state->locations[LocationId_space].tint = math::vec4(1.0f);
+	main_state->locations[LocationId_space].tile_to_asset_table[TileId_good] = AssetId_collectable_speed_up;
+	main_state->locations[LocationId_space].tile_to_asset_table[TileId_bad] = AssetId_glitched_telly;
+	main_state->locations[LocationId_space].tile_to_asset_table[TileId_time] = AssetId_collectable_clock;
 
-	main_state->ground_height = -(f32)screen_height * 0.5f;
+	main_state->ground_height = 0.0f;
 
 	AssetId first_location_asset_id = AssetId_city;
 	for(u32 i = 0; i < LocationId_count; i++) {
@@ -482,92 +511,8 @@ void init_main_meta_state(MetaState * meta_state) {
 		}
 	}
 
-	//TODO: All this can pretty much be deleted now that we have placement maps!!
-	{
-		AssetId emitter_types[] = {
-			AssetId_rocket,
-			AssetId_boots,
-
-			AssetId_collectable_telly,
-			AssetId_collectable_telly,
-			AssetId_collectable_telly,
-			AssetId_collectable_telly,
-			AssetId_collectable_telly,
-			AssetId_collectable_telly,
-			AssetId_collectable_telly,
-			AssetId_collectable_telly,
-			AssetId_collectable_telly,
-			AssetId_collectable_telly,
-			AssetId_collectable_telly,
-			AssetId_collectable_telly,
-			AssetId_collectable_telly,
-			AssetId_collectable_telly,
-
-			AssetId_collectable_blob,
-			AssetId_collectable_clock,
-			AssetId_collectable_diamond,
-			AssetId_collectable_flower,
-			AssetId_collectable_heart,
-			AssetId_collectable_paw,
-			AssetId_collectable_smiley,
-			AssetId_collectable_speech,
-			AssetId_collectable_speed_up,
-		};
-
-		main_state->locations[LocationId_city].emitter_type_count = ARRAY_COUNT(emitter_types);
-		main_state->locations[LocationId_city].emitter_types = PUSH_COPY_ARRAY(&meta_state->arena, AssetId, emitter_types, ARRAY_COUNT(emitter_types));
-	}
-
-	{
-		AssetId emitter_types[] = {
-			AssetId_collectable_telly,
-			AssetId_collectable_telly,
-			AssetId_collectable_telly,
-			AssetId_collectable_telly,
-			AssetId_collectable_telly,
-			AssetId_collectable_telly,
-			AssetId_collectable_telly,
-			AssetId_collectable_telly,
-			AssetId_collectable_telly,
-			AssetId_collectable_telly,
-			AssetId_collectable_telly,
-			AssetId_collectable_telly,
-			AssetId_collectable_telly,
-			AssetId_collectable_telly,
-
-			AssetId_collectable_blob,
-			AssetId_collectable_clock,
-			AssetId_collectable_diamond,
-			AssetId_collectable_flower,
-			AssetId_collectable_heart,
-			AssetId_collectable_paw,
-			AssetId_collectable_smiley,
-			AssetId_collectable_speech,
-			AssetId_collectable_speed_up,
-		};
-
-		main_state->locations[LocationId_mountains].emitter_type_count = ARRAY_COUNT(emitter_types);
-		main_state->locations[LocationId_mountains].emitter_types = PUSH_COPY_ARRAY(&meta_state->arena, AssetId, emitter_types, ARRAY_COUNT(emitter_types));
-	}
-
-	{
-		AssetId emitter_types[] = {
-			AssetId_collectable_clock,
-
-			AssetId_dolly,
-			AssetId_dolly,
-			AssetId_dolly,
-			AssetId_dolly,
-			AssetId_dolly,
-			AssetId_dolly,
-			AssetId_dolly,
-		};
-
-		main_state->locations[LocationId_space].emitter_type_count = ARRAY_COUNT(emitter_types);
-		main_state->locations[LocationId_space].emitter_types = PUSH_COPY_ARRAY(&meta_state->arena, AssetId, emitter_types, ARRAY_COUNT(emitter_types));
-	}
-
 	Player * player = &main_state->player;
+	player->e->pos.y = (f32)screen_height * 0.5f;
 	player->sheild = push_entity(entities, assets, AssetId_shield, 0);
 	player->sheild->color.a = 0.0f;
 	player->clone_offset = math::vec2(-5.0f, 0.0f);
@@ -583,8 +528,7 @@ void init_main_meta_state(MetaState * meta_state) {
 		player->clones[i] = entity;
 	}
 
-	player->e = push_entity(entities, assets, AssetId_dolly, 0);
-	player->e->pos = math::vec3((f32)screen_width * -0.25f, 0.0f, 0.0f);
+	player->e = push_entity(entities, assets, AssetId_dolly, 0, math::vec3((f32)screen_width * -0.25f, main_state->ground_height + (f32)screen_height * 0.5f, 0.0f));
 	player->e->initial_x = player->e->pos.x;
 	player->e->speed = math::vec2(50.0f, 6000.0f);
 	player->e->damp = 0.15f;
@@ -601,25 +545,6 @@ void init_main_meta_state(MetaState * meta_state) {
 	seq->rocket->collider = math::rec_offset(seq->rocket->collider, math::vec2(0.0f, -math::rec_dim(seq->rocket->collider).y * 0.5f));
 	seq->playing = false;
 	seq->time_ = 0.0f;
-
-	//TODO: Are we still doing the maze??
-#if 0
-	//TODO: Support arbitary sized maze chunks??
-	f32 maze_chunk_width = 64.0f;
-	main_state->maze_chunk_count = get_asset_count(assets, AssetId_maze_top);
-	ASSERT(main_state->maze_chunk_count == get_asset_count(assets, AssetId_maze_bottom));
-	main_state->maze_chunks = PUSH_ARRAY(&meta_state->arena, MazeChunk, main_state->maze_chunk_count);
-	f32 x = -(f32)screen_width * 0.5f;
-	for(u32 i = 0; i < main_state->maze_chunk_count; i++) {
-		MazeChunk * chunk = main_state->maze_chunks + i;
-
-		math::Vec3 pos = math::vec3(x, 0.0f, 0.0f);
-		chunk->top = push_entity(entities, assets, AssetId_maze_top, i, pos);
-		chunk->bottom = push_entity(entities, assets, AssetId_maze_bottom, i, pos);
-
-		x += maze_chunk_width;
-	}
-#endif
 
 	//TODO: Adding foreground layer at the end until we have sorting!!
 	for(u32 i = 0; i < LocationId_count; i++) {
@@ -985,7 +910,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			}
 
 			f32 speed = math::clamp(main_state->d_speed + 1.5f, 0.5f, 4.0f);
-			f32 adjusted_dt = speed * game_input->delta_time * 0.5f;
+			f32 adjusted_dt = speed * game_input->delta_time;
 
 			main_state->letterboxed_height = render_state->screen_height - math::max(main_state->d_speed, 0.0f) * 40.0f;
 			main_state->letterboxed_height = math::max(main_state->letterboxed_height, render_state->screen_height / 3.0f);
@@ -1065,7 +990,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			player->e->pos.xy += player->e->d_pos * game_input->delta_time;
 
 			if(!player->dead) {
-				f32 ground_height = main_state->ground_height + math::rec_dim(get_entity_collider_bounds(player->e)).y * 0.5f;
+				// f32 ground_height = main_state->ground_height + math::rec_dim(get_entity_collider_bounds(player->e)).y * 0.5f;
+				f32 ground_height = main_state->ground_height;
 				if(player->e->pos.y <= ground_height) {
 					player->e->pos.y = ground_height;
 					player->e->d_pos.y = 0.0f;
@@ -1078,7 +1004,13 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			player->sheild->pos = player->e->pos;
 
 			render_transform->pos.x = 0.0f;
-			render_transform->pos.y = main_state->locations[main_state->current_location].y;
+#if VERTICAL_PARALLAX
+			render_transform->pos.y = player->e->pos.y;
+			render_transform->pos.y = math::max(render_transform->pos.y, main_state->ground_height);
+#else
+			// render_transform->pos.y = main_state->locations[main_state->current_location].y;
+			render_transform->pos.y = (f32)render_state->screen_height * 0.5f;
+#endif
 			render_transform->offset = (math::rand_vec2() * 2.0f - 1.0f) * math::max(main_state->d_speed, 0.0f);
 
 			if(main_state->rocket_seq.playing) {
@@ -1100,7 +1032,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					player->e->pos.xy = math::vec2(player->e->initial_x, location->y);
 
 					main_state->entity_emitter.pos.y = location->y;
-					main_state->entity_emitter.time_until_next_spawn = 0.0f;
 					main_state->accel_time = 0.0f;
 
 					render_transform->pos.y = location->y;
@@ -1112,32 +1043,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			math::Rec2 player_bounds = get_entity_collider_bounds(player->e);
 
 			EntityEmitter * emitter = &main_state->entity_emitter;
-#if 0
-			emitter->time_until_next_spawn -= adjusted_dt;
-			if(!player->dead && emitter->time_until_next_spawn <= 0.0f) {
-				if(emitter->entity_count < ARRAY_COUNT(emitter->entity_array)) {
-					Entity * entity = emitter->entity_array[emitter->entity_count++];
-
-					entity->pos = emitter->pos;
-					entity->pos.y += (math::rand_f32() * 2.0f - 1.0f) * 250.0f;
-					entity->scale = 1.0f;
-					entity->color = math::vec4(1.0f);
-
-					u32 type_index = (u32)(math::rand_f32() * current_location->emitter_type_count);
-					ASSERT(type_index < current_location->emitter_type_count);
-					AssetId asset_id = current_location->emitter_types[type_index];
-
-					change_entity_asset(entity, assets, asset_id, 0);
-					if(entity->asset_id == AssetId_collectable_telly) {
-						entity->collider = math::rec_scale(entity->collider, 0.5f);
-					}
-
-					entity->hit = false;
-				}
-
-				emitter->time_until_next_spawn = 0.5f;
-			}
-#endif
 
 			for(u32 i = 0; i < emitter->entity_count; i++) {
 				Entity * entity = emitter->entity_array[i];
@@ -1182,16 +1087,18 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 							break;
 						}
 
-						case AssetId_collectable_telly: {
+#if 0
+						case AssetId_glitched_telly: {
 							clip_id = AssetId_explosion;
 							
 							if(main_state->dd_speed <= 0.0f) {
 								pop_player_clones(player, 5);
 								is_slow_down = true;
 							}
-							
-							break;
+
+							break;			
 						}
+#endif
 
 						case AssetId_rocket: {
 							begin_rocket_sequence(game_state, meta_state);
@@ -1272,56 +1179,57 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			if(!player->dead) {
 				math::Vec2 projection_dim = math::vec2(main_state->render_group->transform.projection_width, main_state->render_group->transform.projection_height);
 
-				// AssetId map_id = AssetId_placement;
-				AssetId map_id = AssetId_debug_placement;
+				AssetId map_id = AssetId_tile_map;
+				// AssetId map_id = AssetId_debug_tile_map;
 				u32 map_asset_count = get_asset_count(meta_state->assets, map_id);
 				ASSERT(map_asset_count);
 
-				PlacementMap * map = get_placement_map_asset(meta_state->assets, map_id, emitter->map_index);
+				TileMap * map = get_tile_map_asset(meta_state->assets, map_id, emitter->map_index);
 				ASSERT(map);
 
-				f32 placement_width_pixels = projection_dim.x / (f32)PLACEMENT_WIDTH;
+				f32 tile_size_pixels = projection_dim.y / (f32)TILE_MAP_HEIGHT;
 
 				emitter->cursor += 500.0f * adjusted_dt;
 
-				f32 read_cursor = emitter->cursor / placement_width_pixels;
+				f32 read_cursor = emitter->cursor / tile_size_pixels;
 				u32 read_cursor_int = (u32)read_cursor;
 				f32 read_cursor_frac = read_cursor - read_cursor_int;
 				u32 reads_ahead = read_cursor_int - emitter->last_read_pos;
 
 				u32 read_pos = emitter->last_read_pos;
 				while(reads_ahead) {
-					if(read_pos >= map->count) {
-						emitter->cursor -= map->count * placement_width_pixels;
+					if(read_pos >= map->width) {
+						emitter->cursor -= map->width * tile_size_pixels;
 
 						emitter->map_index++;
 						if(emitter->map_index >= map_asset_count) {
 							emitter->map_index = 0;
 						}
 
-						map = get_placement_map_asset(meta_state->assets, map_id, emitter->map_index);
+						map = get_tile_map_asset(meta_state->assets, map_id, emitter->map_index);
 						ASSERT(map);
 
 						read_pos = 0;
 					}
 
-					f32 x_offset = (read_cursor_frac + (reads_ahead - 1)) * placement_width_pixels;
+					f32 x_offset = (read_cursor_frac + (reads_ahead - 1)) * tile_size_pixels;
 
-					Placement * placement = map->placements + read_pos;
-					for(u32 y = 0; y < PLACEMENT_HEIGHT; y++) {
-						u32 id = placement->ids[y];
-						if(id != AssetId_null) {
+					Tiles * tiles = map->tiles + read_pos;
+					for(u32 y = 0; y < TILE_MAP_HEIGHT; y++) {
+						u32 tile_id = tiles->ids[y];
+						if(tile_id != TileId_null) {
 							if(emitter->entity_count < ARRAY_COUNT(emitter->entity_array)) {
 								Entity * entity = emitter->entity_array[emitter->entity_count++];
 
 								entity->pos = emitter->pos;
 								entity->pos.x -= x_offset;
-								entity->pos.y += (((f32)y + 0.5f) / (f32)PLACEMENT_HEIGHT) * projection_dim.y - projection_dim.y * 0.5f;
+								entity->pos.y += (((f32)y + 0.5f) / (f32)TILE_MAP_HEIGHT) * projection_dim.y - projection_dim.y * 0.5f;
+								entity->pos.y += projection_dim.y * 0.5f;
 								entity->scale = 1.0f;
 								entity->color = math::vec4(1.0f);
 
-								change_entity_asset(entity, assets, (AssetId)id, 0);
-								if(entity->asset_id == AssetId_collectable_telly) {
+								change_entity_asset(entity, assets, current_location->tile_to_asset_table[tile_id], 0);
+								if(tile_id == TileId_bad) {
 									entity->collider = math::rec_scale(entity->collider, 0.5f);
 								}
 
@@ -1340,7 +1248,15 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			for(u32 i = 0; i < LocationId_count; i++) {
 				Location * location = main_state->locations + i;
 				for(u32 layer_index = 0; layer_index < ARRAY_COUNT(location->layers); layer_index++) {
-					move_entity(meta_state, render_transform, location->layers[layer_index], adjusted_dt);
+					f32 dt = adjusted_dt;
+#if 1
+					//TODO: HACK!!!!!
+					if(layer_index == ARRAY_COUNT(location->layers) - 1) {
+						dt *= 2.0f;
+					}
+#endif
+
+					move_entity(meta_state, render_transform, location->layers[layer_index], dt);
 				}
 			}
 

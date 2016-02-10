@@ -84,8 +84,8 @@ struct TextureAtlas {
 	AssetInfo sprites[128];
 };
 
-struct PlacementMapAsset {
-	PlacementMap map;
+struct TileMapAsset {
+	TileMap map;
 	AssetId id;
 };
 
@@ -108,38 +108,38 @@ u8 * load_image_from_file(char const * file_name, i32 * width, i32 * height, i32
 	return img_data;
 }
 
-PlacementMapAsset load_placement_map(char const * file_name, AssetId asset_id) {
+TileMapAsset load_tile_map(char const * file_name, AssetId asset_id) {
 	i32 width, height, channels;
 	u8 * img_data = load_image_from_file(file_name, &width, &height, &channels);
 	ASSERT(channels == 3 || channels == 4);
-	ASSERT(height = PLACEMENT_HEIGHT);
+	ASSERT(height = TILE_MAP_HEIGHT);
 
-	PlacementMapAsset map = {};
-	map.id = asset_id;
-	map.map.count = width;
-	map.map.placements = ALLOC_ARRAY(Placement, width);
+	TileMapAsset map_asset = {};
+	map_asset.id = asset_id;
+	map_asset.map.width = (u32)width;
+	map_asset.map.tiles = ALLOC_ARRAY(Tiles, width);
 
 	for(u32 x = 0; x < (u32)width; x++) {
-		Placement * placement = map.map.placements + x;
+		Tiles * tiles = map_asset.map.tiles + x;
 
-		for(u32 y = 0; y < PLACEMENT_HEIGHT; y++) {
+		for(u32 y = 0; y < TILE_MAP_HEIGHT; y++) {
 			u32 i = (y * (u32)width + x) * channels;
 			ColorRGB8 color = color_rgb8(img_data[i + 0], img_data[i + 1], img_data[i + 2]);
 
-			u32 id = AssetId_null;
-			for(u32 ii = 0; ii < ARRAY_COUNT(asset_id_color_table); ii++) {
-				AssetIdColorRGB8 id_color = asset_id_color_table[ii];
+			TileId id = TileId_null;
+			for(u32 ii = 0; ii < ARRAY_COUNT(tile_id_color_table); ii++) {
+				TileIdColorRGB8 id_color = tile_id_color_table[ii];
 				if(colors_are_equal(color, id_color.color)) {
 					id = id_color.id;
 					break;
 				}
 			}
 
-			placement->ids[y] = id;
+			tiles->ids[y] = id;
 		}
 	}
 
-	return map;
+	return map_asset;
 }
 
 Texture load_texture(char const * file_name, AssetId id, TextureSampling sampling = TextureSampling_bilinear) {
@@ -445,6 +445,12 @@ int main() {
 		{ AssetId_car, "car.png" },
 		{ AssetId_shield, "shield.png" },
 
+		{ AssetId_glitched_telly, "glitched_telly0.png" },
+		{ AssetId_glitched_telly, "glitched_telly1.png" },
+		{ AssetId_glitched_telly, "glitched_telly2.png" },
+		{ AssetId_glitched_telly, "glitched_telly3.png" },
+		{ AssetId_glitched_telly, "glitched_telly4.png" },
+
 		{ AssetId_collectable_blob, "collectable_blob.png" },
 		{ AssetId_collectable_clock, "collectable_clock.png" },
 		{ AssetId_collectable_diamond, "collectable_diamond.png" },
@@ -465,23 +471,6 @@ int main() {
 		{ AssetId_display_speech, "display_speech.png" },
 		{ AssetId_display_speed_up, "display_speed_up.png" },
 		{ AssetId_display_telly, "display_telly.png" },
-
-		{ AssetId_maze_top, "maze_top0.png" },
-		{ AssetId_maze_top, "maze_top1.png" },
-		{ AssetId_maze_top, "maze_top2.png" },
-		{ AssetId_maze_top, "maze_top3.png" },
-		{ AssetId_maze_top, "maze_top4.png" },
-		{ AssetId_maze_top, "maze_top5.png" },
-		{ AssetId_maze_top, "maze_top6.png" },
-		{ AssetId_maze_top, "maze_top7.png" },
-		{ AssetId_maze_bottom, "maze_bottom0.png" },
-		{ AssetId_maze_bottom, "maze_bottom1.png" },
-		{ AssetId_maze_bottom, "maze_bottom2.png" },
-		{ AssetId_maze_bottom, "maze_bottom3.png" },
-		{ AssetId_maze_bottom, "maze_bottom4.png" },
-		{ AssetId_maze_bottom, "maze_bottom5.png" },
-		{ AssetId_maze_bottom, "maze_bottom6.png" },
-		{ AssetId_maze_bottom, "maze_bottom7.png" },
 	};
 	push_packed_texture(&packer, sprite_files, ARRAY_COUNT(sprite_files));
 
@@ -521,11 +510,15 @@ int main() {
 		load_texture("menu_credits_temp.png", AssetId_menu_background),
 		load_texture("menu_hiscore_temp.png", AssetId_menu_background),
 
-		load_texture("city_layer0.png", AssetId_city),
+		load_texture("city_layer0.png", AssetId_city),		
 		load_texture("city_layer1.png", AssetId_city),
 		load_texture("city_layer2.png", AssetId_city),
 		load_texture("city_layer3.png", AssetId_city),
 		load_texture("city_layer4.png", AssetId_city),
+		// load_texture("mountains_layer1.png", AssetId_city),
+		// load_texture("mountains_layer2.png", AssetId_city),
+		// load_texture("mountains_layer3.png", AssetId_city),
+		// load_texture("mountains_layer4.png", AssetId_city),
 
 		load_texture("city_layer0.png", AssetId_mountains),
 		load_texture("mountains_layer1.png", AssetId_mountains),
@@ -566,12 +559,12 @@ int main() {
 
 	packer.header.asset_count += ARRAY_COUNT(clips);
 
-	PlacementMapAsset placement_maps[] = {
-		load_placement_map("placement0.png", AssetId_placement),
-		load_placement_map("placement1.png", AssetId_placement),
+	TileMapAsset tile_maps[] = {
+		load_tile_map("tile_map0.png", AssetId_tile_map),
+		// load_tile_map("tile_map1.png", AssetId_tile_map),
 	};
 
-	packer.header.asset_count += ARRAY_COUNT(placement_maps);
+	packer.header.asset_count += ARRAY_COUNT(tile_maps);
 
 	std::FILE * file_ptr = std::fopen("asset.pak", "wb");
 	ASSERT(file_ptr != 0);
@@ -626,16 +619,16 @@ int main() {
 		std::fwrite(clip->ptr, clip->size, 1, file_ptr);
 	}
 
-	for(u32 i = 0; i < ARRAY_COUNT(placement_maps); i++) {
-		PlacementMapAsset * loaded_map = placement_maps + i;
+	for(u32 i = 0; i < ARRAY_COUNT(tile_maps); i++) {
+		TileMapAsset * map_asset = tile_maps + i;
 
 		AssetInfo info = {};
-		info.id = loaded_map->id;
-		info.type = AssetType_placement_map;
-		info.placement_map.count = loaded_map->map.count;
+		info.id = map_asset->id;
+		info.type = AssetType_tile_map;
+		info.tile_map.width = map_asset->map.width;
 
 		std::fwrite(&info, sizeof(AssetInfo), 1, file_ptr);
-		std::fwrite(loaded_map->map.placements, sizeof(Placement), loaded_map->map.count, file_ptr);
+		std::fwrite(map_asset->map.tiles, sizeof(Tiles), map_asset->map.width, file_ptr);
 	}
 
 	std::fclose(file_ptr);

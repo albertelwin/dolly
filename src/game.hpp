@@ -15,6 +15,8 @@
 
 #define ENTITY_NULL_POS math::vec3(F32_MAX, F32_MAX, 0.0f)
 
+#define VERTICAL_PARALLAX 1
+
 //TODO: Formalise sprite animation!!
 // struct SpriteAnimation {
 // 	Sprite * sprites;
@@ -56,7 +58,7 @@ struct Entity {
 
 struct EntityArray {
 	u32 count;
-	Entity elems[256];
+	Entity elems[512];
 };
 
 struct Player {
@@ -78,15 +80,9 @@ struct EntityEmitter {
 	u32 map_index;
 
 	math::Vec3 pos;
-	f32 time_until_next_spawn;
 
 	u32 entity_count;
-	Entity * entity_array[128];
-};
-
-struct MazeChunk {
-	Entity * top;
-	Entity * bottom;
+	Entity * entity_array[256];
 };
 
 enum LocationId {
@@ -104,8 +100,7 @@ struct Location {
 	f32 y;
 	math::Vec4 tint;
 
-	u32 emitter_type_count;
-	AssetId * emitter_types;
+	AssetId tile_to_asset_table[TileId_count];
 };
 
 struct RocketSequence {
@@ -257,9 +252,6 @@ struct MainMetaState {
 
 	EntityEmitter entity_emitter;
 	RocketSequence rocket_seq;
-
-	u32 maze_chunk_count;
-	MazeChunk * maze_chunks;
 
 	//TODO: Should this be part of the player??
 	f32 d_speed;

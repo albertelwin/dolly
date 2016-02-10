@@ -18,17 +18,56 @@ enum TextureSampling {
 #define AUDIO_PADDING_SAMPLES 1
 #define AUDIO_CHANNELS 2
 
-#define PLACEMENT_WIDTH 32
-#define PLACEMENT_HEIGHT 18
+#define TILE_MAP_WIDTH 32
+#define TILE_MAP_HEIGHT 18
 
-#pragma pack(push, 1)
-struct Placement {
-	u32 ids[PLACEMENT_HEIGHT];
+enum TileId {
+	TileId_good,
+	TileId_bad,
+	TileId_time,
+	TileId_coin,
+
+	TileId_count,
+	TileId_null = TileId_count,
 };
 
-struct PlacementMap {
-	u32 count;
-	Placement * placements;
+struct ColorRGB8 {
+	u8 r;
+	u8 g;
+	u8 b;
+};
+
+struct TileIdColorRGB8 {
+	TileId id;
+	ColorRGB8 color;
+};
+
+inline ColorRGB8 color_rgb8(u8 r, u8 g, u8 b) {
+	ColorRGB8 color = {};
+	color.r = r;
+	color.g = g;
+	color.b = b;
+	return color;
+}
+
+inline b32 colors_are_equal(ColorRGB8 color0, ColorRGB8 color1) {
+	return color0.r == color1.r && color0.g == color1.g && color0.b == color1.b;
+}
+
+static TileIdColorRGB8 tile_id_color_table[] = {
+	{ TileId_good, color_rgb8(0, 0, 255) },
+	{ TileId_bad, color_rgb8(255, 0, 0) },
+	{ TileId_time, color_rgb8(0, 255, 0) },
+};
+
+#pragma pack(push, 1)
+struct Tiles {
+	TileId ids[TILE_MAP_HEIGHT];
+};
+
+struct TileMap {
+	u32 width;
+	Tiles * tiles;
 };
 #pragma pack(pop)
 
@@ -57,6 +96,8 @@ enum AssetId {
 	AssetId_boots,
 	AssetId_car,
 	AssetId_shield,
+
+	AssetId_glitched_telly,
 
 	AssetId_first_collectable,
 	AssetId_collectable_blob = AssetId_first_collectable,
@@ -97,9 +138,6 @@ enum AssetId {
 
 	AssetId_intro,
 
-	AssetId_maze_top,
-	AssetId_maze_bottom,
-
 	//NOTE: Audio
 	// AssetId_sin_440,
 	AssetId_pickup,
@@ -109,9 +147,9 @@ enum AssetId {
 	AssetId_game_music,
 	AssetId_death_music,
 
-	//NOTE: Placements
-	AssetId_placement,
-	AssetId_debug_placement,
+	//NOTE: Tile maps
+	AssetId_tile_map,
+	AssetId_debug_tile_map,
 
 	AssetId_count,
 };
@@ -121,7 +159,7 @@ enum AssetType {
 	X(texture, Texture)				\
 	X(sprite, Texture)				\
 	X(audio_clip, AudioClip)		\
-	X(placement_map, PlacementMap)
+	X(tile_map, TileMap)
 
 #define X(NAME, STRUCT) AssetType_##NAME,
 	ASSET_TYPE_NAME_STRUCT_X
@@ -157,8 +195,8 @@ struct AudioClipInfo {
 	u32 size;
 };
 
-struct PlacementMapInfo {
-	u32 count;
+struct TileMapInfo {
+	u32 width;
 };
 
 struct AssetInfo {
@@ -169,38 +207,9 @@ struct AssetInfo {
 		TextureInfo texture;
 		SpriteInfo sprite;
 		AudioClipInfo audio_clip;
-		PlacementMapInfo placement_map;
+		TileMapInfo tile_map;
 	};
 };
 #pragma pack(pop)
-
-struct ColorRGB8 {
-	u8 r;
-	u8 g;
-	u8 b;
-};
-
-struct AssetIdColorRGB8 {
-	AssetId id;
-	ColorRGB8 color;
-};
-
-inline ColorRGB8 color_rgb8(u8 r, u8 g, u8 b) {
-	ColorRGB8 color = {};
-	color.r = r;
-	color.g = g;
-	color.b = b;
-	return color;
-}
-
-inline b32 colors_are_equal(ColorRGB8 color0, ColorRGB8 color1) {
-	return color0.r == color1.r && color0.g == color1.g && color0.b == color1.b;
-}
-
-static AssetIdColorRGB8 asset_id_color_table[] = {
-	{ AssetId_collectable_telly, color_rgb8(255, 0, 0) },
-	{ AssetId_collectable_clock, color_rgb8(0, 255, 0) },
-	{ AssetId_collectable_speed_up, color_rgb8(0, 0, 255) },
-};
 
 #endif

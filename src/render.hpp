@@ -62,8 +62,9 @@ struct RenderElement {
 };
 
 struct RenderGroup {
+	u32 max_elem_count;
 	u32 elem_count;
-	RenderElement elems[256];
+	RenderElement * elems;
 
 	AssetState * assets;
 

@@ -421,10 +421,12 @@ void end_render(RenderState * render_state) {
 	glDisable(GL_BLEND);
 }
 
-RenderGroup * allocate_render_group(RenderState * render_state, MemoryArena * arena, u32 projection_width, u32 projection_height) {
+RenderGroup * allocate_render_group(RenderState * render_state, MemoryArena * arena, u32 projection_width, u32 projection_height, u32 max_elem_count = 64) {
 	RenderGroup * render_group = PUSH_STRUCT(arena, RenderGroup);
 
+	render_group->max_elem_count = max_elem_count;
 	render_group->elem_count = 0;
+	render_group->elems = PUSH_ARRAY(arena, RenderElement, render_group->max_elem_count);
 
 	render_group->assets = render_state->assets;
 
@@ -437,7 +439,7 @@ RenderGroup * allocate_render_group(RenderState * render_state, MemoryArena * ar
 RenderElement * push_render_elem(RenderGroup * render_group, Asset * asset, math::Vec3 pos, math::Vec2 dim, math::Vec4 color, b32 scrollable = false) {
 	ASSERT(render_group);
 	ASSERT(asset);
-	ASSERT(render_group->elem_count < ARRAY_COUNT(render_group->elems));
+	ASSERT(render_group->elem_count < render_group->max_elem_count);
 
 	math::Vec2 pos2 = project_pos(&render_group->transform, pos);
 

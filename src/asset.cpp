@@ -134,14 +134,14 @@ void load_assets(AssetState * assets, MemoryArena * arena) {
 				break;
 			}
 
-			case AssetType_placement_map: {
-				PlacementMapInfo * info = (PlacementMapInfo *)&asset_info->placement_map;
+			case AssetType_tile_map: {
+				TileMapInfo * info = (TileMapInfo *)&asset_info->tile_map;
 
-				Asset * asset = push_asset(assets, asset_info->id, AssetType_placement_map);
-				asset->placement_map.count = info->count;
-				asset->placement_map.placements = (Placement *)file_ptr;
+				Asset * asset = push_asset(assets, asset_info->id, AssetType_tile_map);
+				asset->tile_map.width = info->width;
+				asset->tile_map.tiles = (Tiles *)file_ptr;
 
-				file_ptr += info->count * sizeof(Placement);
+				file_ptr += info->width * sizeof(Tiles);
 
 				break;
 			}
@@ -159,29 +159,29 @@ void load_assets(AssetState * assets, MemoryArena * arena) {
 		u8 * img_data = stbi_load(file_name, &width, &height, &channels, 0);
 		if(img_data) {
 			ASSERT(channels == 3 || channels == 4);
-			ASSERT(height = PLACEMENT_HEIGHT);
+			ASSERT(height = TILE_MAP_HEIGHT);
 
-			Asset * asset = push_asset(assets, AssetId_debug_placement, AssetType_placement_map);
-			asset->placement_map.count = (u32)width;
-			asset->placement_map.placements = ALLOC_ARRAY(Placement, (u32)width);
+			Asset * asset = push_asset(assets, AssetId_debug_tile_map, AssetType_tile_map);
+			asset->tile_map.width = (u32)width;
+			asset->tile_map.tiles = ALLOC_ARRAY(Tiles, (u32)width);
 
 			for(u32 x = 0; x < (u32)width; x++) {
-				Placement * placement = asset->placement_map.placements + x;
+				Tiles * tiles = asset->tile_map.tiles + x;
 
-				for(u32 y = 0; y < PLACEMENT_HEIGHT; y++) {
+				for(u32 y = 0; y < TILE_MAP_HEIGHT; y++) {
 					u32 i = (y * (u32)width + x) * channels;
 					ColorRGB8 color = color_rgb8(img_data[i + 0], img_data[i + 1], img_data[i + 2]);
 
-					u32 id = AssetId_null;
-					for(u32 ii = 0; ii < ARRAY_COUNT(asset_id_color_table); ii++) {
-						AssetIdColorRGB8 id_color = asset_id_color_table[ii];
+					TileId id = TileId_null;
+					for(u32 ii = 0; ii < ARRAY_COUNT(tile_id_color_table); ii++) {
+						TileIdColorRGB8 id_color = tile_id_color_table[ii];
 						if(colors_are_equal(color, id_color.color)) {
 							id = id_color.id;
 							break;
 						}
 					}
 
-					placement->ids[y] = id;
+					tiles->ids[y] = id;
 				}
 			}
 
