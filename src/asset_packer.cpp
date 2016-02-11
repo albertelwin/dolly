@@ -510,27 +510,29 @@ int main() {
 		load_texture("menu_credits_temp.png", AssetId_menu_background),
 		load_texture("menu_hiscore_temp.png", AssetId_menu_background),
 
-		load_texture("city_layer0.png", AssetId_city),		
+		//TODO: Should these be merged together??
+		load_texture("background0.png", AssetId_background),
+		load_texture("background1.png", AssetId_background),
+		
+		load_texture("city_layer0.png", AssetId_city),
 		load_texture("city_layer1.png", AssetId_city),
 		load_texture("city_layer2.png", AssetId_city),
 		load_texture("city_layer3.png", AssetId_city),
-		load_texture("city_layer4.png", AssetId_city),
-		// load_texture("mountains_layer1.png", AssetId_city),
-		// load_texture("mountains_layer2.png", AssetId_city),
-		// load_texture("mountains_layer3.png", AssetId_city),
-		// load_texture("mountains_layer4.png", AssetId_city),
 
-		load_texture("city_layer0.png", AssetId_mountains),
+		load_texture("mountains_layer0.png", AssetId_mountains),
 		load_texture("mountains_layer1.png", AssetId_mountains),
 		load_texture("mountains_layer2.png", AssetId_mountains),
 		load_texture("mountains_layer3.png", AssetId_mountains),
-		load_texture("mountains_layer4.png", AssetId_mountains),
+
+		load_texture("ocean_layer0.png", AssetId_ocean),
+		load_texture("ocean_layer1.png", AssetId_ocean),
+		load_texture("ocean_layer2.png", AssetId_ocean),
+		load_texture("ocean_layer3.png", AssetId_ocean),
 
 		load_texture("space_layer0.png", AssetId_space),
 		load_texture("space_layer1.png", AssetId_space),
 		load_texture("space_layer2.png", AssetId_space),
 		load_texture("space_layer3.png", AssetId_space),
-		load_texture("space_layer4.png", AssetId_space),
 	};
 
 	packer.header.asset_count += ARRAY_COUNT(reg_tex_array);

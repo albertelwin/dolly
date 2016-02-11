@@ -18,7 +18,6 @@ enum TextureSampling {
 #define AUDIO_PADDING_SAMPLES 1
 #define AUDIO_CHANNELS 2
 
-#define TILE_MAP_WIDTH 32
 #define TILE_MAP_HEIGHT 18
 
 enum TileId {
@@ -83,9 +82,12 @@ enum AssetId {
 
 	AssetId_menu_background,
 
+	AssetId_background,
+
 	AssetId_city,
-	AssetId_space,
 	AssetId_mountains,
+	AssetId_ocean,
+	AssetId_space,
 
 	AssetId_atlas,
 

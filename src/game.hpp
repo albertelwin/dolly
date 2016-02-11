@@ -11,11 +11,9 @@
 #include <render.hpp>
 
 #define ANIMATION_FRAMES_PER_SEC 30
-#define PARALLAX_LAYER_COUNT 5
+#define PARALLAX_LAYER_COUNT 4
 
 #define ENTITY_NULL_POS math::vec3(F32_MAX, F32_MAX, 0.0f)
-
-#define VERTICAL_PARALLAX 1
 
 //TODO: Formalise sprite animation!!
 // struct SpriteAnimation {
@@ -46,8 +44,6 @@ struct Entity {
 	math::Rec2 collider;
 
 	f32 anim_time;
-	//TODO: Initial pos!!
-	f32 initial_x;
 	b32 hit;
 	f32 hit_time;
 
@@ -66,7 +62,7 @@ struct Player {
 	Entity * sheild;
 
 	b32 dead;
-
+	b32 invincible;
 	b32 allow_input;
 
 	Entity * clones[50];
@@ -87,14 +83,17 @@ struct EntityEmitter {
 
 enum LocationId {
 	LocationId_city,
-	LocationId_space,
 	LocationId_mountains,
+	LocationId_ocean,
+	LocationId_space,
 
 	LocationId_count,
 	LocationId_null = LocationId_count,
 };
 
 struct Location {
+	char * name;
+
 	AssetId asset_id;
 	Entity * layers[PARALLAX_LAYER_COUNT];
 	f32 y;
@@ -241,12 +240,14 @@ struct MainMetaState {
 	EntityArray entities;
 	math::Vec2 entity_gravity;
 
-	f32 ground_height;
+	f32 height_above_ground;
+
+	Entity * background[2];
+
 	Location locations[LocationId_count];
 	LocationId current_location;
 	LocationId next_location;
 	LocationId last_location;
-	u32 location_transition_id;
 
 	Player player;
 
@@ -257,6 +258,13 @@ struct MainMetaState {
 	f32 d_speed;
 	f32 dd_speed;
 	f32 accel_time;
+
+	b32 boost_always_on;
+	f32 boost_speed;
+	f32 boost_accel;
+	f32 boost_time;
+	f32 slow_down_speed;
+	f32 slow_down_time;
 	
 	f32 time_remaining;
 	f32 start_time;

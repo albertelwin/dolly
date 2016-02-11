@@ -83,7 +83,6 @@ Entity * push_entity(EntityArray * entities, AssetState * assets, AssetId asset_
 	entity->use_gravity = false;
 
 	entity->anim_time = 0.0f;
-	entity->initial_x = pos.x;
 	entity->hit = false;
 
 	return entity;
@@ -115,7 +114,6 @@ void kill_player(MainMetaState * main_state, Player * player) {
 		player->dead = true;
 		player->allow_input = false;
 
-		player->e->damp = 0.0f;
 		player->e->use_gravity = true;
 		player->e->d_pos = math::vec2(0.0f, 1000.0f);
 
@@ -174,22 +172,6 @@ b32 change_location(MainMetaState * main_state, LocationId location_id) {
 	return changed;
 }
 
-b32 begin_location_transition(GameState * game_state, MainMetaState * main_state, LocationId location_id) {
-	b32 started = false;
-
-	if(!game_state->transitioning) {
-		if(change_location(main_state, location_id)) {
-			ASSERT(main_state->location_transition_id == 0);
-			main_state->location_transition_id = begin_transition(game_state);
-			ASSERT(main_state->location_transition_id);
-
-			started = true;
-		}		
-	}
-
-	return started;
-}
-
 void begin_rocket_sequence(GameState * game_state, MetaState * meta_state) {
 	ASSERT(meta_state->type == MetaStateType_main);
 	MainMetaState * main_state = meta_state->main;
@@ -232,10 +214,10 @@ void play_rocket_sequence(GameState * game_state, MetaState * meta_state, f32 dt
 			f32 new_time = seq->time_ + dt;
 
 			Location * space_location = main_state->locations + LocationId_space;
-			if(rocket->pos.y < space_location->y) {
-				main_state->render_group->transform.pos.y = math::max(main_state->rocket_seq.rocket->pos.y, 0.0f);
 
-				if(new_pos.y < space_location->y) {
+			f32 drop_height = space_location->y + main_state->height_above_ground;
+			if(rocket->pos.y < drop_height) {
+				if(new_pos.y < drop_height) {
 					math::Rec2 player_bounds = get_entity_collider_bounds(player->e);
 					math::Rec2 collider_bounds = get_entity_collider_bounds(rocket);
 					if(math::rec_overlap(collider_bounds, player_bounds)) {
@@ -249,8 +231,8 @@ void play_rocket_sequence(GameState * game_state, MetaState * meta_state, f32 dt
 				}
 				else {
 					player->allow_input = true;
+					player->e->pos.y = drop_height;
 
-					ASSERT(main_state->next_location == LocationId_null);
 					b32 changed = change_location(main_state, LocationId_space);
 					//TODO: What happens if we can't change the location yet??
 					ASSERT(changed);
@@ -262,17 +244,25 @@ void play_rocket_sequence(GameState * game_state, MetaState * meta_state, f32 dt
 			f32 seq_max_time = 15.0f;
 			if(seq->time_ < seq_max_time) {
 				if(new_time > seq_max_time && main_state->next_location == LocationId_null) {
-					LocationId last_location = main_state->last_location;
-					if(last_location == LocationId_null) {
-						last_location = LocationId_city;
+					//TODO: Randomly pick next location!!
+					LocationId next_location = (LocationId)((u32)main_state->last_location + 1);
+					if(next_location == LocationId_space) {
+						next_location = (LocationId)0;
 					}
 					
-					//TODO: Properly handle the case where this doesn't succeed!!
-					begin_location_transition(game_state, main_state, last_location);
+					b32 changed = change_location(main_state, next_location);
+					ASSERT(changed);
+
+					player->allow_input = false;
+					player->e->use_gravity = true;
 				}
 			}
 			else {
-				if(main_state->next_location == LocationId_null) {
+				//TODO: Calculate the ideal distance to stop gravity so that the player lands roughly at the height_above_ground
+				if(player->e->pos.y < (f32)main_state->render_group->transform.projection_height * 1.8f) {
+					player->e->use_gravity = false;
+					player->allow_input = true;
+
 					seq->playing = false;
 				}
 			}
@@ -284,11 +274,10 @@ void play_rocket_sequence(GameState * game_state, MetaState * meta_state, f32 dt
 	}
 }
 
-b32 move_entity(MetaState * meta_state, RenderTransform * transform, Entity * entity, f32 dt) {
+b32 move_entity(MetaState * meta_state, RenderTransform * transform, Entity * entity, f32 d_pos) {
 	b32 off_screen = false;
 
-	//TODO: Move by player speed!!
-	entity->pos.x -= 500.0f * dt;
+	entity->pos.x -= d_pos;
 
 	math::Rec2 bounds = get_entity_render_bounds(meta_state->assets, entity);
 	math::Vec2 screen_pos = project_pos(transform, entity->pos + math::vec3(math::rec_pos(bounds), 0.0f));
@@ -433,69 +422,57 @@ void init_main_meta_state(MetaState * meta_state) {
 	main_state->font = allocate_font(meta_state->render_state, 65536, screen_width, screen_height);
 
 	EntityArray * entities = &main_state->entities;
-
 	main_state->entity_gravity = math::vec2(0.0f, -6000.0f);
 
-	main_state->current_location = LocationId_city;
-	main_state->next_location = LocationId_null;
-	main_state->last_location = LocationId_null;
-	main_state->location_transition_id = 0;
+	main_state->height_above_ground = (f32)screen_height * 0.5f;
 
-#if VERTICAL_PARALLAX
-#if 1
 	f32 layer_z_offsets[PARALLAX_LAYER_COUNT] = {
-		 8.0f,
 		 8.0f,
 		 4.0f,
 		 2.0f,
 		 0.0f,
 	};
-#else
-	f32 layer_z_offsets[PARALLAX_LAYER_COUNT] = {
-		  7.5f,
-		  7.5f,
-		  5.0f,
-		  2.5f,
-		  0.0f,
-	};
-#endif
-#else
-	f32 layer_z_offsets[PARALLAX_LAYER_COUNT] = {
-		15.0f,
-		15.0f,
-		10.0f,
-		 5.0f,
-		 0.0f,
-	};
-#endif
 
 	f32 location_max_z = layer_z_offsets[0];
 	f32 location_y_offset = (f32)screen_height / (1.0f / (location_max_z + 1.0f));
 
+	//TODO: Collapse this!!
+	main_state->locations[LocationId_city].name = (char *)"CITY";
 	main_state->locations[LocationId_city].y = 0.0f;
 	main_state->locations[LocationId_city].asset_id = AssetId_city;
 	main_state->locations[LocationId_city].tint = math::vec4(1.0f);
-	main_state->locations[LocationId_city].tile_to_asset_table[TileId_good] = AssetId_collectable_speed_up;
+	main_state->locations[LocationId_city].tile_to_asset_table[TileId_good] = AssetId_rocket;
 	main_state->locations[LocationId_city].tile_to_asset_table[TileId_bad] = AssetId_glitched_telly;
 	main_state->locations[LocationId_city].tile_to_asset_table[TileId_time] = AssetId_collectable_clock;
 
-	main_state->locations[LocationId_mountains].y = location_y_offset * 2;
+	main_state->locations[LocationId_mountains].name = (char *)"MOUNTAINS";
+	main_state->locations[LocationId_mountains].y = 0.0f;
 	main_state->locations[LocationId_mountains].asset_id = AssetId_mountains;
-	main_state->locations[LocationId_mountains].tint = color_255(34, 177, 76);
-	main_state->locations[LocationId_mountains].tile_to_asset_table[TileId_good] = AssetId_collectable_speed_up;
+	main_state->locations[LocationId_mountains].tint = math::vec4(1.0f);
+	main_state->locations[LocationId_mountains].tile_to_asset_table[TileId_good] = AssetId_rocket;
 	main_state->locations[LocationId_mountains].tile_to_asset_table[TileId_bad] = AssetId_glitched_telly;
 	main_state->locations[LocationId_mountains].tile_to_asset_table[TileId_time] = AssetId_collectable_clock;
 
+	main_state->locations[LocationId_ocean].name = (char *)"OCEAN";
+	main_state->locations[LocationId_ocean].y = 0.0f;
+	main_state->locations[LocationId_ocean].asset_id = AssetId_ocean;
+	main_state->locations[LocationId_ocean].tint = math::vec4(1.0f);
+	main_state->locations[LocationId_ocean].tile_to_asset_table[TileId_good] = AssetId_rocket;
+	main_state->locations[LocationId_ocean].tile_to_asset_table[TileId_bad] = AssetId_glitched_telly;
+	main_state->locations[LocationId_ocean].tile_to_asset_table[TileId_time] = AssetId_collectable_clock;
+
+	main_state->locations[LocationId_space].name = (char *)"SPACE";
 	main_state->locations[LocationId_space].y = location_y_offset;
 	main_state->locations[LocationId_space].asset_id = AssetId_space;
 	main_state->locations[LocationId_space].tint = math::vec4(1.0f);
-	main_state->locations[LocationId_space].tile_to_asset_table[TileId_good] = AssetId_collectable_speed_up;
+	main_state->locations[LocationId_space].tile_to_asset_table[TileId_good] = AssetId_dolly;
 	main_state->locations[LocationId_space].tile_to_asset_table[TileId_bad] = AssetId_glitched_telly;
 	main_state->locations[LocationId_space].tile_to_asset_table[TileId_time] = AssetId_collectable_clock;
 
-	main_state->ground_height = 0.0f;
+	for(u32 i = 0; i < ARRAY_COUNT(main_state->background); i++) {
+		main_state->background[i] = push_entity(entities, meta_state->assets, AssetId_background, i, math::vec3(0.0f, location_y_offset * i, location_max_z));
+	}
 
-	AssetId first_location_asset_id = AssetId_city;
 	for(u32 i = 0; i < LocationId_count; i++) {
 		Location * location = main_state->locations + i;
 	
@@ -504,15 +481,17 @@ void init_main_meta_state(MetaState * meta_state) {
 
 			entity->pos.y = location->y;
 			entity->pos.z = layer_z_offsets[layer_index];
-			entity->color = layer_index == 0 ? math::vec4(1.0f) : location->tint;
 			entity->scrollable = true;
 
 			location->layers[layer_index] = entity;
 		}
 	}
 
+	main_state->current_location = LocationId_city;
+	main_state->next_location = LocationId_null;
+	main_state->last_location = LocationId_null;
+
 	Player * player = &main_state->player;
-	player->e->pos.y = (f32)screen_height * 0.5f;
 	player->sheild = push_entity(entities, assets, AssetId_shield, 0);
 	player->sheild->color.a = 0.0f;
 	player->clone_offset = math::vec2(-5.0f, 0.0f);
@@ -528,14 +507,13 @@ void init_main_meta_state(MetaState * meta_state) {
 		player->clones[i] = entity;
 	}
 
-	player->e = push_entity(entities, assets, AssetId_dolly, 0, math::vec3((f32)screen_width * -0.25f, main_state->ground_height + (f32)screen_height * 0.5f, 0.0f));
-	player->e->initial_x = player->e->pos.x;
-	player->e->speed = math::vec2(50.0f, 6000.0f);
+	player->e = push_entity(entities, assets, AssetId_dolly, 0, math::vec3((f32)screen_width * -0.25f, main_state->height_above_ground, 0.0f));
+	player->e->speed = math::vec2(750.0f, 6000.0f);
 	player->e->damp = 0.15f;
 	player->allow_input = true;
 
 	EntityEmitter * emitter = &main_state->entity_emitter;
-	emitter->pos = math::vec3(screen_width * 0.75f, 0.0f, 0.0f);
+	emitter->pos = math::vec3(screen_width * 0.75f, main_state->height_above_ground, 0.0f);
 	for(u32 i = 0; i < ARRAY_COUNT(emitter->entity_array); i++) {
 		emitter->entity_array[i] = push_entity(entities, assets, AssetId_first_collectable, 0, emitter->pos);
 	}
@@ -555,21 +533,10 @@ void init_main_meta_state(MetaState * meta_state) {
 		Entity * entity = push_entity(entities, assets, location->asset_id, layer_index);
 		entity->pos.y = location->y;
 		entity->pos.z = layer_z_offsets[layer_index];
-		entity->color = layer_index == 0 ? math::vec4(1.0f) : location->tint;
 		entity->scrollable = true;
 
 		location->layers[layer_index] = entity;
 	}
-
-	main_state->d_speed = 0.0f;
-	main_state->dd_speed = 0.0f;
-
-	// main_state->start_time = 30.0f;
-	main_state->start_time = 120.0f;
-	main_state->max_time = main_state->start_time;
-	main_state->countdown_time = 10.0f;
-	main_state->time_remaining = main_state->start_time;
-	main_state->clock_scale = 1.0f;
 
 	main_state->score_buttons[ScoreButtonId_menu].asset_id = AssetId_score_btn_menu;
 	main_state->score_buttons[ScoreButtonId_replay].asset_id = AssetId_score_btn_replay;
@@ -579,6 +546,30 @@ void init_main_meta_state(MetaState * meta_state) {
 	main_state->score_str = allocate_str(&meta_state->arena, 256);
 	main_state->score_values[ScoreValueId_time_played].is_f32 = true;
 	main_state->score_values[ScoreValueId_points].is_f32 = false;
+
+	main_state->start_time = 30.0f;
+
+	main_state->boost_speed = 2.5f;
+	main_state->boost_accel = 40.0f;
+	main_state->boost_time = 5.0f;
+	main_state->slow_down_speed = 0.25f;
+	main_state->slow_down_time = 1.5f;
+
+	//TODO: Make this platform independent!!
+#if __EMSCRIPTEN__ && DEV_ENABLED
+	main_state->start_time = (f32)EM_ASM_DOUBLE_V({ return Prefs.start_time });
+
+	main_state->boost_always_on = EM_ASM_INT_V({ return Prefs.boost_always_on });
+	main_state->boost_speed = (f32)EM_ASM_DOUBLE_V({ return Prefs.boost_speed });
+	main_state->boost_time = (f32)EM_ASM_DOUBLE_V({ return Prefs.boost_time });
+	main_state->slow_down_speed = (f32)EM_ASM_DOUBLE_V({ return Prefs.slow_down_speed });
+	main_state->slow_down_time = (f32)EM_ASM_DOUBLE_V({ return Prefs.slow_down_time; });
+#endif
+
+	main_state->max_time = main_state->start_time;
+	main_state->countdown_time = 10.0f;
+	main_state->time_remaining = main_state->start_time;
+	main_state->clock_scale = 1.0f;
 }
 
 void init_game_over_meta_state(MetaState * meta_state) {
@@ -641,7 +632,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		load_audio(&game_state->audio_state, &game_state->memory_arena, &game_state->assets, game_input->audio_supported);
 		load_render(&game_state->render_state, &game_state->memory_arena, &game_state->assets, game_input->back_buffer_width, game_input->back_buffer_height);
 
-		// game_state->audio_state.master_volume = 0.0f;
+		game_state->audio_state.master_volume = 0.0f;
 
 		game_state->meta_state = MetaStateType_null;
 		for(u32 i = 0; i < ARRAY_COUNT(game_state->meta_states); i++) {
@@ -718,9 +709,11 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		game_state->debug_render_entity_bounds = !game_state->debug_render_entity_bounds;
 	}
 
+#if 0
 	if(game_input->buttons[ButtonId_mute] & KEY_PRESSED) {
 		game_state->audio_state.master_volume = game_state->audio_state.master_volume > 0.0f ? 0.0f : 1.0f;
 	}
+#endif
 
 	switch(game_state->meta_state) {
 		case MetaStateType_menu: {
@@ -865,6 +858,15 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				}
 			}
 
+			if(game_input->buttons[ButtonId_mute] & KEY_PRESSED) {
+				LocationId next_location = (LocationId)((u32)main_state->current_location + 1);
+				if(next_location == LocationId_space) {
+					next_location = (LocationId)0;
+				}
+
+				change_location(main_state, next_location);
+			}
+
 			main_state->clock_scale = math::lerp(main_state->clock_scale, 1.0f, game_input->delta_time * 12.0f);
 
 			if(!player->dead) {
@@ -893,8 +895,13 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			{
 				main_state->accel_time -= game_input->delta_time;
 				if(main_state->accel_time <= 0.0f) {
-					main_state->accel_time = 0.0f;
 					main_state->dd_speed = 0.0f;
+					main_state->accel_time = 0.0f;
+				}
+
+				if(main_state->boost_always_on) {
+					main_state->dd_speed = main_state->boost_accel;
+					main_state->accel_time = F32_MAX;
 				}
 
 				f32 damp = 0.1f;
@@ -909,11 +916,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				change_pitch(main_state->music, pitch);				
 			}
 
-			f32 speed = math::clamp(main_state->d_speed + 1.5f, 0.5f, 4.0f);
-			f32 adjusted_dt = speed * game_input->delta_time;
+			f32 player_d_pos = player->e->speed.x * math::clamp(main_state->d_speed + 1.0f, main_state->slow_down_speed, main_state->boost_speed) * game_input->delta_time;
 
-			main_state->letterboxed_height = render_state->screen_height - math::max(main_state->d_speed, 0.0f) * 40.0f;
-			main_state->letterboxed_height = math::max(main_state->letterboxed_height, render_state->screen_height / 3.0f);
+			main_state->letterboxed_height = render_state->screen_height - math::max(main_state->d_speed, 0.0f) * main_state->boost_accel;
+			main_state->letterboxed_height = math::max(main_state->letterboxed_height, render_state->screen_height * 0.667f);
 
 			player->active_clone_count = 0;
 			for(i32 i = ARRAY_COUNT(player->clones) - 1; i >= 0; i--) {
@@ -978,20 +984,20 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				}
 			}
 
-			if(player->e->use_gravity) {
-				ASSERT(player->e->damp == 0.0f);
-				player_dd_pos += main_state->entity_gravity;
-			}
-
 			player->e->d_pos += player_dd_pos * game_input->delta_time;
-			//TODO: Don't apply damping to gravity!!
-			player->e->d_pos *= (1.0f - player->e->damp);
+			if(player->e->use_gravity) {
+				player->e->d_pos += main_state->entity_gravity * game_input->delta_time;
+			}
+			else {
+				//TODO: Apply damping to other forces when gravity is enabled!!
+				player->e->d_pos *= (1.0f - player->e->damp);
+			}
 
 			player->e->pos.xy += player->e->d_pos * game_input->delta_time;
 
-			if(!player->dead) {
-				// f32 ground_height = main_state->ground_height + math::rec_dim(get_entity_collider_bounds(player->e)).y * 0.5f;
-				f32 ground_height = main_state->ground_height;
+			if(!player->dead && player->allow_input) {
+				//TODO: Also clamp above!!
+				f32 ground_height = main_state->locations[main_state->current_location].y;
 				if(player->e->pos.y <= ground_height) {
 					player->e->pos.y = ground_height;
 					player->e->d_pos.y = 0.0f;
@@ -1004,13 +1010,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			player->sheild->pos = player->e->pos;
 
 			render_transform->pos.x = 0.0f;
-#if VERTICAL_PARALLAX
 			render_transform->pos.y = player->e->pos.y;
-			render_transform->pos.y = math::max(render_transform->pos.y, main_state->ground_height);
-#else
-			// render_transform->pos.y = main_state->locations[main_state->current_location].y;
-			render_transform->pos.y = (f32)render_state->screen_height * 0.5f;
-#endif
+			render_transform->pos.y = math::max(render_transform->pos.y, 0.0f);
 			render_transform->offset = (math::rand_vec2() * 2.0f - 1.0f) * math::max(main_state->d_speed, 0.0f);
 
 			if(main_state->rocket_seq.playing) {
@@ -1018,24 +1019,11 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			}
 
 			if(main_state->next_location != LocationId_null) {
-				if(transition_should_flip(game_state, main_state->location_transition_id) || !main_state->location_transition_id) {
-					main_state->location_transition_id = 0;
+				main_state->last_location = main_state->current_location;
+				main_state->current_location = main_state->next_location;
+				main_state->next_location = LocationId_null;
 
-					main_state->last_location = main_state->current_location;
-					main_state->current_location = main_state->next_location;
-					main_state->next_location = LocationId_null;
-
-					Location * location = main_state->locations + main_state->current_location;
-					Player * player = &main_state->player;
-
-					player->e->d_pos = math::vec2(0.0f);
-					player->e->pos.xy = math::vec2(player->e->initial_x, location->y);
-
-					main_state->entity_emitter.pos.y = location->y;
-					main_state->accel_time = 0.0f;
-
-					render_transform->pos.y = location->y;
-				}
+				main_state->entity_emitter.pos.y = main_state->locations[main_state->current_location].y + main_state->height_above_ground;
 			}
 
 			Location * current_location = main_state->locations + main_state->current_location;
@@ -1048,7 +1036,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				Entity * entity = emitter->entity_array[i];
 				b32 destroy = false;
 
-				if(move_entity(meta_state, render_transform, entity, adjusted_dt)) {
+				if(move_entity(meta_state, render_transform, entity, player_d_pos)) {
 					destroy = true;
 				}
 
@@ -1087,7 +1075,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 							break;
 						}
 
-#if 0
 						case AssetId_glitched_telly: {
 							clip_id = AssetId_explosion;
 							
@@ -1098,7 +1085,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 							break;			
 						}
-#endif
 
 						case AssetId_rocket: {
 							begin_rocket_sequence(game_state, meta_state);
@@ -1118,23 +1104,13 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 						case AssetId_collectable_speed_up: {
 							if(main_state->accel_time == 0.0f) {
-								main_state->dd_speed = 40.0f;
-								main_state->accel_time = 5.0f;								
+								main_state->dd_speed = main_state->boost_accel;
+								main_state->accel_time = main_state->boost_time;
 							}
 							else if(main_state->dd_speed < 0.0f) {
 								main_state->accel_time = 0.0f;
 							}
 
-							break;
-						}
-
-						case AssetId_boots: {
-							begin_location_transition(game_state, main_state, LocationId_mountains);
-							break;
-						}
-
-						case AssetId_collectable_speech: {
-							begin_location_transition(game_state, main_state, LocationId_city);
 							break;
 						}
 
@@ -1145,8 +1121,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					}
 
 					if(is_slow_down && main_state->accel_time == 0.0f) {
-						main_state->dd_speed = -40.0f;
-						main_state->accel_time = 1.5f;
+						main_state->dd_speed = -main_state->boost_accel;
+						main_state->accel_time = main_state->slow_down_time;
 					}
 
 					if(entity->asset_id >= AssetId_first_collectable && entity->asset_id < AssetId_one_past_last_collectable) {
@@ -1179,8 +1155,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			if(!player->dead) {
 				math::Vec2 projection_dim = math::vec2(main_state->render_group->transform.projection_width, main_state->render_group->transform.projection_height);
 
-				AssetId map_id = AssetId_tile_map;
-				// AssetId map_id = AssetId_debug_tile_map;
+				// AssetId map_id = AssetId_tile_map;
+				AssetId map_id = AssetId_debug_tile_map;
 				u32 map_asset_count = get_asset_count(meta_state->assets, map_id);
 				ASSERT(map_asset_count);
 
@@ -1189,7 +1165,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 				f32 tile_size_pixels = projection_dim.y / (f32)TILE_MAP_HEIGHT;
 
-				emitter->cursor += 500.0f * adjusted_dt;
+				emitter->cursor += player_d_pos;
 
 				f32 read_cursor = emitter->cursor / tile_size_pixels;
 				u32 read_cursor_int = (u32)read_cursor;
@@ -1212,7 +1188,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 						read_pos = 0;
 					}
 
-					f32 x_offset = (read_cursor_frac + (reads_ahead - 1)) * tile_size_pixels;
+					f32 x_offset = -(read_cursor_frac + (reads_ahead - 1)) * tile_size_pixels;
 
 					Tiles * tiles = map->tiles + read_pos;
 					for(u32 y = 0; y < TILE_MAP_HEIGHT; y++) {
@@ -1222,9 +1198,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 								Entity * entity = emitter->entity_array[emitter->entity_count++];
 
 								entity->pos = emitter->pos;
-								entity->pos.x -= x_offset;
+								entity->pos.x += x_offset;
 								entity->pos.y += (((f32)y + 0.5f) / (f32)TILE_MAP_HEIGHT) * projection_dim.y - projection_dim.y * 0.5f;
-								entity->pos.y += projection_dim.y * 0.5f;
 								entity->scale = 1.0f;
 								entity->color = math::vec4(1.0f);
 
@@ -1245,18 +1220,33 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				emitter->last_read_pos = read_pos;
 			}
 
+			for(u32 i = 0; i < ARRAY_COUNT(main_state->background); i++) {
+				move_entity(meta_state, render_transform, main_state->background[i], 0.0f);
+			}
+
 			for(u32 i = 0; i < LocationId_count; i++) {
 				Location * location = main_state->locations + i;
 				for(u32 layer_index = 0; layer_index < ARRAY_COUNT(location->layers); layer_index++) {
-					f32 dt = adjusted_dt;
+					Entity * entity = location->layers[layer_index];
+
+					//TODO: We don't actually need separate entities for ground height locations!!
+					if(i == main_state->current_location || i == LocationId_space) {
+						entity->color.a = 1.0f;
+					}
+					else {
+						entity->color.a = 0.0f;
+					}
+
+					f32 d_pos = player_d_pos;
 #if 1
 					//TODO: HACK!!!!!
 					if(layer_index == ARRAY_COUNT(location->layers) - 1) {
-						dt *= 2.0f;
+						d_pos *= 2.0f;
 					}
 #endif
 
-					move_entity(meta_state, render_transform, location->layers[layer_index], dt);
+					//TODO: Could we actually just use the emitter cursor to position these??
+					move_entity(meta_state, render_transform, location->layers[layer_index], d_pos);
 				}
 			}
 
@@ -1496,28 +1486,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			}
 
 			{
-				char * location_str = 0;
-				switch(main_state->current_location) {
-					case LocationId_city: {
-						location_str = (char *)"CITY";
-						break;
-					}
-
-					case LocationId_mountains: {
-						location_str = (char *)"MOUNTAINS";
-						break;
-					}
-
-					case LocationId_space: {
-						location_str = (char *)"SPACE";
-						break;
-					}
-
-					INVALID_CASE();
-				}
-
 				FontLayout font_layout = create_font_layout(main_state->font, projection_dim, font_scale, FontLayoutAnchor_bottom_left);
-				push_c_str_to_batch(main_state->font, &font_layout, location_str);
+				push_c_str_to_batch(main_state->font, &font_layout, main_state->locations[main_state->current_location].name);
 			}
 
 			{

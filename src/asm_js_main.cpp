@@ -35,7 +35,8 @@ struct MainLoopArgs {
 
 PlatformAsyncFile * platform_open_async_file(char const * file_name) {
 	PlatformAsyncFile * async_file = 0;
-	if(emscripten_run_script_int("Module.local_store_safe_to_read_write")) {
+
+	if(EM_ASM_INT_V({ return Module.local_store_safe_to_read_write; })) {
 		ASSERT(c_str_len(file_name) < ARRAY_COUNT(async_file->name));
 
 		async_file = ALLOC_STRUCT(PlatformAsyncFile);
@@ -54,7 +55,7 @@ void platform_close_async_file(PlatformAsyncFile * async_file) {
 b32 platform_write_async_file(PlatformAsyncFile * async_file, void * ptr, size_t size) {
 	b32 written = false;
 
-	if(emscripten_run_script_int("Module.local_store_safe_to_read_write")) {
+	if(EM_ASM_INT_V({ return Module.local_store_safe_to_read_write; })) {
 		std::FILE * file = std::fopen(async_file->name, "wb");
 		if(file) {
 			std::fwrite(ptr, size, 1, file);
