@@ -39,6 +39,7 @@ struct AudioState {
 	AudioSource * sources;
 	AudioSource * source_free_list;
 	u32 debug_sources_to_free;
+	u32 debug_sources_playing;
 
 	b32 supported;
 	f32 master_volume;

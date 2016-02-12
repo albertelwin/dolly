@@ -161,7 +161,7 @@ void push_sprite_to_batch(RenderBatch * batch, Texture * sprite, math::Vec2 pos,
 	push_quad_to_batch(batch, pos0, pos1, uv0, uv1, color);
 }
 
-void push_str_to_batch(Font * font, FontLayout * layout, Str * str) {
+void push_str_to_batch(Font * font, FontLayout * layout, Str * str, math::Vec4 color = math::vec4(1.0f)) {
 	DEBUG_TIME_BLOCK();
 
 	RenderBatch * batch = font->batch;
@@ -176,8 +176,6 @@ void push_str_to_batch(Font * font, FontLayout * layout, Str * str) {
 	//TODO: Put these in the font struct??
 	u32 glyph_first_char = 24;
 	u32 glyphs_per_row = 12;
-
-	math::Vec4 color = math::vec4(1.0f);
 
 	for(u32 i = 0; i < str->len; i++) {
 		char char_ = str->ptr[i];

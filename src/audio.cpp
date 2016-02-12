@@ -120,6 +120,7 @@ void fade_out_audio_clip(AudioSource * source, f32 time_) {
 
 void audio_output_samples(AudioState * audio_state, i16 * sample_memory_ptr, u32 samples_to_write, u32 samples_per_second) {
 	audio_state->debug_sources_to_free = 0;
+	audio_state->debug_sources_playing = 0;
 
 	f32 playback_rate = samples_per_second != AUDIO_CLIP_SAMPLES_PER_SECOND ? (f32)AUDIO_CLIP_SAMPLES_PER_SECOND / (f32)samples_per_second : 1.0f;
 	f32 seconds_per_sample = 1.0f / samples_per_second;
@@ -143,6 +144,8 @@ void audio_output_samples(AudioState * audio_state, i16 * sample_memory_ptr, u32
 		}
 
 		if(source->sample_pos.int_part < valid_samples) {
+			audio_state->debug_sources_playing++;
+
 			while(samples_left_to_write) {
 				u32 samples_to_play = samples_left_to_write;
 

@@ -442,7 +442,7 @@ void init_main_meta_state(MetaState * meta_state) {
 	main_state->locations[LocationId_city].asset_id = AssetId_city;
 	main_state->locations[LocationId_city].tint = math::vec4(1.0f);
 	main_state->locations[LocationId_city].tile_to_asset_table[TileId_good] = AssetId_rocket;
-	main_state->locations[LocationId_city].tile_to_asset_table[TileId_bad] = AssetId_glitched_telly;
+	main_state->locations[LocationId_city].tile_to_asset_table[TileId_bad] = AssetId_dolly;
 	main_state->locations[LocationId_city].tile_to_asset_table[TileId_time] = AssetId_collectable_clock;
 
 	main_state->locations[LocationId_mountains].name = (char *)"MOUNTAINS";
@@ -632,7 +632,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		load_audio(&game_state->audio_state, &game_state->memory_arena, &game_state->assets, game_input->audio_supported);
 		load_render(&game_state->render_state, &game_state->memory_arena, &game_state->assets, game_input->back_buffer_width, game_input->back_buffer_height);
 
-		game_state->audio_state.master_volume = 0.0f;
+		// game_state->audio_state.master_volume = 0.0f;
 
 		game_state->meta_state = MetaStateType_null;
 		for(u32 i = 0; i < ARRAY_COUNT(game_state->meta_states); i++) {
@@ -1132,11 +1132,14 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 						game_state->time_until_next_save = 0.0f;
 					}
 					
+#if 1
 					//TODO: Should there be a helper function for this??
 					AudioClip * clip = get_audio_clip_asset(assets, clip_id, math::rand_i32() % get_asset_count(assets, clip_id));
 					f32 pitch = math::lerp(0.9f, 1.1f, math::rand_f32());
 					fire_audio_clip(meta_state->audio_state, clip, math::vec2(1.0f), pitch);
+#endif
 
+					//TODO: Allocate these separately (or bring closer when we have sorting) for more efficient batching!!
 					change_entity_asset(entity, assets, AssetId_shield, 0);
 					entity->scale *= 0.5f;
 				}
@@ -1474,6 +1477,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 			f32 font_scale = 8.0f;
 
+#if 0
 			{
 				char time_str_buf[256];
 				Str time_str = str_fixed_size(time_str_buf, ARRAY_COUNT(time_str_buf));
@@ -1495,6 +1499,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				FontLayout font_layout = create_font_layout(main_state->font, font_layout_dim, font_scale, FontLayoutAnchor_top_left, math::vec2(24.0f, -24.0f));
 				push_str_to_batch(main_state->font, &font_layout, main_state->score_str);
 			}
+#endif
 
 			render_font(render_state, main_state->font, &ui_render_group->transform);
 
@@ -1517,8 +1522,18 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	Font * debug_font = render_state->debug_font;
 	FontLayout debug_font_layout = create_font_layout(debug_font, math::vec2(render_state->back_buffer_width, render_state->back_buffer_height), 4.0f, FontLayoutAnchor_top_left);
 	push_str_to_batch(debug_font, &debug_font_layout, game_state->str);
-#if 0
-	push_str_to_batch(debug_font, &debug_font_layout, game_state->debug_str);
+#if 1
+	{
+		// math::Vec4 debug_color = math::vec4(1.0f);
+		math::Vec4 debug_color = math::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+
+		char temp_buf[128];
+		Str temp_str = str_fixed_size(temp_buf, ARRAY_COUNT(temp_buf));
+		str_print(&temp_str, "DT: %f | SOURCES PLAYING: %u\n\n", game_input->delta_time, game_state->audio_state.debug_sources_playing);
+		push_str_to_batch(debug_font, &debug_font_layout, &temp_str, debug_color);
+
+		push_str_to_batch(debug_font, &debug_font_layout, game_state->debug_str, debug_color);
+	}
 #endif
 
 	end_render(render_state);
