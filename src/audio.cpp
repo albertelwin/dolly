@@ -63,8 +63,10 @@ void fire_audio_clip(AudioState * audio_state, AssetId clip_id, math::Vec2 volum
 	return fire_audio_clip(audio_state, clip, volume, pitch);
 }
 
-void stop_audio_clip(AudioState * audio_state, AudioSource * source) {
-	if(source) {
+void stop_audio_clip(AudioState * audio_state, AudioSource ** source_ref) {
+	ASSERT(source_ref);
+
+	if(*source_ref) {
 		b32 deleted = false;
 
 		//TODO: Remove audio source without iterating over entire list??
@@ -72,7 +74,7 @@ void stop_audio_clip(AudioState * audio_state, AudioSource * source) {
 		while(*source_ptr) {
 			AudioSource * source_it = *source_ptr;
 
-			if(source_it == source) {
+			if(source_it == *source_ref) {
 				*source_ptr = source_it->next;
 				source_it->next = audio_state->source_free_list;
 				audio_state->source_free_list = source_it;
@@ -85,6 +87,7 @@ void stop_audio_clip(AudioState * audio_state, AudioSource * source) {
 			}
 		}
 
+		*source_ref = 0;
 		ASSERT(deleted);
 	}
 }
@@ -110,7 +113,11 @@ void change_pitch(AudioSource * source, f32 pitch) {
 	}
 }
 
-void fade_out_audio_clip(AudioSource * source, f32 time_) {
+void fade_out_audio_clip(AudioSource ** source_ref, f32 time_) {
+	ASSERT(source_ref);
+
+	AudioSource * source = *source_ref;
+	*source_ref = 0;
 	if(source) {
 		change_volume(source, math::vec2(0.0f), time_);
 		source->flags |= AudioSourceFlags_free_on_volume_end;

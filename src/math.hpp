@@ -791,6 +791,10 @@ namespace math {
 		return rec2_pos_dim(r.min + (r.max - r.min) * 0.5f, (r.max - r.min) * x);
 	}
 
+	inline Rec2 rec_scale(Rec2 const & r, math::Vec2 x) {
+		return rec2_pos_dim(r.min + (r.max - r.min) * 0.5f, (r.max - r.min) * x);
+	}
+
 	inline Vec2 rec_pos(Rec2 const & r) {
 		return r.min + (r.max - r.min) * 0.5f;
 	}

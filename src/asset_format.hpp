@@ -24,7 +24,10 @@ enum TileId {
 	TileId_good,
 	TileId_bad,
 	TileId_time,
-	TileId_coin,
+	TileId_point,
+	TileId_clone,
+	TileId_collectable,
+	TileId_special,
 
 	TileId_count,
 	TileId_null = TileId_count,
@@ -57,6 +60,10 @@ static TileIdColorRGB8 tile_id_color_table[] = {
 	{ TileId_good, color_rgb8(0, 0, 255) },
 	{ TileId_bad, color_rgb8(255, 0, 0) },
 	{ TileId_time, color_rgb8(0, 255, 0) },
+	{ TileId_point, color_rgb8(255, 0, 255) },
+	{ TileId_clone, color_rgb8(255, 255, 255) },
+	{ TileId_collectable, color_rgb8(255, 255, 0) },
+	{ TileId_special, color_rgb8(0, 255, 255) },
 };
 
 #pragma pack(push, 1)
@@ -93,6 +100,8 @@ enum AssetId {
 
 	//NOTE: Sprites
 	AssetId_dolly,
+	AssetId_dolly_fall,
+
 	AssetId_rocket,
 	AssetId_large_rocket,
 	AssetId_boots,
@@ -101,6 +110,7 @@ enum AssetId {
 
 	AssetId_glitched_telly,
 
+	//TODO: Should this be one_before_first??
 	AssetId_first_collectable,
 	AssetId_collectable_blob = AssetId_first_collectable,
 	AssetId_collectable_clock,
@@ -146,8 +156,10 @@ enum AssetId {
 	AssetId_explosion,
 	AssetId_baa,
 	AssetId_tick_tock,
+	AssetId_rocket_sfx,
 	AssetId_game_music,
 	AssetId_death_music,
+	AssetId_space_music,
 
 	//NOTE: Tile maps
 	AssetId_tile_map,

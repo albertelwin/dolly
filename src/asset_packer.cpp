@@ -500,6 +500,7 @@ int main() {
 
 	push_sprite_sheet(&packer, "telly_sheet.png", AssetId_collectable_telly, 192, 192, 39);
 	push_sprite_sheet(&packer, "dolly_run.png", AssetId_dolly, 97, 80, 15);
+	push_sprite_sheet(&packer, "dolly_fall.png", AssetId_dolly_fall, 64, 64, 4);
 
 	Texture reg_tex_array[] = {
 		load_texture("white.png", AssetId_white),
@@ -555,15 +556,17 @@ int main() {
 
 		load_audio_clip("tick_tock.wav", AssetId_tick_tock),
 
+		load_audio_clip("rocket_sfx.wav", AssetId_rocket_sfx),
+
 		load_audio_clip("game_music.wav", AssetId_game_music),
 		// load_audio_clip("death_music.wav", AssetId_death_music),
+		load_audio_clip("space_music.wav", AssetId_space_music),
 	};
 
 	packer.header.asset_count += ARRAY_COUNT(clips);
 
 	TileMapAsset tile_maps[] = {
 		load_tile_map("tile_map0.png", AssetId_tile_map),
-		// load_tile_map("tile_map1.png", AssetId_tile_map),
 	};
 
 	packer.header.asset_count += ARRAY_COUNT(tile_maps);

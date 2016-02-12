@@ -30,7 +30,7 @@ struct UiElement {
 
 struct Entity {
 	math::Vec3 pos;
-	f32 scale;
+	math::Vec2 scale;
 	math::Vec4 color;
 	b32 scrollable;
 
@@ -62,8 +62,8 @@ struct Player {
 	Entity * sheild;
 
 	b32 dead;
-	b32 invincible;
 	b32 allow_input;
+	f32 invincibility_time;
 
 	Entity * clones[50];
 	math::Vec2 clone_offset;
@@ -82,10 +82,8 @@ struct EntityEmitter {
 };
 
 enum LocationId {
-	LocationId_city,
-	LocationId_mountains,
-	LocationId_ocean,
-	LocationId_space,
+	LocationId_lower,
+	LocationId_upper,
 
 	LocationId_count,
 	LocationId_null = LocationId_count,

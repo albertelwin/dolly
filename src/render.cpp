@@ -476,7 +476,7 @@ void push_colored_quad(RenderGroup * render_group, math::Vec3 pos, math::Vec2 di
 	push_render_elem(render_group, get_asset(render_group->assets, AssetId_white, 0), pos, dim, color);
 }
 
-void push_textured_quad(RenderGroup * render_group, AssetId asset_id, u32 asset_index, math::Vec3 pos = math::vec3(0.0f), f32 scale = 1.0f, math::Vec4 color = math::vec4(1.0f), b32 scrollable = false) {
+void push_textured_quad(RenderGroup * render_group, AssetId asset_id, u32 asset_index, math::Vec3 pos = math::vec3(0.0f), math::Vec2 scale = math::vec2(1.0f), math::Vec4 color = math::vec4(1.0f), b32 scrollable = false) {
 	ASSERT(render_group);
 
 	Asset * asset = get_asset(render_group->assets, asset_id, asset_index);
