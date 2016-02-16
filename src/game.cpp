@@ -446,13 +446,11 @@ void init_menu_meta_state(MetaState * meta_state) {
 	RenderState * render_state = meta_state->render_state;
 	menu_state->render_group = allocate_render_group(render_state, &meta_state->arena, render_state->screen_width, render_state->screen_height);
 
-	push_button(menu_state->pages + MenuPageId_main, MenuButtonId_play, AssetId_menu_btn_play);
-	push_button(menu_state->pages + MenuPageId_main, MenuButtonId_score, AssetId_menu_btn_score);
-	push_button(menu_state->pages + MenuPageId_main, MenuButtonId_credits, AssetId_menu_btn_credits);
+	push_button(menu_state->pages + MenuPageId_main, MenuButtonId_play, AssetId_btn_play);
+	push_button(menu_state->pages + MenuPageId_main, MenuButtonId_about, AssetId_btn_about);
 
-	push_button(menu_state->pages + MenuPageId_hiscore, MenuButtonId_back, AssetId_menu_btn_back);
-
-	push_button(menu_state->pages + MenuPageId_credits, MenuButtonId_back, AssetId_menu_btn_back);
+	push_button(menu_state->pages + MenuPageId_about, MenuButtonId_back, AssetId_btn_back);
+	push_button(menu_state->pages + MenuPageId_about, MenuButtonId_next, AssetId_btn_next);
 }
 
 void init_intro_meta_state(MetaState * meta_state) {
@@ -492,6 +490,7 @@ void init_main_meta_state(MetaState * meta_state) {
 	main_state->render_group = allocate_render_group(meta_state->render_state, &meta_state->arena, screen_width, screen_height, 512);
 	main_state->ui_render_group = allocate_render_group(meta_state->render_state, &meta_state->arena, screen_width, screen_height);
 	main_state->letterboxed_height = (f32)screen_height;
+	main_state->fixed_letterboxing = 80.0f;
 	main_state->font = allocate_font(meta_state->render_state, 65536, screen_width, screen_height);
 
 	EntityArray * entities = &main_state->entities;
@@ -600,20 +599,18 @@ void init_main_meta_state(MetaState * meta_state) {
 		location->layers[layer_index] = entity;
 	}
 
-	main_state->score_buttons[ScoreButtonId_menu].asset_id = AssetId_score_btn_menu;
-	main_state->score_buttons[ScoreButtonId_replay].asset_id = AssetId_score_btn_replay;
+	main_state->score_buttons[ScoreButtonId_back].asset_id = AssetId_btn_back;
+	main_state->score_buttons[ScoreButtonId_replay].asset_id = AssetId_btn_replay;
 	for(u32 i = 0; i < ARRAY_COUNT(main_state->score_buttons); i++) {
 		ASSERT(main_state->score_buttons[i].asset_id);
 	}
-	main_state->score_str = allocate_str(&meta_state->arena, 256);
 	main_state->score_values[ScoreValueId_time_played].is_f32 = true;
 	main_state->score_values[ScoreValueId_points].is_f32 = false;
 
 	main_state->arrow_up.asset_id = AssetId_arrow_up;
 	main_state->arrow_down.asset_id = AssetId_arrow_down;
 
-	// main_state->start_time = 30.0f;
-	main_state->start_time = 1200.0f;
+	main_state->start_time = 30.0f;
 
 	main_state->boost_speed = 2.5f;
 	main_state->boost_accel = 40.0f;
@@ -635,7 +632,9 @@ void init_main_meta_state(MetaState * meta_state) {
 	main_state->max_time = main_state->start_time;
 	main_state->countdown_time = 10.0f;
 	main_state->time_remaining = main_state->start_time;
-	main_state->clock_scale = 1.0f;
+
+	main_state->clock_text_scale = 1.0f;
+	main_state->clone_text_scale = 1.0f;
 }
 
 void init_game_over_meta_state(MetaState * meta_state) {
@@ -697,8 +696,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		load_assets(&game_state->assets, &game_state->memory_arena);
 		load_audio(&game_state->audio_state, &game_state->memory_arena, &game_state->assets, game_input->audio_supported);
 		load_render(&game_state->render_state, &game_state->memory_arena, &game_state->assets, game_input->back_buffer_width, game_input->back_buffer_height);
-
-		// game_state->audio_state.master_volume = 0.0f;
 
 		game_state->meta_state = MetaStateType_null;
 		for(u32 i = 0; i < ARRAY_COUNT(game_state->meta_states); i++) {
@@ -790,31 +787,32 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				UiElement * hot_elem = pick_ui_elem(meta_state->render_state, menu_state->render_group, current_page->buttons, current_page->button_count, game_input->mouse_pos);
 
 				if(hot_elem) {
-					hot_elem->asset_index = 1;
+					if(game_input->mouse_button & KEY_DOWN) {
+						hot_elem->asset_index = 1;
+					}
 
 					u32 hot_id = hot_elem->id;
 					switch(menu_state->current_page) {
 						case MenuPageId_main: {
-							if(game_input->mouse_button & KEY_PRESSED) {
+							if(game_input->mouse_button & KEY_RELEASED) {
 								if(hot_id == MenuButtonId_play) {
 									menu_state->transition_id = begin_transition(game_state);
 								}
-								else if(hot_id == MenuButtonId_score) {
-									change_page(menu_state, MenuPageId_hiscore);
-								}
-								else if(hot_id == MenuButtonId_credits) {
-									change_page(menu_state, MenuPageId_credits);
+								else if(hot_id == MenuButtonId_about) {
+									change_page(menu_state, MenuPageId_about);
 								}
 							}
 
 							break;
 						}
 
-						case MenuPageId_hiscore:
-						case MenuPageId_credits: {
-							if(game_input->mouse_button & KEY_PRESSED) {
+						case MenuPageId_about: {
+							if(game_input->mouse_button & KEY_RELEASED) {
 								if(hot_id == MenuButtonId_back) {
 									change_page(menu_state, MenuPageId_main);
+								}
+								else if(hot_id == MenuButtonId_next) {
+									//TODO: Implement this!!
 								}
 							}
 
@@ -926,7 +924,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				change_location(main_state, LocationId_lower);
 			}
 
-			main_state->clock_scale = math::lerp(main_state->clock_scale, 1.0f, game_input->delta_time * 12.0f);
+			main_state->clone_text_scale = math::lerp(main_state->clone_text_scale, 1.0f, game_input->delta_time * 12.0f);
+			main_state->clock_text_scale = math::lerp(main_state->clock_text_scale, 1.0f, game_input->delta_time * 12.0f);
 
 			if(!player->dead) {
 				f32 dt = game_input->delta_time;
@@ -977,9 +976,9 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 			f32 player_d_pos = player->e->speed.x * math::clamp(main_state->d_speed + 1.0f, main_state->slow_down_speed, main_state->boost_speed) * game_input->delta_time;
 
-			//TODO: There should always be at least 80px of letterboxing!!
-			main_state->letterboxed_height = render_state->screen_height - math::max(main_state->d_speed, 0.0f) * main_state->boost_accel;
-			main_state->letterboxed_height = math::max(main_state->letterboxed_height, render_state->screen_height * 0.667f);
+			f32 letterboxing = math::max(main_state->d_speed, 0.0f) * main_state->boost_accel;
+			letterboxing = math::min(letterboxing, render_state->screen_height * 0.25f);
+			main_state->letterboxed_height = (f32)render_state->screen_height - (main_state->fixed_letterboxing * 2.0f + letterboxing);
 
 			player->active_clone_count = 0;
 			for(i32 i = ARRAY_COUNT(player->clones) - 1; i >= 0; i--) {
@@ -996,8 +995,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 				if(!entity->hidden) {
 					if(entity->hit) {
-						// entity->color.a = (u32)(entity->hit_time * 30.0f) & 1;
-
 						math::Vec2 dd_pos = main_state->entity_gravity;
 						entity->d_pos += dd_pos * game_input->delta_time;
 						// entity->d_pos *= (1.0f - entity->damp);
@@ -1166,6 +1163,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					switch(entity->asset_id) {
 						case AssetId_clone: {
 							push_player_clone(player);
+							main_state->clone_text_scale = 1.25f;
 							main_state->score_values[ScoreValueId_points].u32_++;
 							clip_id = AssetId_baa;
 
@@ -1193,7 +1191,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 							main_state->time_remaining = math::min(main_state->time_remaining, main_state->max_time);
 							stop_audio_clip(meta_state->audio_state, &main_state->tick_tock);
 
-							main_state->clock_scale = 1.25f;
+							main_state->clock_text_scale = 1.25f;
 
 							break;
 						}
@@ -1343,10 +1341,12 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			if(main_state->show_score_overlay) {
 				UiElement * hot_elem = pick_ui_elem(render_state, main_state->ui_render_group, main_state->score_buttons, ARRAY_COUNT(main_state->score_buttons), game_input->mouse_pos);
 				if(hot_elem) {
-					hot_elem->asset_index = 1;
+					if(game_input->mouse_button & KEY_DOWN) {
+						hot_elem->asset_index = 1;
+					}
 
-					if(game_input->mouse_button & KEY_PRESSED) {
-						if(hot_elem == &main_state->score_buttons[ScoreButtonId_menu]) {
+					if(game_input->mouse_button & KEY_RELEASED) {
+						if(hot_elem == &main_state->score_buttons[ScoreButtonId_back]) {
 							main_state->quit_transition_id = begin_transition(game_state);
 						}
 						else if(hot_elem == &main_state->score_buttons[ScoreButtonId_replay]) {
@@ -1366,11 +1366,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 						main_state->score_value_index++;
 					}
 				}
-
-				str_clear(main_state->score_str);
-				str_print(main_state->score_str, "SCORE\n\n");
-				str_print(main_state->score_str, "TIME PLAYED: %.2f\n", main_state->score_values[ScoreValueId_time_played].display);
-				str_print(main_state->score_str, "POINTS: %u\n", (u32)main_state->score_values[ScoreValueId_points].display);
 			}
 
 			game_state->save.high_score = math::max(game_state->save.high_score, main_state->score_values[ScoreValueId_points].u32_);
@@ -1550,8 +1545,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			}
 
 			if(main_state->show_score_overlay) {
-				push_colored_quad(ui_render_group, math::vec3(0.0f), projection_dim, math::vec4(0.0f, 0.0f, 0.0f, 0.5f));
-				push_textured_quad(ui_render_group, AssetId_score_background, 0);
+				push_colored_quad(ui_render_group, math::vec3(0.0f), projection_dim, math::vec4(0.0f, 0.0f, 0.0f, 0.8f));
 
 				for(u32 i = 0; i < ARRAY_COUNT(main_state->score_buttons); i++) {
 					UiElement * elem = main_state->score_buttons + i;
@@ -1567,33 +1561,46 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			}
 
 			// push_textured_quad(ui_render_group, AssetId_atlas, 1, math::vec3(0.0f), math::vec2(0.25f));
-			push_textured_quad(ui_render_group, AssetId_atlas, 0);
+			// push_textured_quad(ui_render_group, AssetId_atlas, 0);
 
 			render_and_clear_render_group(meta_state->render_state, ui_render_group);
 
-			f32 font_scale = 8.0f;
-
 #if 1
-			{
-				char time_str_buf[256];
-				Str time_str = str_fixed_size(time_str_buf, ARRAY_COUNT(time_str_buf));
-				str_print(&time_str, "TIME REMAINING: %.2f", main_state->time_remaining);
+			//TODO: Need a convenient way to make temp strs!!
+			char temp_buf[256];
+			Str temp_str = str_fixed_size(temp_buf, ARRAY_COUNT(temp_buf));
 
-				f32 scale = font_scale * main_state->clock_scale;
-				f32 render_width = get_str_render_width(main_state->font, scale, &time_str);
-				FontLayout font_layout = create_font_layout(main_state->font, projection_dim, scale, FontLayoutAnchor_top_centre, math::vec2(-render_width * 0.5f, 0.0f));
-				push_str_to_batch(main_state->font, &font_layout, &time_str);
+			{
+				{
+					str_clear(&temp_str);
+					str_print(&temp_str, "CLONES: %u", main_state->player.active_clone_count);
+
+					FontLayout font_layout = create_font_layout(main_state->font, projection_dim, main_state->clone_text_scale, FontLayoutAnchor_top_left);
+					push_str_to_batch(main_state->font, &font_layout, &temp_str);
+				}
+
+				{
+					str_clear(&temp_str);
+					str_print(&temp_str, "TIME: %.2f", main_state->time_remaining);
+
+					FontLayout font_layout = create_font_layout(main_state->font, projection_dim, main_state->clock_text_scale, FontLayoutAnchor_top_right);
+					push_str_to_batch(main_state->font, &font_layout, &temp_str);
+				}
 			}
 
 			{
-				FontLayout font_layout = create_font_layout(main_state->font, projection_dim, font_scale, FontLayoutAnchor_bottom_left);
+				FontLayout font_layout = create_font_layout(main_state->font, projection_dim, 1.0f, FontLayoutAnchor_bottom_left);
 				push_c_str_to_batch(main_state->font, &font_layout, main_state->locations[main_state->current_location].name);
 			}
 
-			{
-				math::Vec2 font_layout_dim = math::rec_dim(get_asset_bounds(meta_state->assets, AssetId_score_background, 0));
-				FontLayout font_layout = create_font_layout(main_state->font, font_layout_dim, font_scale, FontLayoutAnchor_top_left, math::vec2(24.0f, -24.0f));
-				push_str_to_batch(main_state->font, &font_layout, main_state->score_str);
+			if(main_state->show_score_overlay) {
+				str_clear(&temp_str);
+				str_print(&temp_str, "SCORE\n\n");
+				str_print(&temp_str, "TIME PLAYED: %.2f\n", main_state->score_values[ScoreValueId_time_played].display);
+				str_print(&temp_str, "POINTS: %u\n", (u32)main_state->score_values[ScoreValueId_points].display);
+
+				FontLayout font_layout = create_font_layout(main_state->font, projection_dim, 1.0f, FontLayoutAnchor_top_centre, math::vec2(0.0f, -(main_state->fixed_letterboxing + 40.0f)));
+				push_str_to_batch(main_state->font, &font_layout, &temp_str);
 			}
 #endif
 
@@ -1616,7 +1623,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	}
 
 	Font * debug_font = render_state->debug_font;
-	FontLayout debug_font_layout = create_font_layout(debug_font, math::vec2(render_state->back_buffer_width, render_state->back_buffer_height), 4.0f, FontLayoutAnchor_top_left);
+	FontLayout debug_font_layout = create_font_layout(debug_font, math::vec2(render_state->back_buffer_width, render_state->back_buffer_height), 1.0f, FontLayoutAnchor_top_left);
 	push_str_to_batch(debug_font, &debug_font_layout, game_state->str);
 #if 0
 	{

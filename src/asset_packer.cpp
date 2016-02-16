@@ -552,21 +552,16 @@ int main() {
 	push_packed_texture(&packer, sprite_files, ARRAY_COUNT(sprite_files));
 
 	AssetFile ui_sprite_files[] = {
-		{ AssetId_score_background, "score_background.png" },
-
-		{ AssetId_menu_btn_credits, "menu_btn_credits0.png" },
-		{ AssetId_menu_btn_credits, "menu_btn_credits1.png" },
-		{ AssetId_menu_btn_play, "menu_btn_play0.png" },
-		{ AssetId_menu_btn_play, "menu_btn_play1.png" },
-		{ AssetId_menu_btn_score, "menu_btn_score0.png" },
-		{ AssetId_menu_btn_score, "menu_btn_score1.png" },
-		{ AssetId_menu_btn_back, "menu_btn_back0.png" },
-		{ AssetId_menu_btn_back, "menu_btn_back1.png" },
-
-		{ AssetId_score_btn_menu, "score_btn_menu0.png" },
-		{ AssetId_score_btn_menu, "score_btn_menu1.png" },
-		{ AssetId_score_btn_replay, "score_btn_replay0.png" },
-		{ AssetId_score_btn_replay, "score_btn_replay1.png" },
+		{ AssetId_btn_play, "btn_play0.png" },
+		{ AssetId_btn_play, "btn_play1.png" },
+		{ AssetId_btn_about, "btn_about0.png" },
+		{ AssetId_btn_about, "btn_about1.png" },
+		{ AssetId_btn_back, "btn_back0.png" },
+		{ AssetId_btn_back, "btn_back1.png" },
+		{ AssetId_btn_next, "btn_next0.png" },
+		{ AssetId_btn_next, "btn_next1.png" },
+		{ AssetId_btn_replay, "btn_replay0.png" },
+		{ AssetId_btn_replay, "btn_replay1.png" },
 
 		{ AssetId_arrow_up, "arrow_up.png" },
 		{ AssetId_arrow_down, "arrow_down.png" },
@@ -587,11 +582,10 @@ int main() {
 	Texture reg_tex_array[] = {
 		load_texture("white.png", AssetId_white),
 
-		load_texture("font.png", AssetId_font, TextureSampling_point),
+		load_texture("font_384.png", AssetId_font),
 
 		load_texture("menu_background.png", AssetId_menu_background),
 		load_texture("menu_credits_temp.png", AssetId_menu_background),
-		load_texture("menu_hiscore_temp.png", AssetId_menu_background),
 
 		//TODO: Should these be merged together??
 		// load_texture("background0.png", AssetId_background),

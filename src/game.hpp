@@ -48,7 +48,7 @@ struct Entity {
 
 struct EntityArray {
 	u32 count;
-	Entity elems[512];
+	Entity elems[2048];
 };
 
 struct Player {
@@ -59,7 +59,7 @@ struct Player {
 	b32 allow_input;
 	f32 invincibility_time;
 
-	Entity * clones[50];
+	Entity * clones[256];
 	math::Vec2 clone_offset;
 	u32 active_clone_count;
 };
@@ -122,17 +122,16 @@ struct ScoreValue {
 
 enum MenuButtonId {
 	MenuButtonId_play,
-	MenuButtonId_score,
-	MenuButtonId_credits,
+	MenuButtonId_about,
 	MenuButtonId_back,
+	MenuButtonId_next,
 
 	MenuButtonId_count,
 };
 
 enum MenuPageId {
 	MenuPageId_main,
-	MenuPageId_hiscore,
-	MenuPageId_credits,
+	MenuPageId_about,
 
 	MenuPageId_count,
 };
@@ -143,7 +142,7 @@ struct MenuPage {
 };
 
 enum ScoreButtonId {
-	ScoreButtonId_menu,
+	ScoreButtonId_back,
 	ScoreButtonId_replay,
 
 	ScoreButtonId_count,
@@ -227,6 +226,7 @@ struct MainMetaState {
 	RenderGroup * render_group;
 	RenderGroup * ui_render_group;
 	f32 letterboxed_height;
+	f32 fixed_letterboxing;
 	Font * font;
 
 	EntityArray entities;
@@ -265,11 +265,12 @@ struct MainMetaState {
 	f32 start_time;
 	f32 max_time;
 	f32 countdown_time;
-	f32 clock_scale;
+
+	f32 clock_text_scale;
+	f32 clone_text_scale;
 
 	b32 show_score_overlay;
 	UiElement score_buttons[ScoreButtonId_count];
-	Str * score_str;
 	u32 score_value_index;
 	ScoreValue score_values[ScoreValueId_count];
 

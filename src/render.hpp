@@ -83,13 +83,18 @@ struct Font {
 enum FontLayoutAnchor {
 	FontLayoutAnchor_top_left,
 	FontLayoutAnchor_top_centre,
+	FontLayoutAnchor_top_right,
+
 	FontLayoutAnchor_bottom_left,
 };
 
 struct FontLayout {
-	f32 scale;
-	math::Vec2 anchor;
+	math::Vec2 align;
 	math::Vec2 pos;
+	FontLayoutAnchor anchor;
+
+	//TODO: Remove this from layout??
+	f32 scale;
 };
 
 struct RenderState {

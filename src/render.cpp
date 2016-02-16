@@ -53,35 +53,49 @@ Font * allocate_font(RenderState * render_state, u32 v_len, u32 projection_width
 
 	font->batch = allocate_render_batch(render_state->arena, get_texture_asset(render_state->assets, AssetId_font, 0), v_len);
 
+#if 0
 	font->glyph_width = 3;
 	font->glyph_height = 5;
 	font->glyph_spacing = 1;
+#else
+	font->glyph_width = 18;
+	font->glyph_height = 30;
+	font->glyph_spacing = 6;
+#endif
 
 	return font;
 }
 
 FontLayout create_font_layout(Font * font, math::Vec2 dim, f32 scale, FontLayoutAnchor anchor, math::Vec2 offset = math::vec2(0.0f)) {
 	FontLayout layout = {};
+	layout.anchor = anchor;
 	layout.scale = scale;
 
 	switch(anchor) {
 		case FontLayoutAnchor_top_left: {
-			layout.anchor.x = -dim.x * 0.5f + font->glyph_spacing * scale;
-			layout.anchor.y = dim.y * 0.5f - (font->glyph_height + font->glyph_spacing) * scale;
+			layout.align.x = -dim.x * 0.5f + font->glyph_spacing * scale;
+			layout.align.y = dim.y * 0.5f - (font->glyph_height + font->glyph_spacing) * scale;
 
 			break;
 		}
 
 		case FontLayoutAnchor_top_centre: {
-			layout.anchor.x = 0.0f;
-			layout.anchor.y = dim.y * 0.5f - (font->glyph_height + font->glyph_spacing) * scale;
+			layout.align.x = 0.0f;
+			layout.align.y = dim.y * 0.5f - (font->glyph_height + font->glyph_spacing) * scale;
+
+			break;
+		}
+
+		case FontLayoutAnchor_top_right: {
+			layout.align.x = dim.x * 0.5f - font->glyph_spacing * scale;
+			layout.align.y = dim.y * 0.5f - (font->glyph_height + font->glyph_spacing) * scale;
 
 			break;
 		}
 
 		case FontLayoutAnchor_bottom_left: {
-			layout.anchor.x = -dim.x * 0.5f + font->glyph_spacing * scale;
-			layout.anchor.y = -dim.y * 0.5f + font->glyph_spacing * scale;
+			layout.align.x = -dim.x * 0.5f + font->glyph_spacing * scale;
+			layout.align.y = -dim.y * 0.5f + font->glyph_spacing * scale;
 
 			break;
 		}
@@ -89,8 +103,8 @@ FontLayout create_font_layout(Font * font, math::Vec2 dim, f32 scale, FontLayout
 		INVALID_CASE();
 	}
 
-	layout.anchor += offset;
-	layout.pos = layout.anchor;
+	layout.align += offset;
+	layout.pos = layout.align;
 	return layout;
 }
 
@@ -161,6 +175,26 @@ void push_sprite_to_batch(RenderBatch * batch, Texture * sprite, math::Vec2 pos,
 	push_quad_to_batch(batch, pos0, pos1, uv0, uv1, color);
 }
 
+f32 get_str_width_up_new_line(Font * font, f32 scale, char * str, u32 len) {
+	f32 width = 0.0f;
+
+	for(u32 i = 0; i < len; i++) {
+		char char_ = str[i];
+		if(char_ != '\n') {
+			width += (font->glyph_width + font->glyph_spacing) * scale;
+		}
+		else {
+			break;
+		}
+	}
+
+	if(width) {
+		width -= font->glyph_spacing * scale;
+	}
+
+	return width;
+}
+
 void push_str_to_batch(Font * font, FontLayout * layout, Str * str, math::Vec4 color = math::vec4(1.0f)) {
 	DEBUG_TIME_BLOCK();
 
@@ -177,17 +211,35 @@ void push_str_to_batch(Font * font, FontLayout * layout, Str * str, math::Vec4 c
 	u32 glyph_first_char = 24;
 	u32 glyphs_per_row = 12;
 
+	math::Vec2 offset = math::vec2(0.0f);
+	b32 new_line = true;
+
 	for(u32 i = 0; i < str->len; i++) {
 		char char_ = str->ptr[i];
+
+		if(new_line) {
+			if(layout->anchor == FontLayoutAnchor_top_centre) {
+				offset.x = -get_str_width_up_new_line(font, layout->scale, str->ptr + i, str->len - i) * 0.5f;
+			}
+			else if(layout->anchor == FontLayoutAnchor_top_right) {
+				offset.x = -get_str_width_up_new_line(font, layout->scale, str->ptr + i, str->len - i);
+			}
+
+			new_line = false;
+		}
+
 		if(char_ == '\n') {
-			layout->pos.x = layout->anchor.x;
+			layout->pos.x = layout->align.x;
 			layout->pos.y -= (glyph_height + glyph_spacing);
+
+			new_line = true;
 		}
 		else {
-			math::Vec2 pos0 = layout->pos;
+			math::Vec2 pos0 = layout->pos + offset;
 			math::Vec2 pos1 = math::vec2(pos0.x + glyph_width, pos0.y + glyph_height);
 
 			layout->pos.x += (glyph_width + glyph_spacing);
+
 			if(char_ != ' ') {
 				u32 u = ((char_ - glyph_first_char) % glyphs_per_row) * (font->glyph_width + font->glyph_spacing * 2) + font->glyph_spacing;
 				u32 v = ((char_ - glyph_first_char) / glyphs_per_row) * (font->glyph_height + font->glyph_spacing * 2) + font->glyph_spacing;
@@ -204,24 +256,6 @@ void push_str_to_batch(Font * font, FontLayout * layout, Str * str, math::Vec4 c
 void push_c_str_to_batch(Font * font, FontLayout * layout, char const * c_str) {
 	Str str = str_from_c_str(c_str);
 	push_str_to_batch(font, layout, &str);
-}
-
-f32 get_str_render_width(Font * font, f32 scale, Str * str) {
-	f32 width = 0.0f;
-
-	for(u32 i = 0; i < str->len; i++) {
-		char char_ = str->ptr[i];
-		//TODO: Support multi-line strings??
-		ASSERT(char_ != '\n');
-
-		width += (font->glyph_width + font->glyph_spacing) * scale;
-	}
-
-	if(width) {
-		width -= font->glyph_spacing * scale;
-	}
-
-	return width;
 }
 
 void render_v_buf(gl::VertexBuffer * v_buf, RenderMode render_mode, Shader * shader, math::Mat4 * transform, Texture * tex0, math::Vec4 color = math::vec4(1.0f)) {

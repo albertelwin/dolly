@@ -142,15 +142,11 @@ enum AssetId {
 
 	AssetId_explosion,
 
-	AssetId_score_background,
-
-	AssetId_menu_btn_credits,
-	AssetId_menu_btn_play,
-	AssetId_menu_btn_score,
-	AssetId_menu_btn_back,
-
-	AssetId_score_btn_menu,
-	AssetId_score_btn_replay,
+	AssetId_btn_play,
+	AssetId_btn_about,
+	AssetId_btn_back,
+	AssetId_btn_next,
+	AssetId_btn_replay,
 
 	AssetId_arrow_up,
 	AssetId_arrow_down,

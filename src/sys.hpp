@@ -17,30 +17,31 @@
 #define TOKEN_STRINGIFY(x) __TOKEN_STRINGIFY(x)
 
 #if DEBUG_ENABLED
-#define __ASSERT(x) __assert_func(x, "" #x " : " __FILE__ " : " TOKEN_STRINGIFY(__LINE__))
-inline void __assert_func(bool expression, char const * message) {
-	if(!expression) {
-#ifdef WIN32
-		MessageBoxA(0, message, "ASSERT", MB_OK | MB_ICONERROR);
+
+#if defined(WIN32)
+#define __PRINT_ASSERT(x) MessageBoxA(0, x, "ASSERT", MB_OK | MB_ICONERROR); std::printf("ASSERT: %s\n", x)
+#define __FORCE_EXIT() std::exit(EXIT_FAILURE)
+#elif defined(__EMSCRIPTEN__)
+#define __PRINT_ASSERT(x) std::printf("ASSERT: %s\n", x)
+#define __FORCE_EXIT() emscripten_force_exit(EXIT_FAILURE)
 #endif
 
-		std::fprintf(stderr, "ASSERT: %s\n", message);
-
-#ifdef __EMSCRIPTEN__
-		emscripten_force_exit(EXIT_FAILURE);
-#else
-		std::exit(EXIT_FAILURE);
-#endif
-		// *((int *)(0)) = 0;
+#define __ASSERT(x) \
+	if(!(x)) { \
+		__PRINT_ASSERT("" #x " : " __FILE__ " : " TOKEN_STRINGIFY(__LINE__)); \
+		__FORCE_EXIT(); \
+		/* *((int *)(0)) = 0; */ \
 	}
-}
 
 #define ASSERT(x) __ASSERT(x)
-#else
-#define ASSERT(...)
-#endif
-
 #define INVALID_CASE() default: { ASSERT(!"Invalid case"); break; }
+
+#else
+
+#define ASSERT(...)
+#define INVALID_CASE(...)
+
+#endif
 
 #define ARRAY_COUNT(x) (sizeof((x)) / sizeof((x)[0]))
 
