@@ -5,6 +5,9 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#define STB_TRUETYPE_IMPLEMENTATION
+#include <stb_truetype.h>
+
 #include <sys.hpp>
 
 #include <asset_format.hpp>
@@ -101,7 +104,7 @@ u8 * load_image_from_file(char const * file_name, i32 * width, i32 * height, i32
 
 	u8 * img_data = stbi_load(file_name, width, height, channels, 0);
 	if(!img_data) {
-		std::printf("LOG: Could not find %s!!\n", file_name);
+		std::printf("ERROR: Could not find %s!!\n", file_name);
 		ASSERT(!"Texture not found!");
 	}
 
@@ -112,7 +115,7 @@ TileMapAsset load_tile_map(char const * file_name, AssetId asset_id) {
 	i32 width, height, channels;
 	u8 * img_data = load_image_from_file(file_name, &width, &height, &channels);
 	ASSERT(channels == 3 || channels == 4);
-	ASSERT(height = TILE_MAP_HEIGHT);
+	ASSERT(height == TILE_MAP_HEIGHT);
 
 	TileMapAsset map_asset = {};
 	map_asset.id = asset_id;
@@ -149,7 +152,7 @@ Texture load_texture(char const * file_name, AssetId id, TextureSampling samplin
 	Texture tex = {};
 	tex.id = id;
 	tex.width = (u32)width;
-	tex.height = (u32)height;	
+	tex.height = (u32)height;
 	tex.sampling = sampling;
 
 	if(channels == 4) {
@@ -310,6 +313,10 @@ AudioClip load_audio_clip(char const * file_name, AssetId id) {
 	clip.id = id;
 
 	MemoryPtr file_buffer = read_file_to_memory(file_name);
+	// if(!file_buffer.ptr) {
+	// 	std::printf("ERROR: Could not find %s!!\n", file_name);
+	// 	ASSERT(!"Audio clip not found!");
+	// }
 
 	WavHeader * wav_header = (WavHeader *)file_buffer.ptr;
 	ASSERT(wav_header->riff_id == RiffCode_RIFF);
@@ -368,9 +375,7 @@ void push_packed_texture(AssetPacker * packer, AssetFile * files, u32 file_count
 		math::Vec2 tex_dim = math::vec2(tex.width, tex.height);
 
 		Blit blit = blit_texture(&atlas->tex, &tex);
-		math::Vec2 blit_dim = math::vec2(blit.width, blit.height);
-
-		math::Rec2 sub_rec = math::rec2_min_dim(math::vec2(blit.min_x, blit.min_y), blit_dim);
+		math::Rec2 blit_rec = math::rec2_min_dim(math::vec2(blit.min_x, blit.min_y), math::vec2(blit.width, blit.height));
 
 		ASSERT(atlas->sprite_count < ARRAY_COUNT(atlas->sprites));
 		AssetInfo * info = atlas->sprites + atlas->sprite_count++;
@@ -381,7 +386,7 @@ void push_packed_texture(AssetPacker * packer, AssetFile * files, u32 file_count
 		sprite->atlas_index = atlas_index;
 		sprite->width = blit.width;
 		sprite->height = blit.height;
-		sprite->offset = math::rec_pos(sub_rec) - tex_dim * 0.5f;
+		sprite->offset = math::rec_pos(blit_rec) - tex_dim * 0.5f;
 		sprite->tex_coords[0] = math::vec2(blit.u, blit.v) * r_tex_size;
 		sprite->tex_coords[1] = math::vec2(blit.u + blit.width, blit.v + blit.height) * r_tex_size;
 	}
@@ -432,18 +437,90 @@ void push_sprite_sheet(AssetPacker * packer, char const * file_name, AssetId spr
 	packer->header.asset_count += atlas->sprite_count;
 }
 
+void load_font(AssetPacker * packer) {
+	ASSERT(packer->atlas_count < ARRAY_COUNT(packer->atlases));
+
+	u32 atlas_index = packer->atlas_count++;
+	TextureAtlas * atlas = packer->atlases + atlas_index;
+	atlas->tex = allocate_texture(640, 640, AssetId_atlas);
+
+	f32 r_tex_size = 1.0f / (f32)atlas->tex.width;
+
+	stbtt_fontinfo font_info;
+	MemoryPtr ttf_file = read_file_to_memory("supersrc.ttf");
+	stbtt_InitFont(&font_info, ttf_file.ptr, stbtt_GetFontOffsetForIndex(ttf_file.ptr, 0));
+
+	//TODO: Collapse this!!
+	for(u32 glyph_index = 33; glyph_index < 127; glyph_index++) {
+		char glyph_char = (char)glyph_index;
+
+		i32 glyph_width, glyph_height;
+		u8 * glyph_bitmap_data = stbtt_GetCodepointBitmap(&font_info, 0, stbtt_ScaleForPixelHeight(&font_info, 64), glyph_char, &glyph_width, &glyph_height, 0, 0);
+		ASSERT(glyph_bitmap_data != 0);
+
+		Texture tex = {};
+		tex.id = AssetId_atlas;
+		tex.width = (u32)glyph_width;
+		tex.height = (u32)glyph_height;
+		tex.sampling = TextureSampling_bilinear;
+		tex.size = tex.width * tex.height * TEXTURE_CHANNELS;
+		tex.ptr = ALLOC_ARRAY(u8, tex.size);
+
+		for(u32 y = 0, i = 0; y < tex.height; y++) {
+			for(u32 x = 0; x < tex.width; x++, i += TEXTURE_CHANNELS) {
+				u8 a = glyph_bitmap_data[((tex.height - 1) - y) * tex.width + x];
+
+				tex.ptr[i + 0] = a;
+				tex.ptr[i + 1] = a;
+				tex.ptr[i + 2] = a;
+				tex.ptr[i + 3] = a;
+			}
+		}
+
+		math::Vec2 tex_dim = math::vec2(tex.width, tex.height);
+
+		Blit blit = blit_texture(&atlas->tex, &tex);
+		math::Rec2 blit_rec = math::rec2_min_dim(math::vec2(blit.min_x, blit.min_y), math::vec2(blit.width, blit.height));
+
+		ASSERT(atlas->sprite_count < ARRAY_COUNT(atlas->sprites));
+		AssetInfo * info = atlas->sprites + atlas->sprite_count++;
+		info->id = AssetId_debug_font;
+		info->type = AssetType_sprite;
+
+		SpriteInfo * sprite = &info->sprite;
+		sprite->atlas_index = atlas_index;
+		sprite->width = blit.width;
+		sprite->height = blit.height;
+		sprite->offset = math::rec_pos(blit_rec) - tex_dim * 0.5f;
+		sprite->tex_coords[0] = math::vec2(blit.u, blit.v) * r_tex_size;
+		sprite->tex_coords[1] = math::vec2(blit.u + blit.width, blit.v + blit.height) * r_tex_size;
+
+		FREE_MEMORY(tex.ptr);
+	}
+
+	packer->header.asset_count++;
+	packer->header.asset_count += atlas->sprite_count;
+
+	FREE_MEMORY(ttf_file.ptr);
+}
+
 int main() {
 	//TODO: Automatically sync these up!!
 	ASSERT(ASSET_GROUP_COUNT(collectable) == ASSET_GROUP_COUNT(display));
 
 	AssetPacker packer = {};
 
+	load_font(&packer);
+
 	AssetFile sprite_files[] = {
+		{ AssetId_dolly, "dolly.png" },
+
 		{ AssetId_rocket, "rocket.png" },
 		{ AssetId_large_rocket, "large_rocket.png" },
 		{ AssetId_boots, "boots.png" },
 		{ AssetId_car, "car.png" },
 		{ AssetId_shield, "shield.png" },
+		{ AssetId_clone, "clone.png" },
 
 		{ AssetId_glitched_telly, "glitched_telly0.png" },
 		{ AssetId_glitched_telly, "glitched_telly1.png" },
@@ -491,6 +568,9 @@ int main() {
 		{ AssetId_score_btn_replay, "score_btn_replay0.png" },
 		{ AssetId_score_btn_replay, "score_btn_replay1.png" },
 
+		{ AssetId_arrow_up, "arrow_up.png" },
+		{ AssetId_arrow_down, "arrow_down.png" },
+
 		{ AssetId_intro, "intro0.png" },
 		{ AssetId_intro, "intro1.png" },
 		{ AssetId_intro, "intro2.png" },
@@ -499,8 +579,10 @@ int main() {
 	push_packed_texture(&packer, ui_sprite_files, ARRAY_COUNT(ui_sprite_files));
 
 	push_sprite_sheet(&packer, "telly_sheet.png", AssetId_collectable_telly, 192, 192, 39);
-	push_sprite_sheet(&packer, "dolly_run.png", AssetId_dolly, 97, 80, 15);
+	// push_sprite_sheet(&packer, "dolly_run.png", AssetId_dolly, 97, 80, 15);
 	push_sprite_sheet(&packer, "dolly_fall.png", AssetId_dolly_fall, 64, 64, 4);
+
+	push_sprite_sheet(&packer, "explosion.png", AssetId_explosion, 500, 500, 16);
 
 	Texture reg_tex_array[] = {
 		load_texture("white.png", AssetId_white),
@@ -512,7 +594,8 @@ int main() {
 		load_texture("menu_hiscore_temp.png", AssetId_menu_background),
 
 		//TODO: Should these be merged together??
-		load_texture("background0.png", AssetId_background),
+		// load_texture("background0.png", AssetId_background),
+		load_texture("background0_.png", AssetId_background),
 		load_texture("background1.png", AssetId_background),
 		
 		load_texture("city_layer0.png", AssetId_city),
@@ -534,6 +617,9 @@ int main() {
 		load_texture("space_layer1.png", AssetId_space),
 		load_texture("space_layer2.png", AssetId_space),
 		load_texture("space_layer3.png", AssetId_space),
+
+		load_texture("mist.png", AssetId_clouds),
+		load_texture("clouds.png", AssetId_clouds),
 	};
 
 	packer.header.asset_count += ARRAY_COUNT(reg_tex_array);
@@ -544,8 +630,8 @@ int main() {
 		load_audio_clip("pickup0.wav", AssetId_pickup),
 		load_audio_clip("pickup1.wav", AssetId_pickup),
 		load_audio_clip("pickup2.wav", AssetId_pickup),
-		load_audio_clip("explosion0.wav", AssetId_explosion),
-		load_audio_clip("explosion1.wav", AssetId_explosion),
+		load_audio_clip("bang0.wav", AssetId_bang),
+		load_audio_clip("bang1.wav", AssetId_bang),
 		load_audio_clip("baa0.wav", AssetId_baa),
 		load_audio_clip("baa1.wav", AssetId_baa),
 		load_audio_clip("baa2.wav", AssetId_baa),

@@ -15,12 +15,6 @@
 
 #define ENTITY_NULL_POS math::vec3(F32_MAX, F32_MAX, 0.0f)
 
-//TODO: Formalise sprite animation!!
-// struct SpriteAnimation {
-// 	Sprite * sprites;
-// 	f32 anim_time;
-// };
-
 struct UiElement {
 	u32 id;
 
@@ -239,8 +233,11 @@ struct MainMetaState {
 	math::Vec2 entity_gravity;
 
 	f32 height_above_ground;
+	f32 max_height_above_ground;
 
 	Entity * background[2];
+	//TODO: Should these be part of the location??
+	Entity * clouds[2];
 
 	Location locations[LocationId_count];
 	LocationId current_location;
@@ -275,6 +272,9 @@ struct MainMetaState {
 	Str * score_str;
 	u32 score_value_index;
 	ScoreValue score_values[ScoreValueId_count];
+
+	UiElement arrow_up;
+	UiElement arrow_down;
 
 	u32 quit_transition_id;
 	u32 restart_transition_id;

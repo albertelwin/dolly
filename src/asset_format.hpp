@@ -21,13 +21,12 @@ enum TextureSampling {
 #define TILE_MAP_HEIGHT 18
 
 enum TileId {
-	TileId_good,
 	TileId_bad,
 	TileId_time,
-	TileId_point,
 	TileId_clone,
 	TileId_collectable,
-	TileId_special,
+	TileId_speed,
+	TileId_space,
 
 	TileId_count,
 	TileId_null = TileId_count,
@@ -57,13 +56,12 @@ inline b32 colors_are_equal(ColorRGB8 color0, ColorRGB8 color1) {
 }
 
 static TileIdColorRGB8 tile_id_color_table[] = {
-	{ TileId_good, color_rgb8(0, 0, 255) },
 	{ TileId_bad, color_rgb8(255, 0, 0) },
 	{ TileId_time, color_rgb8(0, 255, 0) },
-	{ TileId_point, color_rgb8(255, 0, 255) },
 	{ TileId_clone, color_rgb8(255, 255, 255) },
-	{ TileId_collectable, color_rgb8(255, 255, 0) },
-	{ TileId_special, color_rgb8(0, 255, 255) },
+	{ TileId_collectable, color_rgb8(0, 0, 255) },
+	{ TileId_speed, color_rgb8(255, 255, 0) },
+	{ TileId_space, color_rgb8(0, 255, 255) },
 };
 
 #pragma pack(push, 1)
@@ -86,6 +84,7 @@ enum AssetId {
 	AssetId_white,
 
 	AssetId_font,
+	AssetId_debug_font,
 
 	AssetId_menu_background,
 
@@ -96,12 +95,15 @@ enum AssetId {
 	AssetId_ocean,
 	AssetId_space,
 
+	AssetId_clouds,
+
 	AssetId_atlas,
 
 	//NOTE: Sprites
 	AssetId_dolly,
 	AssetId_dolly_fall,
 
+	AssetId_clone,
 	AssetId_rocket,
 	AssetId_large_rocket,
 	AssetId_boots,
@@ -138,6 +140,8 @@ enum AssetId {
 	AssetId_display_telly,
 	AssetId_one_past_last_display,
 
+	AssetId_explosion,
+
 	AssetId_score_background,
 
 	AssetId_menu_btn_credits,
@@ -148,12 +152,15 @@ enum AssetId {
 	AssetId_score_btn_menu,
 	AssetId_score_btn_replay,
 
+	AssetId_arrow_up,
+	AssetId_arrow_down,
+
 	AssetId_intro,
 
 	//NOTE: Audio
 	// AssetId_sin_440,
 	AssetId_pickup,
-	AssetId_explosion,
+	AssetId_bang,
 	AssetId_baa,
 	AssetId_tick_tock,
 	AssetId_rocket_sfx,

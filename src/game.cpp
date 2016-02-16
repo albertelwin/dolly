@@ -65,6 +65,8 @@ void change_entity_asset(Entity * entity, AssetState * assets, AssetId asset_id,
 
 	//TODO: Always do this??
 	entity->collider = get_entity_render_bounds(assets, entity);
+
+	entity->anim_time = 0.0f;
 }
 
 Entity * push_entity(EntityArray * entities, AssetState * assets, AssetId asset_id, u32 asset_index, math::Vec3 pos = math::vec3(0.0f)) {
@@ -155,9 +157,8 @@ void pop_player_clones(Player * player, u32 count) {
 			entity->hit = true;
 
 			entity->d_pos = math::vec2(0.0f);
-			entity->d_pos.x = math::rand_f32() * 2.0f - 1.0f;
-			entity->d_pos.y = math::rand_f32();
-			entity->d_pos *= 1000.0f;
+			entity->d_pos.x = (math::rand_f32() * 2.0f - 1.0f) * 1000.0f;
+			entity->d_pos.y = math::rand_f32() * 2000.0f;
 
 			if(!--remaining) {
 				break;
@@ -181,13 +182,12 @@ b32 change_location(MainMetaState * main_state, LocationId location_id) {
 }
 
 void change_location_asset_type(Location * location, AssetState * assets, AssetId asset_id) {
-	location->tile_to_asset_table[TileId_good] = AssetId_collectable_speed_up;
 	location->tile_to_asset_table[TileId_bad] = AssetId_glitched_telly;
 	location->tile_to_asset_table[TileId_time] = AssetId_collectable_clock;
-	location->tile_to_asset_table[TileId_point] = AssetId_collectable_smiley;
-	location->tile_to_asset_table[TileId_clone] = AssetId_dolly,
+	location->tile_to_asset_table[TileId_clone] = AssetId_clone;
 	location->tile_to_asset_table[TileId_collectable] = AssetId_collectable_heart;
-	location->tile_to_asset_table[TileId_special] = AssetId_rocket;
+	location->tile_to_asset_table[TileId_speed] = AssetId_collectable_speed_up;
+	location->tile_to_asset_table[TileId_space] = AssetId_rocket;
 
 	location->asset_id = asset_id;
 	switch(location->asset_id) {
@@ -212,7 +212,7 @@ void change_location_asset_type(Location * location, AssetState * assets, AssetI
 		case AssetId_space: {
 			location->name = (char *)"SPACE";
 
-			location->tile_to_asset_table[TileId_special] = AssetId_dolly;
+			location->tile_to_asset_table[TileId_space] = AssetId_clone;
 
 			break;
 		}
@@ -498,6 +498,7 @@ void init_main_meta_state(MetaState * meta_state) {
 	main_state->entity_gravity = math::vec2(0.0f, -6000.0f);
 
 	main_state->height_above_ground = (f32)screen_height * 0.5f;
+	main_state->max_height_above_ground = main_state->height_above_ground + (f32)screen_height * 0.5f;
 
 	f32 layer_z_offsets[PARALLAX_LAYER_COUNT] = {
 		 8.0f,
@@ -549,7 +550,7 @@ void init_main_meta_state(MetaState * meta_state) {
 	player->clone_offset = math::vec2(-5.0f, 0.0f);
 
 	for(i32 i = ARRAY_COUNT(player->clones) - 1; i >= 0; i--) {
-		Entity * entity = push_entity(entities, assets, AssetId_dolly, 0, ENTITY_NULL_POS);
+		Entity * entity = push_entity(entities, assets, AssetId_clone, 0, ENTITY_NULL_POS);
 		entity->scale = math::vec2(0.75f);
 		entity->color.a = 0.0f;
 
@@ -576,6 +577,15 @@ void init_main_meta_state(MetaState * meta_state) {
 	seq->playing = false;
 	seq->time_ = 0.0f;
 
+	for(u32 i = 0; i < ARRAY_COUNT(main_state->clouds); i++) {
+		Entity * entity = push_entity(entities, meta_state->assets, AssetId_clouds, i);
+
+		entity->pos.y = main_state->max_height_above_ground * i;
+		entity->scrollable = true;
+
+		main_state->clouds[i] = entity;
+	}
+
 	//TODO: Adding foreground layer at the end until we have sorting!!
 	for(u32 i = 0; i < LocationId_count; i++) {
 		Location * location = main_state->locations + i;
@@ -599,7 +609,11 @@ void init_main_meta_state(MetaState * meta_state) {
 	main_state->score_values[ScoreValueId_time_played].is_f32 = true;
 	main_state->score_values[ScoreValueId_points].is_f32 = false;
 
-	main_state->start_time = 30.0f;
+	main_state->arrow_up.asset_id = AssetId_arrow_up;
+	main_state->arrow_down.asset_id = AssetId_arrow_down;
+
+	// main_state->start_time = 30.0f;
+	main_state->start_time = 1200.0f;
 
 	main_state->boost_speed = 2.5f;
 	main_state->boost_accel = 40.0f;
@@ -703,6 +717,12 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		game_state->str = allocate_str(&game_state->memory_arena, 256);
 
 		game_state->debug_render_entity_bounds = false;
+
+#if __EMSCRIPTEN__ && DEV_ENABLED
+		if(EM_ASM_INT_V({ return Prefs.mute })) {
+			game_state->audio_state.master_volume = 0.0f;
+		}
+#endif
 	}
 
 	if(!game_state->save_file) {
@@ -759,12 +779,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	if(game_input->buttons[ButtonId_debug] & KEY_PRESSED) {
 		game_state->debug_render_entity_bounds = !game_state->debug_render_entity_bounds;
 	}
-
-#if 0
-	if(game_input->buttons[ButtonId_mute] & KEY_PRESSED) {
-		game_state->audio_state.master_volume = game_state->audio_state.master_volume > 0.0f ? 0.0f : 1.0f;
-	}
-#endif
 
 	switch(game_state->meta_state) {
 		case MetaStateType_menu: {
@@ -963,6 +977,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 			f32 player_d_pos = player->e->speed.x * math::clamp(main_state->d_speed + 1.0f, main_state->slow_down_speed, main_state->boost_speed) * game_input->delta_time;
 
+			//TODO: There should always be at least 80px of letterboxing!!
 			main_state->letterboxed_height = render_state->screen_height - math::max(main_state->d_speed, 0.0f) * main_state->boost_accel;
 			main_state->letterboxed_height = math::max(main_state->letterboxed_height, render_state->screen_height * 0.667f);
 
@@ -981,7 +996,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 				if(!entity->hidden) {
 					if(entity->hit) {
-						entity->color.a = (u32)(entity->hit_time * 30.0f) & 1;
+						// entity->color.a = (u32)(entity->hit_time * 30.0f) & 1;
 
 						math::Vec2 dd_pos = main_state->entity_gravity;
 						entity->d_pos += dd_pos * game_input->delta_time;
@@ -1041,10 +1056,17 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			player->e->pos.xy += player->e->d_pos * game_input->delta_time;
 
 			if(!player->dead && player->allow_input) {
-				//TODO: Also clamp above!!
-				f32 ground_height = main_state->locations[main_state->current_location].y;
+				f32 location_y = main_state->locations[main_state->current_location].y;
+
+				f32 ground_height = location_y;
 				if(player->e->pos.y <= ground_height) {
 					player->e->pos.y = ground_height;
+					player->e->d_pos.y = 0.0f;
+				}
+
+				f32 max_height = location_y + main_state->max_height_above_ground;
+				if(player->e->pos.y >= max_height && player->e->d_pos.y > 0.0f) {
+					player->e->pos.y = max_height;
 					player->e->d_pos.y = 0.0f;
 				}
 			}
@@ -1109,6 +1131,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				}
 
 				if(entity->hit) {
+#if 0
 					f32 anim_speed = 4.0f;
 
 					entity->scale += anim_speed * game_input->delta_time;
@@ -1120,7 +1143,13 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					if(entity->color.a < 0.0f) {
 						entity->color.a = 0.0f;
 						destroy = true;
-					}					
+					}
+#endif
+
+					if((u32)entity->anim_time >= (get_asset_count(assets, entity->asset_id) - 1)) {
+						entity->color.a = 0.0f;
+						destroy = true;
+					}
 				}
 
 				entity->anim_time += game_input->delta_time * ANIMATION_FRAMES_PER_SEC;
@@ -1135,7 +1164,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					b32 is_slow_down = false;
 
 					switch(entity->asset_id) {
-						case AssetId_dolly: {
+						case AssetId_clone: {
 							push_player_clone(player);
 							main_state->score_values[ScoreValueId_points].u32_++;
 							clip_id = AssetId_baa;
@@ -1144,7 +1173,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 						}
 
 						case AssetId_glitched_telly: {
-							clip_id = AssetId_explosion;
+							clip_id = AssetId_bang;
 
 							if(!player->invincibility_time) {	
 								pop_player_clones(player, 5);
@@ -1200,8 +1229,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 #endif
 
 					//TODO: Allocate these separately (or bring closer when we have sorting) for more efficient batching!!
-					change_entity_asset(entity, assets, AssetId_shield, 0);
-					entity->scale *= 0.5f;
+					change_entity_asset(entity, assets, AssetId_explosion, 0);
+					// entity->scale *= 0.5f;
 				}
 
 				if(destroy) {
@@ -1218,8 +1247,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			if(!player->dead) {
 				math::Vec2 projection_dim = math::vec2(main_state->render_group->transform.projection_width, main_state->render_group->transform.projection_height);
 
-				// AssetId map_id = AssetId_tile_map;
-				AssetId map_id = AssetId_debug_tile_map;
+				AssetId map_id = AssetId_tile_map;
+#if DEV_ENABLED
+				map_id = AssetId_debug_tile_map;
+#endif
 				u32 map_asset_count = get_asset_count(meta_state->assets, map_id);
 				ASSERT(map_asset_count);
 
@@ -1285,6 +1316,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 			for(u32 i = 0; i < ARRAY_COUNT(main_state->background); i++) {
 				move_entity(meta_state, render_transform, main_state->background[i], 0.0f);
+			}
+
+			for(u32 i = 0; i < ARRAY_COUNT(main_state->clouds); i++) {
+				move_entity(meta_state, render_transform, main_state->clouds[i], player_d_pos * 1.5f);
 			}
 
 			for(u32 i = 0; i < LocationId_count; i++) {
@@ -1523,6 +1558,16 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					push_textured_quad(ui_render_group, elem->asset_id, elem->asset_index);
 				}
 			}
+			else {
+				f32 y = projection_dim.y * 0.15f;
+				f32 x = projection_dim.x * 0.4f;
+
+				push_textured_quad(ui_render_group, main_state->arrow_up.asset_id, main_state->arrow_up.asset_index, math::vec3(x, y, 0.0f));
+				push_textured_quad(ui_render_group, main_state->arrow_down.asset_id, main_state->arrow_down.asset_index, math::vec3(x, -y, 0.0f));
+			}
+
+			// push_textured_quad(ui_render_group, AssetId_atlas, 1, math::vec3(0.0f), math::vec2(0.25f));
+			push_textured_quad(ui_render_group, AssetId_atlas, 0);
 
 			render_and_clear_render_group(meta_state->render_state, ui_render_group);
 

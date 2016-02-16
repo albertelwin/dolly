@@ -1,9 +1,11 @@
 
 #include <asset.hpp>
 
+#if DEV_ENABLED
 #define STBI_ONLY_PNG
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
+#endif
 
 #define MINIZ_NO_TIME
 #include <miniz.c>
