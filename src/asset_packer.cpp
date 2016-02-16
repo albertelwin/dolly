@@ -517,8 +517,6 @@ int main() {
 
 		{ AssetId_rocket, "rocket.png" },
 		{ AssetId_large_rocket, "large_rocket.png" },
-		{ AssetId_boots, "boots.png" },
-		{ AssetId_car, "car.png" },
 		{ AssetId_shield, "shield.png" },
 		{ AssetId_clone, "clone.png" },
 
@@ -562,9 +560,13 @@ int main() {
 		{ AssetId_btn_next, "btn_next1.png" },
 		{ AssetId_btn_replay, "btn_replay0.png" },
 		{ AssetId_btn_replay, "btn_replay1.png" },
+		{ AssetId_btn_up, "btn_up0.png" },
+		{ AssetId_btn_up, "btn_up1.png" },
+		{ AssetId_btn_down, "btn_down0.png" },
+		{ AssetId_btn_down, "btn_down1.png" },
 
-		{ AssetId_arrow_up, "arrow_up.png" },
-		{ AssetId_arrow_down, "arrow_down.png" },
+		{ AssetId_icon_clone, "icon_clone.png" },
+		{ AssetId_icon_clock, "icon_clock.png" },
 
 		{ AssetId_intro, "intro0.png" },
 		{ AssetId_intro, "intro1.png" },
@@ -574,7 +576,6 @@ int main() {
 	push_packed_texture(&packer, ui_sprite_files, ARRAY_COUNT(ui_sprite_files));
 
 	push_sprite_sheet(&packer, "telly_sheet.png", AssetId_collectable_telly, 192, 192, 39);
-	// push_sprite_sheet(&packer, "dolly_run.png", AssetId_dolly, 97, 80, 15);
 	push_sprite_sheet(&packer, "dolly_fall.png", AssetId_dolly_fall, 64, 64, 4);
 
 	push_sprite_sheet(&packer, "explosion.png", AssetId_explosion, 500, 500, 16);

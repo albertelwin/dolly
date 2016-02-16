@@ -607,8 +607,8 @@ void init_main_meta_state(MetaState * meta_state) {
 	main_state->score_values[ScoreValueId_time_played].is_f32 = true;
 	main_state->score_values[ScoreValueId_points].is_f32 = false;
 
-	main_state->arrow_up.asset_id = AssetId_arrow_up;
-	main_state->arrow_down.asset_id = AssetId_arrow_down;
+	main_state->arrow_buttons[0].asset_id = AssetId_btn_up;
+	main_state->arrow_buttons[1].asset_id = AssetId_btn_down;
 
 	main_state->start_time = 30.0f;
 
@@ -702,7 +702,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			game_state->meta_states[i] = allocate_meta_state(game_state, (MetaStateType)i);
 		}
 
-		change_meta_state(game_state, MetaStateType_main);
+		change_meta_state(game_state, MetaStateType_menu);
 
 		game_state->auto_save_time = 5.0f;
 		game_state->save.code = SAVE_FILE_CODE;
@@ -1029,15 +1029,24 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 			math::Vec2 player_dd_pos = math::vec2(0.0f);
 
+			for(u32 i = 0; i < ARRAY_COUNT(main_state->arrow_buttons); i++) {
+				UiElement * elem = main_state->arrow_buttons + i;
+				elem->asset_index = 0;
+			}
+
 			if(player->allow_input) {
 				f32 half_buffer_height = (f32)game_input->back_buffer_height * 0.5f;
 				
 				if(game_input->buttons[ButtonId_up] & KEY_DOWN || (game_input->mouse_button & KEY_DOWN && game_input->mouse_pos.y < half_buffer_height)) {
 					player_dd_pos.y += player->e->speed.y;
+
+					main_state->arrow_buttons[0].asset_index = 1;
 				}
 
 				if(game_input->buttons[ButtonId_down] & KEY_DOWN || (game_input->mouse_button & KEY_DOWN && game_input->mouse_pos.y >= half_buffer_height)) {
 					player_dd_pos.y -= player->e->speed.y;
+
+					main_state->arrow_buttons[1].asset_index = 1;
 				}
 			}
 
@@ -1219,7 +1228,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 						game_state->time_until_next_save = 0.0f;
 					}
 					
-#if 1
+#if 0
 					//TODO: Should there be a helper function for this??
 					AudioClip * clip = get_audio_clip_asset(assets, clip_id, math::rand_i32() % get_asset_count(assets, clip_id));
 					f32 pitch = math::lerp(0.9f, 1.1f, math::rand_f32());
@@ -1544,24 +1553,28 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				push_colored_quad(ui_render_group, math::vec3(0.0f,-projection_dim.y + letterbox_pixels, 0.0f), projection_dim, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 			}
 
-			if(main_state->show_score_overlay) {
+			f32 icon_size = 64.0f;
+
+			if(!main_state->show_score_overlay) {
+				f32 clone_icon_size = icon_size * main_state->clone_text_scale;
+				push_textured_quad(ui_render_group, AssetId_icon_clone, 0, math::vec3((-projection_dim.x + clone_icon_size) * 0.5f, (projection_dim.y - clone_icon_size) * 0.5f, 0.0f), math::vec2(main_state->clone_text_scale));
+
+				f32 clock_icon_size = icon_size * main_state->clock_text_scale;
+				push_textured_quad(ui_render_group, AssetId_icon_clock, 0, math::vec3((projection_dim.x - clock_icon_size) * 0.5f, (projection_dim.y - clock_icon_size) * 0.5f, 0.0f), math::vec2(main_state->clock_text_scale));
+
+				for(u32 i = 0; i < ARRAY_COUNT(main_state->arrow_buttons); i++) {
+					UiElement * elem = main_state->arrow_buttons + i;
+					push_textured_quad(ui_render_group, elem->asset_id, elem->asset_index);
+				}
+			}
+			else {
 				push_colored_quad(ui_render_group, math::vec3(0.0f), projection_dim, math::vec4(0.0f, 0.0f, 0.0f, 0.8f));
 
 				for(u32 i = 0; i < ARRAY_COUNT(main_state->score_buttons); i++) {
 					UiElement * elem = main_state->score_buttons + i;
 					push_textured_quad(ui_render_group, elem->asset_id, elem->asset_index);
-				}
+				}				
 			}
-			else {
-				f32 y = projection_dim.y * 0.15f;
-				f32 x = projection_dim.x * 0.4f;
-
-				push_textured_quad(ui_render_group, main_state->arrow_up.asset_id, main_state->arrow_up.asset_index, math::vec3(x, y, 0.0f));
-				push_textured_quad(ui_render_group, main_state->arrow_down.asset_id, main_state->arrow_down.asset_index, math::vec3(x, -y, 0.0f));
-			}
-
-			// push_textured_quad(ui_render_group, AssetId_atlas, 1, math::vec3(0.0f), math::vec2(0.25f));
-			// push_textured_quad(ui_render_group, AssetId_atlas, 0);
 
 			render_and_clear_render_group(meta_state->render_state, ui_render_group);
 
@@ -1570,12 +1583,15 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			char temp_buf[256];
 			Str temp_str = str_fixed_size(temp_buf, ARRAY_COUNT(temp_buf));
 
-			{
+			if(!main_state->show_score_overlay) {
 				{
 					str_clear(&temp_str);
 					str_print(&temp_str, "CLONES: %u", main_state->player.active_clone_count);
 
-					FontLayout font_layout = create_font_layout(main_state->font, projection_dim, main_state->clone_text_scale, FontLayoutAnchor_top_left);
+					math::Vec2 offset = math::vec2(0.0f);
+					offset.x = icon_size;
+					offset.y = (-icon_size + (f32)(main_state->font->glyph_height + main_state->font->glyph_spacing * 2)) * 0.5f;
+					FontLayout font_layout = create_font_layout(main_state->font, projection_dim, main_state->clone_text_scale, FontLayoutAnchor_top_left, offset * main_state->clone_text_scale);
 					push_str_to_batch(main_state->font, &font_layout, &temp_str);
 				}
 
@@ -1583,24 +1599,26 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					str_clear(&temp_str);
 					str_print(&temp_str, "TIME: %.2f", main_state->time_remaining);
 
-					FontLayout font_layout = create_font_layout(main_state->font, projection_dim, main_state->clock_text_scale, FontLayoutAnchor_top_right);
+					math::Vec2 offset = math::vec2(0.0f);
+					offset.x = -icon_size;
+					offset.y = (-icon_size + (f32)(main_state->font->glyph_height + main_state->font->glyph_spacing * 2)) * 0.5f;
+					FontLayout font_layout = create_font_layout(main_state->font, projection_dim, main_state->clock_text_scale, FontLayoutAnchor_top_right, offset * main_state->clock_text_scale);
 					push_str_to_batch(main_state->font, &font_layout, &temp_str);
 				}
-			}
 
-			{
-				FontLayout font_layout = create_font_layout(main_state->font, projection_dim, 1.0f, FontLayoutAnchor_bottom_left);
-				push_c_str_to_batch(main_state->font, &font_layout, main_state->locations[main_state->current_location].name);
+				{
+					FontLayout font_layout = create_font_layout(main_state->font, projection_dim, 1.0f, FontLayoutAnchor_bottom_left);
+					push_c_str_to_batch(main_state->font, &font_layout, main_state->locations[main_state->current_location].name);
+				}				
 			}
-
-			if(main_state->show_score_overlay) {
+			else {
 				str_clear(&temp_str);
 				str_print(&temp_str, "SCORE\n\n");
 				str_print(&temp_str, "TIME PLAYED: %.2f\n", main_state->score_values[ScoreValueId_time_played].display);
 				str_print(&temp_str, "POINTS: %u\n", (u32)main_state->score_values[ScoreValueId_points].display);
 
 				FontLayout font_layout = create_font_layout(main_state->font, projection_dim, 1.0f, FontLayoutAnchor_top_centre, math::vec2(0.0f, -(main_state->fixed_letterboxing + 40.0f)));
-				push_str_to_batch(main_state->font, &font_layout, &temp_str);
+				push_str_to_batch(main_state->font, &font_layout, &temp_str);				
 			}
 #endif
 
@@ -1613,7 +1631,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			MetaState * meta_state = get_meta_state(game_state, MetaStateType_game_over);
 			GameOverMetaState * game_over_state = meta_state->game_over;
 
-			push_textured_quad(game_over_state->render_group, AssetId_car, 0);
+			// push_textured_quad(game_over_state->render_group, AssetId_car, 0);
 			render_and_clear_render_group(meta_state->render_state, game_over_state->render_group);
 
 			break;

@@ -106,8 +106,6 @@ enum AssetId {
 	AssetId_clone,
 	AssetId_rocket,
 	AssetId_large_rocket,
-	AssetId_boots,
-	AssetId_car,
 	AssetId_shield,
 
 	AssetId_glitched_telly,
@@ -147,9 +145,11 @@ enum AssetId {
 	AssetId_btn_back,
 	AssetId_btn_next,
 	AssetId_btn_replay,
+	AssetId_btn_up,
+	AssetId_btn_down,
 
-	AssetId_arrow_up,
-	AssetId_arrow_down,
+	AssetId_icon_clone,
+	AssetId_icon_clock,
 
 	AssetId_intro,
 

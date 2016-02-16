@@ -250,7 +250,7 @@ void push_str_to_batch(Font * font, FontLayout * layout, Str * str, math::Vec4 c
 				push_quad_to_batch(batch, pos0, pos1, uv0, uv1, color);
 			}
 		}
-	}
+	} 
 }
 
 void push_c_str_to_batch(Font * font, FontLayout * layout, char const * c_str) {

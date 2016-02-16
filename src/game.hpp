@@ -274,8 +274,7 @@ struct MainMetaState {
 	u32 score_value_index;
 	ScoreValue score_values[ScoreValueId_count];
 
-	UiElement arrow_up;
-	UiElement arrow_down;
+	UiElement arrow_buttons[2];
 
 	u32 quit_transition_id;
 	u32 restart_transition_id;
