@@ -517,10 +517,15 @@ int main() {
 		{ AssetId_dolly_up, "dolly_up.png" },
 		{ AssetId_dolly_down, "dolly_down.png" },
 
+		{ AssetId_dolly_space_idle, "dolly_space_idle.png" },
+		{ AssetId_dolly_space_up, "dolly_space_up.png" },
+		{ AssetId_dolly_space_down, "dolly_space_down.png" },
+
 		{ AssetId_rocket, "rocket.png" },
 		{ AssetId_large_rocket, "large_rocket.png" },
 		{ AssetId_shield, "shield.png" },
 		{ AssetId_clone, "clone.png" },
+		{ AssetId_clone_space, "clone_space.png" },
 
 		{ AssetId_glitched_telly, "glitched_telly0.png" },
 		{ AssetId_glitched_telly, "glitched_telly1.png" },
@@ -529,7 +534,7 @@ int main() {
 		{ AssetId_glitched_telly, "glitched_telly4.png" },
 
 		{ AssetId_collectable_blob, "collectable_blob.png" },
-		// { AssetId_collectable_clock, "collectable_clock.png" },
+		{ AssetId_collectable_clock, "collectable_clock.png" },
 		{ AssetId_collectable_diamond, "collectable_diamond.png" },
 		{ AssetId_collectable_flower, "collectable_flower.png" },
 		{ AssetId_collectable_heart, "collectable_heart.png" },
@@ -578,7 +583,6 @@ int main() {
 	push_packed_texture(&packer, ui_sprite_files, ARRAY_COUNT(ui_sprite_files));
 
 	push_sprite_sheet(&packer, "telly_sheet.png", AssetId_collectable_telly, 192, 192, 39);
-	push_sprite_sheet(&packer, "collectable_clock_.png", AssetId_collectable_clock, 720, 720, 19);
 	push_sprite_sheet(&packer, "dolly_fall.png", AssetId_dolly_fall, 64, 64, 4);
 
 	push_sprite_sheet(&packer, "explosion.png", AssetId_explosion, 500, 500, 16);
@@ -600,10 +604,6 @@ int main() {
 		load_texture("city_layer1.png", AssetId_city),
 		load_texture("city_layer2.png", AssetId_city),
 		load_texture("city_layer3.png", AssetId_city),
-		// load_texture("test_layer0.png", AssetId_city),
-		// load_texture("test_layer1.png", AssetId_city),
-		// load_texture("test_layer2.png", AssetId_city),
-		// load_texture("test_layer3.png", AssetId_city),
 
 		load_texture("mountains_layer0.png", AssetId_mountains),
 		load_texture("mountains_layer1.png", AssetId_mountains),
@@ -647,7 +647,6 @@ int main() {
 		load_audio_clip("rocket_sfx.wav", AssetId_rocket_sfx),
 
 		load_audio_clip("game_music.wav", AssetId_game_music),
-		// load_audio_clip("death_music.wav", AssetId_death_music),
 		load_audio_clip("space_music.wav", AssetId_space_music),
 	};
 

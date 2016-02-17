@@ -195,7 +195,6 @@ enum MetaStateType {
 	MetaStateType_menu,
 	MetaStateType_intro,
 	MetaStateType_main,
-	MetaStateType_game_over,
 
 	MetaStateType_count,
 	MetaStateType_null = MetaStateType_count,
@@ -234,6 +233,8 @@ struct MainMetaState {
 
 	f32 height_above_ground;
 	f32 max_height_above_ground;
+	//TODO: Pick a better name for this!!
+	f32 camera_easing;
 
 	Entity * background[2];
 	//TODO: Should these be part of the location??
@@ -278,15 +279,6 @@ struct MainMetaState {
 
 	u32 quit_transition_id;
 	u32 restart_transition_id;
-	u32 death_transition_id;
-};
-
-struct GameOverMetaState {
-	AudioSource * music;
-
-	RenderGroup * render_group;
-
-	u32 transition_id;
 };
 
 struct MetaState {
@@ -300,7 +292,6 @@ struct MetaState {
 		MenuMetaState * menu;
 		IntroMetaState * intro;
 		MainMetaState * main;
-		GameOverMetaState * game_over;
 	};
 };
 

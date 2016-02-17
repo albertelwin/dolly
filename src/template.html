@@ -7,17 +7,21 @@
 		<!-- TODO: Only import this if we're in dev mode!! -->
 		<script src='dev/prefs.js'></script>
 	</head>
-<!-- 	<body style="margin: 0; padding: 8px;">
-		<div id="log" style='font-family: "Courier New"; font-size: 14px;'></div>
-		<canvas style="padding: none; border 0px none;" id="canvas" oncontextmenu="event.preventDefault()"></canvas> -->
-	<body style="margin: 0; padding: 8px; background-color: #000000;">
+<!-- 	<body style='margin: 0; padding: 8px;'>
+		<div id='log' style='font-family: "Courier New"; font-size: 14px; display: none;'></div>
+		<img id='loading' src='loading.gif'>
+		<canvas id='canvas' style="padding: none; border 0px none;" oncontextmenu="event.preventDefault()"></canvas> -->
+	<body style='margin: 0; padding: 8px; background-color: #000000;'>
 		<div style='position: absolute; margin: auto; top: 50%; left: 50%; -moz-transform: translateX(-50%) translateY(-50%); -ms-transform: translateX(-50%) translateY(-50%); -webkit-transform: translateX(-50%) translateY(-50%); transform: translateX(-50%) translateY(-50%);'>
-			<div id="log" style='font-family: "Courier New"; font-size: 14px; color: #FFFFFF;'></div>
-			<canvas style="padding: none; border 0px none;" id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+			<div id='log' style='font-family: "Courier New"; font-size: 14px; color: #FFFFFF;'></div>
+			<img id='loading' style='display: none;' src='loading.gif'>
+			<canvas id='canvas' style='padding: none; border 0px none; display: none;' oncontextmenu='event.preventDefault()'></canvas>
 		</div>
 
 		<script type='text/javascript'>
 			var log_elem = document.getElementById('log');
+			var loading_elem = document.getElementById('loading');
+			var canvas_elem = document.getElementById('canvas');
 
 			var Module = {
 				preRun: [ function() {
@@ -43,7 +47,8 @@
 
 				postRun: [ function() {
 					log_elem.innerHTML = '';
-					// log_elem.innerHTML = navigator.userAgent.toString();
+					canvas.style.display = '';
+					loading_elem.style.display = 'none';
 				}],
 
 				print: function(text) {

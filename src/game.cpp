@@ -54,19 +54,22 @@ math::Rec2 get_entity_collider_bounds(Entity * entity) {
 	return math::rec_scale(math::rec_offset(entity->collider, entity->pos.xy), entity->scale);
 }
 
-void change_entity_asset(Entity * entity, AssetState * assets, AssetId asset_id, u32 asset_index) {
-	//TODO: Should entities only be sprites??
+void change_entity_asset(Entity * entity, AssetState * assets, AssetId asset_id, u32 asset_index = 0) {
+#if DEBUG_ENABLED
 	Asset * asset = get_asset(assets, asset_id, asset_index);
 	ASSERT(asset);
 	ASSERT(asset->type == AssetType_texture || asset->type == AssetType_sprite);
-	
-	entity->asset_id = asset_id;
-	entity->asset_index = asset_index;
+#endif
 
-	//TODO: Always do this??
-	entity->collider = get_entity_render_bounds(assets, entity);
+	if(entity->asset_id != asset_id) {
+		entity->asset_id = asset_id;
+		entity->asset_index = asset_index;
 
-	entity->anim_time = 0.0f;
+		//TODO: Always do this??
+		entity->collider = get_entity_render_bounds(assets, entity);
+
+		entity->anim_time = 0.0f;		
+	}
 }
 
 Entity * push_entity(EntityArray * entities, AssetState * assets, AssetId asset_id, u32 asset_index, math::Vec3 pos = math::vec3(0.0f)) {
@@ -211,7 +214,8 @@ void change_location_asset_type(Location * location, AssetState * assets, AssetI
 		case AssetId_space: {
 			location->name = (char *)"SPACE";
 
-			location->tile_to_asset_table[TileId_space] = AssetId_clone;
+			location->tile_to_asset_table[TileId_clone] = AssetId_clone_space;
+			location->tile_to_asset_table[TileId_space] = AssetId_clone_space;
 
 			break;
 		}
@@ -318,22 +322,22 @@ void play_rocket_sequence(GameState * game_state, MetaState * meta_state, f32 dt
 					change_volume(main_state->music, math::vec2(0.0f), 0.0f);
 					change_volume(main_state->music, math::vec2(1.0f), 1.0f);
 					
-					b32 changed = change_location(main_state, LocationId_lower);
-					ASSERT(changed);
-
 					player->allow_input = false;
 					player->invincibility_time = F32_MAX;
 					player->e->use_gravity = true;
-					change_entity_asset(player->e, meta_state->assets, AssetId_dolly_fall, 0);
+					change_entity_asset(player->e, meta_state->assets, AssetId_dolly_fall);
 				}
 			}
 			else {
 				//TODO: Calculate the ideal distance to stop gravity so that the player lands roughly at the height_above_ground
 				if(player->e->pos.y < (f32)main_state->render_group->transform.projection_height * 1.8f) {
+					b32 changed = change_location(main_state, LocationId_lower);
+					ASSERT(changed);
+
 					player->e->use_gravity = false;
 					player->allow_input = true;
 					player->invincibility_time = 2.0f;
-					change_entity_asset(player->e, meta_state->assets, AssetId_dolly_idle, 0);
+					change_entity_asset(player->e, meta_state->assets, AssetId_dolly_idle);
 
 					seq->playing = false;
 				}
@@ -415,11 +419,6 @@ MetaState * allocate_meta_state(GameState * game_state, MetaStateType type) {
 			break;
 		}
 
-		case MetaStateType_game_over: {
-			meta_state->game_over = PUSH_STRUCT(arena, GameOverMetaState);
-			break;
-		}
-
 		INVALID_CASE();
 	}
 
@@ -498,6 +497,7 @@ void init_main_meta_state(MetaState * meta_state) {
 
 	main_state->height_above_ground = (f32)screen_height * 0.5f;
 	main_state->max_height_above_ground = main_state->height_above_ground + (f32)screen_height * 0.5f;
+	main_state->camera_easing = 0.25f;
 
 	f32 layer_z_offsets[PARALLAX_LAYER_COUNT] = {
 		 8.0f,
@@ -648,23 +648,6 @@ void init_main_meta_state(MetaState * meta_state) {
 	main_state->clone_text_scale = 1.0f;
 }
 
-void init_game_over_meta_state(MetaState * meta_state) {
-	ASSERT(meta_state->type == MetaStateType_game_over);
-	GameOverMetaState * game_over_state = meta_state->game_over;
-
-	zero_memory_arena(&meta_state->arena);
-	zero_memory(game_over_state, sizeof(GameOverMetaState));
-
-	AssetState * assets = meta_state->assets;
-
-	// game_over_state->music = play_audio_clip(meta_state->audio_state, AssetId_death_music, true);
-	change_volume(game_over_state->music, math::vec2(0.0f), 0.0f);
-	change_volume(game_over_state->music, math::vec2(1.0f), 1.0f);
-
-	RenderState * render_state = meta_state->render_state;
-	game_over_state->render_group = allocate_render_group(render_state, &meta_state->arena, render_state->screen_width, render_state->screen_height);
-}
-
 void change_meta_state(GameState * game_state, MetaStateType type) {
 	game_state->meta_state = type;
 
@@ -683,11 +666,6 @@ void change_meta_state(GameState * game_state, MetaStateType type) {
 
 		case MetaStateType_main: {
 			init_main_meta_state(meta_state);
-			break;
-		}
-
-		case MetaStateType_game_over: {
-			init_game_over_meta_state(meta_state);
 			break;
 		}
 
@@ -713,7 +691,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			game_state->meta_states[i] = allocate_meta_state(game_state, (MetaStateType)i);
 		}
 
-		change_meta_state(game_state, MetaStateType_main);
+		change_meta_state(game_state, MetaStateType_menu);
 
 		game_state->auto_save_time = 5.0f;
 		game_state->save.code = SAVE_FILE_CODE;
@@ -853,27 +831,23 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			if(!game_state->transitioning) {
 				f32 frame_index = (u32)intro_state->anim_time + 1;
 				intro_state->anim_time += game_input->delta_time * 1.5f;
-				f32 fade_dt = game_input->delta_time * 8.0f;
 
 				u32 last_frame_index = ARRAY_COUNT(intro_state->frames) - 1;
 				if(frame_index <= last_frame_index) {
 					for(u32 i = 0; i < math::min(frame_index, last_frame_index); i++) {
 						IntroFrame * frame = intro_state->frames + i;
-						frame->alpha += fade_dt;
-						frame->alpha = math::clamp01(frame->alpha);
+						frame->alpha = 1.0f;
 					}
 				}
 				else {
 					for(u32 i = 0; i < last_frame_index; i++) {
 						IntroFrame * frame = intro_state->frames + i;
-						frame->alpha -= fade_dt;
-						frame->alpha = math::clamp01(frame->alpha);
+						frame->alpha = 0.0f;
 					}
 
 					if(frame_index > ARRAY_COUNT(intro_state->frames)) {
 						IntroFrame * frame = intro_state->frames + last_frame_index;
-						frame->alpha += fade_dt;
-						frame->alpha = math::clamp01(frame->alpha);
+						frame->alpha = 1.0f;
 					}
 
 					if(frame_index > ARRAY_COUNT(intro_state->frames) + 2) {
@@ -904,7 +878,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				}
 			}
 			else {
-				if(main_state->quit_transition_id || main_state->restart_transition_id || main_state->death_transition_id) {
+				if(main_state->quit_transition_id || main_state->restart_transition_id) {
 					if(main_state->music) {
 						fade_out_audio_clip(&main_state->music, 1.0f);
 					}
@@ -913,9 +887,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				MetaStateType new_state = MetaStateType_null;
 				if(transition_should_flip(game_state, main_state->quit_transition_id)) {
 					new_state = MetaStateType_menu;
-				}
-				else if(transition_should_flip(game_state, main_state->death_transition_id)) {
-					new_state = MetaStateType_game_over;
 				}
 				else if(transition_should_flip(game_state, main_state->restart_transition_id)) {
 					new_state = MetaStateType_main;
@@ -1046,6 +1017,15 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				elem->asset_index = 0;
 			}
 
+			AssetId player_idle_id = AssetId_dolly_idle;
+			AssetId player_up_id = AssetId_dolly_up;
+			AssetId player_down_id = AssetId_dolly_down;
+			if(main_state->current_location == LocationId_upper) {
+				player_idle_id = AssetId_dolly_space_idle;
+				player_up_id = AssetId_dolly_space_up;
+				player_down_id = AssetId_dolly_space_down;
+			}
+
 			if(!player->dead) {
 				if(player->allow_input) {
 					f32 half_buffer_height = (f32)game_input->back_buffer_height * 0.5f;
@@ -1054,23 +1034,25 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 						player_dd_pos.y += player->e->speed.y;
 
 						main_state->arrow_buttons[0].asset_index = 1;
-						change_entity_asset(player->e, meta_state->assets, AssetId_dolly_up, 0);
+						change_entity_asset(player->e, meta_state->assets, player_up_id);
 					}
 
 					if(game_input->buttons[ButtonId_down] & KEY_DOWN || (game_input->mouse_button & KEY_DOWN && game_input->mouse_pos.y >= half_buffer_height)) {
 						player_dd_pos.y -= player->e->speed.y;
 
 						main_state->arrow_buttons[1].asset_index = 1;
-						change_entity_asset(player->e, meta_state->assets, AssetId_dolly_down, 0);
+
+						change_entity_asset(player->e, meta_state->assets, player_down_id);
 					}
-				}				
+
+					if(!player_dd_pos.y) {
+						change_entity_asset(player->e, meta_state->assets, player_idle_id);
+					}
+				}		
 			}
 			else {
 				player_dd_pos.x += player->e->speed.x * 10.0f;
-			}
-
-			if(!player_dd_pos.y) {
-				change_entity_asset(player->e, meta_state->assets, AssetId_dolly_idle, 0);
+				change_entity_asset(player->e, meta_state->assets, player_idle_id);
 			}
 
 			player->e->d_pos += player_dd_pos * game_input->delta_time;
@@ -1105,16 +1087,25 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 			player->invincibility_time -= game_input->delta_time;
 			player->invincibility_time = math::max(player->invincibility_time, 0.0f);
+#if 0
 			if(player->invincibility_time) {
 				player->e->color = math::vec4(1.0f, 0.0f, 0.0f, 1.0f);
 			}
 			else {
 				player->e->color = math::vec4(1.0f);
 			}
+#endif
 
 			player->sheild->pos = player->e->pos;
 
-			f32 camera_y = (player->e->pos.y - main_state->height_above_ground) * 0.75f + main_state->height_above_ground;
+			f32 zero_height = main_state->locations[main_state->current_location].y + main_state->height_above_ground;
+
+			f32 camera_easing = 0.25f;
+			if(!player->dead && !player->allow_input) {
+				camera_easing = 0.0f;
+			}
+			main_state->camera_easing = math::lerp(main_state->camera_easing, camera_easing, game_input->delta_time * 4.0f);
+			f32 camera_y = (player->e->pos.y - zero_height) * (1.0f - main_state->camera_easing) + zero_height;
 
 			render_transform->pos.x = 0.0f;
 			render_transform->pos.y = camera_y;
@@ -1195,6 +1186,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					b32 is_slow_down = false;
 
 					switch(entity->asset_id) {
+						case AssetId_clone_space:
 						case AssetId_clone: {
 							push_player_clone(player);
 							main_state->clone_text_scale = 2.0f;
@@ -1253,15 +1245,14 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 						game_state->time_until_next_save = 0.0f;
 					}
 					
-#if 1
 					//TODO: Should there be a helper function for this??
 					AudioClip * clip = get_audio_clip_asset(assets, clip_id, math::rand_i32() % get_asset_count(assets, clip_id));
 					f32 pitch = math::lerp(0.9f, 1.1f, math::rand_f32());
 					fire_audio_clip(meta_state->audio_state, clip, math::vec2(1.0f), pitch);
-#endif
 
 					//TODO: Allocate these separately (or bring closer when we have sorting) for more efficient batching!!
-					change_entity_asset(entity, assets, AssetId_explosion, 0);
+					change_entity_asset(entity, assets, AssetId_explosion);
+					entity->anim_time = 0.0f;
 					entity->scale = math::vec2(1.0f);
 					// entity->scale *= 0.5f;
 				}
@@ -1330,7 +1321,9 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 								entity->scale = math::vec2(1.0f);
 								entity->color = math::vec4(1.0f);
 
-								change_entity_asset(entity, assets, current_location->tile_to_asset_table[tile_id], 0);
+								entity->anim_time = 0.0f;
+
+								change_entity_asset(entity, assets, current_location->tile_to_asset_table[tile_id]);
 								if(tile_id == TileId_bad) {
 									entity->collider = math::rec_scale(entity->collider, 0.5f);
 								}
@@ -1409,28 +1402,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 			game_state->save.high_score = math::max(game_state->save.high_score, main_state->score_values[ScoreValueId_points].u32_);
 			game_state->save.longest_run = math::max(game_state->save.longest_run, main_state->score_values[ScoreValueId_time_played].f32_);
-
-			break;
-		}
-
-		case MetaStateType_game_over: {
-			MetaState * meta_state = get_meta_state(game_state, MetaStateType_game_over);
-			GameOverMetaState * game_over_state = meta_state->game_over;
-
-			if(!game_state->transitioning) {
-				if(game_input->buttons[ButtonId_start] & KEY_PRESSED || game_input->mouse_button & KEY_PRESSED) {
-					game_over_state->transition_id = begin_transition(game_state);
-					fade_out_audio_clip(&game_over_state->music, 1.0f);
-				}
-			}
-			else {
-				if(transition_should_flip(game_state, game_over_state->transition_id)) {
-					game_state->save.plays++;
-					change_meta_state(game_state, MetaStateType_main);					
-				}
-			}
-
-			str_print(game_state->str, "GAMEOVER!\nPRESS SPACE TO RESTART\n\n");
 
 			break;
 		}
@@ -1650,16 +1621,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 #endif
 
 			render_font(render_state, main_state->font, &ui_render_group->transform);
-
-			break;
-		}
-
-		case MetaStateType_game_over: {
-			MetaState * meta_state = get_meta_state(game_state, MetaStateType_game_over);
-			GameOverMetaState * game_over_state = meta_state->game_over;
-
-			// push_textured_quad(game_over_state->render_group, AssetId_car, 0);
-			render_and_clear_render_group(meta_state->render_state, game_over_state->render_group);
 
 			break;
 		}

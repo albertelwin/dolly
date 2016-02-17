@@ -105,7 +105,12 @@ enum AssetId {
 	AssetId_dolly_down,
 	AssetId_dolly_fall,
 
+	AssetId_dolly_space_idle,
+	AssetId_dolly_space_up,
+	AssetId_dolly_space_down,
+
 	AssetId_clone,
+	AssetId_clone_space,
 	AssetId_rocket,
 	AssetId_large_rocket,
 	AssetId_shield,
@@ -163,7 +168,6 @@ enum AssetId {
 	AssetId_tick_tock,
 	AssetId_rocket_sfx,
 	AssetId_game_music,
-	AssetId_death_music,
 	AssetId_space_music,
 
 	//NOTE: Tile maps
