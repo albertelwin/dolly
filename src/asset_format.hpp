@@ -18,7 +18,7 @@ enum TextureSampling {
 #define AUDIO_PADDING_SAMPLES 1
 #define AUDIO_CHANNELS 2
 
-#define TILE_MAP_HEIGHT 18
+#define TILE_MAP_HEIGHT 36
 
 enum TileId {
 	TileId_bad,
@@ -100,7 +100,9 @@ enum AssetId {
 	AssetId_atlas,
 
 	//NOTE: Sprites
-	AssetId_dolly,
+	AssetId_dolly_idle,
+	AssetId_dolly_up,
+	AssetId_dolly_down,
 	AssetId_dolly_fall,
 
 	AssetId_clone,
@@ -143,7 +145,7 @@ enum AssetId {
 	AssetId_btn_play,
 	AssetId_btn_about,
 	AssetId_btn_back,
-	AssetId_btn_next,
+	AssetId_btn_baa,
 	AssetId_btn_replay,
 	AssetId_btn_up,
 	AssetId_btn_down,

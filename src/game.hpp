@@ -24,6 +24,7 @@ struct UiElement {
 
 struct Entity {
 	math::Vec3 pos;
+	math::Vec2 offset;
 	math::Vec2 scale;
 	math::Vec4 color;
 	b32 scrollable;
@@ -42,7 +43,6 @@ struct Entity {
 	f32 hit_time;
 
 	u32 rand_id;
-	math::Vec2 chain_pos;
 	b32 hidden;
 };
 
@@ -72,7 +72,7 @@ struct EntityEmitter {
 	math::Vec3 pos;
 
 	u32 entity_count;
-	Entity * entity_array[256];
+	Entity * entity_array[512];
 };
 
 enum LocationId {
@@ -124,7 +124,7 @@ enum MenuButtonId {
 	MenuButtonId_play,
 	MenuButtonId_about,
 	MenuButtonId_back,
-	MenuButtonId_next,
+	MenuButtonId_baa,
 
 	MenuButtonId_count,
 };

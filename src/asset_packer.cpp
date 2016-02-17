@@ -513,7 +513,9 @@ int main() {
 	load_font(&packer);
 
 	AssetFile sprite_files[] = {
-		{ AssetId_dolly, "dolly.png" },
+		{ AssetId_dolly_idle, "dolly_idle.png" },
+		{ AssetId_dolly_up, "dolly_up.png" },
+		{ AssetId_dolly_down, "dolly_down.png" },
 
 		{ AssetId_rocket, "rocket.png" },
 		{ AssetId_large_rocket, "large_rocket.png" },
@@ -527,7 +529,7 @@ int main() {
 		{ AssetId_glitched_telly, "glitched_telly4.png" },
 
 		{ AssetId_collectable_blob, "collectable_blob.png" },
-		{ AssetId_collectable_clock, "collectable_clock.png" },
+		// { AssetId_collectable_clock, "collectable_clock.png" },
 		{ AssetId_collectable_diamond, "collectable_diamond.png" },
 		{ AssetId_collectable_flower, "collectable_flower.png" },
 		{ AssetId_collectable_heart, "collectable_heart.png" },
@@ -556,8 +558,8 @@ int main() {
 		{ AssetId_btn_about, "btn_about1.png" },
 		{ AssetId_btn_back, "btn_back0.png" },
 		{ AssetId_btn_back, "btn_back1.png" },
-		{ AssetId_btn_next, "btn_next0.png" },
-		{ AssetId_btn_next, "btn_next1.png" },
+		{ AssetId_btn_baa, "btn_baa0.png" },
+		{ AssetId_btn_baa, "btn_baa1.png" },
 		{ AssetId_btn_replay, "btn_replay0.png" },
 		{ AssetId_btn_replay, "btn_replay1.png" },
 		{ AssetId_btn_up, "btn_up0.png" },
@@ -576,6 +578,7 @@ int main() {
 	push_packed_texture(&packer, ui_sprite_files, ARRAY_COUNT(ui_sprite_files));
 
 	push_sprite_sheet(&packer, "telly_sheet.png", AssetId_collectable_telly, 192, 192, 39);
+	push_sprite_sheet(&packer, "collectable_clock_.png", AssetId_collectable_clock, 720, 720, 19);
 	push_sprite_sheet(&packer, "dolly_fall.png", AssetId_dolly_fall, 64, 64, 4);
 
 	push_sprite_sheet(&packer, "explosion.png", AssetId_explosion, 500, 500, 16);
@@ -597,6 +600,10 @@ int main() {
 		load_texture("city_layer1.png", AssetId_city),
 		load_texture("city_layer2.png", AssetId_city),
 		load_texture("city_layer3.png", AssetId_city),
+		// load_texture("test_layer0.png", AssetId_city),
+		// load_texture("test_layer1.png", AssetId_city),
+		// load_texture("test_layer2.png", AssetId_city),
+		// load_texture("test_layer3.png", AssetId_city),
 
 		load_texture("mountains_layer0.png", AssetId_mountains),
 		load_texture("mountains_layer1.png", AssetId_mountains),

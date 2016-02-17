@@ -515,7 +515,7 @@ void push_textured_quad(RenderGroup * render_group, AssetId asset_id, u32 asset_
 
 	Asset * asset = get_asset(render_group->assets, asset_id, asset_index);
 	ASSERT(asset->type == AssetType_texture || asset->type == AssetType_sprite);
-	push_render_elem(render_group, asset, pos + math::vec3(asset->texture.offset, 0.0f), asset->texture.dim * scale, color, scrollable);
+	RenderElement * elem = push_render_elem(render_group, asset, pos + math::vec3(asset->texture.offset, 0.0f), asset->texture.dim * scale, color, scrollable);
 }
 
 void render_and_clear_render_group(RenderState * render_state, RenderGroup * render_group) {
