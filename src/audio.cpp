@@ -16,7 +16,7 @@ i16 audio_f32_to_i16(f32 sample) {
 	return sample > 0.0f ? (i16)(sample * 32767.0f) : (i16)(sample * 32768.0f);
 }
 
-AudioSource * play_audio_clip(AudioState * audio_state, AudioClip * clip, b32 loop = false) {
+AudioSource * play_audio_clip(AudioState * audio_state, AudioClip * clip, b32 loop = false, math::Vec2 volume = math::vec2(1.0f)) {
 	AudioSource * source = 0;
 	if(audio_state->supported && clip) {
 		if(!audio_state->source_free_list) {
@@ -38,7 +38,7 @@ AudioSource * play_audio_clip(AudioState * audio_state, AudioClip * clip, b32 lo
 		source->clip = clip;
 		source->sample_pos = audio_val64(0.0f);
 		source->pitch = 1.0f;
-		source->volume = math::vec2(1.0f);
+		source->volume = volume;
 		source->target_volume = source->volume;
 		source->volume_delta = math::vec2(0.0f);
 	}
@@ -46,9 +46,9 @@ AudioSource * play_audio_clip(AudioState * audio_state, AudioClip * clip, b32 lo
 	return source;
 }
 
-AudioSource * play_audio_clip(AudioState * audio_state, AssetId clip_id, b32 loop = false) {
+AudioSource * play_audio_clip(AudioState * audio_state, AssetId clip_id, b32 loop = false, math::Vec2 volume = math::vec2(1.0f)) {
 	AudioClip * clip = get_audio_clip_asset(audio_state->assets, clip_id, 0);
-	return play_audio_clip(audio_state, clip, loop);
+	return play_audio_clip(audio_state, clip, loop, volume);
 }
 
 void fire_audio_clip(AudioState * audio_state, AudioClip * clip, math::Vec2 volume = math::vec2(1.0f), f32 pitch = 1.0f) {

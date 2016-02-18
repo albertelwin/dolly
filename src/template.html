@@ -14,13 +14,13 @@
 	<body style='margin: 0; padding: 8px; background-color: #000000;'>
 		<div style='position: absolute; margin: auto; top: 50%; left: 50%; -moz-transform: translateX(-50%) translateY(-50%); -ms-transform: translateX(-50%) translateY(-50%); -webkit-transform: translateX(-50%) translateY(-50%); transform: translateX(-50%) translateY(-50%);'>
 			<div id='log' style='font-family: "Courier New"; font-size: 14px; color: #FFFFFF;'></div>
-			<img id='loading' style='display: none;' src='loading.gif'>
+			<!-- <img id='loading' style='' src='loading.gif'> -->
 			<canvas id='canvas' style='padding: none; border 0px none; display: none;' oncontextmenu='event.preventDefault()'></canvas>
 		</div>
 
 		<script type='text/javascript'>
 			var log_elem = document.getElementById('log');
-			var loading_elem = document.getElementById('loading');
+			// var loading_elem = document.getElementById('loading');
 			var canvas_elem = document.getElementById('canvas');
 
 			var Module = {
@@ -48,7 +48,7 @@
 				postRun: [ function() {
 					log_elem.innerHTML = '';
 					canvas.style.display = '';
-					loading_elem.style.display = 'none';
+					// loading_elem.style.display = 'none';
 				}],
 
 				print: function(text) {

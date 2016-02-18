@@ -506,7 +506,7 @@ void load_font(AssetPacker * packer) {
 
 int main() {
 	//TODO: Automatically sync these up!!
-	ASSERT(ASSET_GROUP_COUNT(collectable) == ASSET_GROUP_COUNT(display));
+	ASSERT(ASSET_GROUP_COUNT(collect) == ASSET_GROUP_COUNT(display));
 
 	AssetPacker packer = {};
 
@@ -522,10 +522,13 @@ int main() {
 		{ AssetId_dolly_space_down, "dolly_space_down.png" },
 
 		{ AssetId_rocket, "rocket.png" },
-		{ AssetId_large_rocket, "large_rocket.png" },
+		{ AssetId_rocket_large, "rocket_large0.png" },
+		{ AssetId_rocket_large, "rocket_large1.png" },
+		{ AssetId_rocket_large, "rocket_large2.png" },
 		{ AssetId_shield, "shield.png" },
 		{ AssetId_clone, "clone.png" },
 		{ AssetId_clone_space, "clone_space.png" },
+		{ AssetId_clock, "clock.png" },
 
 		{ AssetId_glitched_telly, "glitched_telly0.png" },
 		{ AssetId_glitched_telly, "glitched_telly1.png" },
@@ -533,26 +536,17 @@ int main() {
 		{ AssetId_glitched_telly, "glitched_telly3.png" },
 		{ AssetId_glitched_telly, "glitched_telly4.png" },
 
-		{ AssetId_collectable_blob, "collectable_blob.png" },
-		{ AssetId_collectable_clock, "collectable_clock.png" },
-		{ AssetId_collectable_diamond, "collectable_diamond.png" },
-		{ AssetId_collectable_flower, "collectable_flower.png" },
-		{ AssetId_collectable_heart, "collectable_heart.png" },
-		{ AssetId_collectable_paw, "collectable_paw.png" },
-		{ AssetId_collectable_smiley, "collectable_smiley.png" },
-		{ AssetId_collectable_speech, "collectable_speech.png" },
-		{ AssetId_collectable_speed_up, "collectable_speed_up.png" },
+		{ AssetId_collect_chair, "collect_chair.png" },
+		{ AssetId_collect_cup, "collect_cup.png" },
+		{ AssetId_collect_mobile, "collect_mobile.png" },
+		{ AssetId_collect_necklace, "collect_necklace.png" },
+		{ AssetId_collect_shoes, "collect_shoes.png" },
 
-		{ AssetId_display_blob, "display_blob.png" },
-		{ AssetId_display_clock, "display_clock.png" },
-		{ AssetId_display_diamond, "display_diamond.png" },
-		{ AssetId_display_flower, "display_flower.png" },
-		{ AssetId_display_heart, "display_heart.png" },
-		{ AssetId_display_paw, "display_paw.png" },
-		{ AssetId_display_smiley, "display_smiley.png" },
-		{ AssetId_display_speech, "display_speech.png" },
-		{ AssetId_display_speed_up, "display_speed_up.png" },
-		{ AssetId_display_telly, "display_telly.png" },
+		{ AssetId_display_chair, "display_chair.png" },
+		{ AssetId_display_cup, "display_cup.png" },
+		{ AssetId_display_mobile, "display_mobile.png" },
+		{ AssetId_display_necklace, "display_necklace.png" },
+		{ AssetId_display_shoes, "display_shoes.png" },
 	};
 	push_packed_texture(&packer, sprite_files, ARRAY_COUNT(sprite_files));
 
@@ -582,10 +576,9 @@ int main() {
 	};
 	push_packed_texture(&packer, ui_sprite_files, ARRAY_COUNT(ui_sprite_files));
 
-	push_sprite_sheet(&packer, "telly_sheet.png", AssetId_collectable_telly, 192, 192, 39);
 	push_sprite_sheet(&packer, "dolly_fall.png", AssetId_dolly_fall, 64, 64, 4);
 
-	push_sprite_sheet(&packer, "explosion.png", AssetId_explosion, 500, 500, 16);
+	// push_sprite_sheet(&packer, "explosion.png", AssetId_explosion, 500, 500, 16);
 
 	Texture reg_tex_array[] = {
 		load_texture("white.png", AssetId_white),
@@ -595,20 +588,19 @@ int main() {
 		load_texture("menu_background.png", AssetId_menu_background),
 		load_texture("menu_credits_temp.png", AssetId_menu_background),
 
-		//TODO: Should these be merged together??
-		// load_texture("background0.png", AssetId_background),
-		load_texture("background0_.png", AssetId_background),
-		load_texture("background1.png", AssetId_background),
-		
+		load_texture("city_background.png", AssetId_background),
+		load_texture("highlands_background.png", AssetId_background),
+		load_texture("ocean_background.png", AssetId_background),
+
 		load_texture("city_layer0.png", AssetId_city),
 		load_texture("city_layer1.png", AssetId_city),
 		load_texture("city_layer2.png", AssetId_city),
 		load_texture("city_layer3.png", AssetId_city),
 
-		load_texture("mountains_layer0.png", AssetId_mountains),
-		load_texture("mountains_layer1.png", AssetId_mountains),
-		load_texture("mountains_layer2.png", AssetId_mountains),
-		load_texture("mountains_layer3.png", AssetId_mountains),
+		load_texture("highlands_layer0.png", AssetId_highlands),
+		load_texture("highlands_layer1.png", AssetId_highlands),
+		load_texture("highlands_layer2.png", AssetId_highlands),
+		load_texture("highlands_layer3.png", AssetId_highlands),
 
 		load_texture("ocean_layer0.png", AssetId_ocean),
 		load_texture("ocean_layer1.png", AssetId_ocean),
@@ -641,9 +633,12 @@ int main() {
 		load_audio_clip("baa4.wav", AssetId_baa),
 		load_audio_clip("baa5.wav", AssetId_baa),
 		load_audio_clip("baa6.wav", AssetId_baa),
+		load_audio_clip("special.wav", AssetId_special),
+
+		load_audio_clip("click_yes.wav", AssetId_click_yes),
+		load_audio_clip("click_no.wav", AssetId_click_no),
 
 		load_audio_clip("tick_tock.wav", AssetId_tick_tock),
-
 		load_audio_clip("rocket_sfx.wav", AssetId_rocket_sfx),
 
 		load_audio_clip("game_music.wav", AssetId_game_music),
@@ -654,6 +649,14 @@ int main() {
 
 	TileMapAsset tile_maps[] = {
 		load_tile_map("tile_map0.png", AssetId_tile_map),
+		load_tile_map("tile_map1.png", AssetId_tile_map),
+
+		load_tile_map("lower_map0.png", AssetId_lower_map),
+		load_tile_map("lower_map1.png", AssetId_lower_map),
+
+		load_tile_map("upper_map0.png", AssetId_upper_map),
+
+		load_tile_map("tutorial_map.png", AssetId_tutorial_map),
 	};
 
 	packer.header.asset_count += ARRAY_COUNT(tile_maps);

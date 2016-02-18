@@ -20,6 +20,15 @@ struct UiElement {
 
 	AssetId asset_id;
 	u32 asset_index;
+
+	AssetId clip_id;
+};
+
+struct UiLayer {
+	u32 elem_count;
+	UiElement elems[8];
+
+	UiElement * interact_elem;
 };
 
 struct Entity {
@@ -53,13 +62,12 @@ struct EntityArray {
 
 struct Player {
 	Entity * e;
-	Entity * sheild;
 
 	b32 dead;
 	b32 allow_input;
 	f32 invincibility_time;
 
-	Entity * clones[256];
+	Entity * clones[200];
 	math::Vec2 clone_offset;
 	u32 active_clone_count;
 };
@@ -92,6 +100,7 @@ struct Location {
 	math::Vec4 tint;
 
 	AssetId tile_to_asset_table[TileId_count];
+	AssetId map_id;
 };
 
 struct RocketSequence {
@@ -136,11 +145,6 @@ enum MenuPageId {
 	MenuPageId_count,
 };
 
-struct MenuPage {
-	u32 button_count;
-	UiElement buttons[3];
-};
-
 enum ScoreButtonId {
 	ScoreButtonId_back,
 	ScoreButtonId_replay,
@@ -177,7 +181,7 @@ enum ButtonId {
 
 #define SAVE_FILE_CODE 0x594C4C44 //"DLLY"
 //TODO: Can we inc this automatically somehow??
-#define SAVE_FILE_VERSION 5
+#define SAVE_FILE_VERSION 6
 #pragma pack(push, 1)
 struct SaveFileHeader {
 	u32 code;
@@ -187,7 +191,7 @@ struct SaveFileHeader {
 	u32 high_score;
 	f32 longest_run;
 
-	b32 collectable_unlock_states[ASSET_GROUP_COUNT(collectable)];
+	b32 collect_unlock_states[ASSET_GROUP_COUNT(collect)];
 };
 #pragma pack(pop)
 
@@ -203,10 +207,12 @@ enum MetaStateType {
 struct MenuMetaState {
 	RenderGroup * render_group;
 
-	MenuPage pages[MenuPageId_count];
+	UiLayer pages[MenuPageId_count];
 	MenuPageId current_page;
 
-	u32 transition_id;
+	u32 play_transition_id;
+	u32 about_transition_id;
+	u32 back_transition_id;
 };
 
 struct IntroMetaState {
@@ -233,11 +239,9 @@ struct MainMetaState {
 
 	f32 height_above_ground;
 	f32 max_height_above_ground;
-	//TODO: Pick a better name for this!!
-	f32 camera_easing;
+	f32 camera_movement;
 
 	Entity * background[2];
-	//TODO: Should these be part of the location??
 	Entity * clouds[2];
 
 	Location locations[LocationId_count];
@@ -271,14 +275,14 @@ struct MainMetaState {
 	f32 clone_text_scale;
 
 	b32 show_score_overlay;
-	UiElement score_buttons[ScoreButtonId_count];
+	UiLayer score_ui;
 	u32 score_value_index;
 	ScoreValue score_values[ScoreValueId_count];
 
 	UiElement arrow_buttons[2];
 
 	u32 quit_transition_id;
-	u32 restart_transition_id;
+	u32 replay_transition_id;
 };
 
 struct MetaState {

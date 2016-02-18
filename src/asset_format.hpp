@@ -18,15 +18,15 @@ enum TextureSampling {
 #define AUDIO_PADDING_SAMPLES 1
 #define AUDIO_CHANNELS 2
 
-#define TILE_MAP_HEIGHT 36
+#define TILE_MAP_HEIGHT 37
 
 enum TileId {
 	TileId_bad,
 	TileId_time,
 	TileId_clone,
-	TileId_collectable,
-	TileId_speed,
-	TileId_space,
+	TileId_collect,
+	TileId_concord,
+	TileId_rocket,
 
 	TileId_count,
 	TileId_null = TileId_count,
@@ -59,9 +59,9 @@ static TileIdColorRGB8 tile_id_color_table[] = {
 	{ TileId_bad, color_rgb8(255, 0, 0) },
 	{ TileId_time, color_rgb8(0, 255, 0) },
 	{ TileId_clone, color_rgb8(255, 255, 255) },
-	{ TileId_collectable, color_rgb8(0, 0, 255) },
-	{ TileId_speed, color_rgb8(255, 255, 0) },
-	{ TileId_space, color_rgb8(0, 255, 255) },
+	{ TileId_collect, color_rgb8(0, 0, 255) },
+	{ TileId_concord, color_rgb8(255, 255, 0) },
+	{ TileId_rocket, color_rgb8(0, 255, 255) },
 };
 
 #pragma pack(push, 1)
@@ -90,8 +90,9 @@ enum AssetId {
 
 	AssetId_background,
 
+	//TODO: First lower id??
 	AssetId_city,
-	AssetId_mountains,
+	AssetId_highlands,
 	AssetId_ocean,
 	AssetId_space,
 
@@ -111,41 +112,30 @@ enum AssetId {
 
 	AssetId_clone,
 	AssetId_clone_space,
+	AssetId_clock,
 	AssetId_rocket,
-	AssetId_large_rocket,
+	AssetId_rocket_large,
 	AssetId_shield,
 
 	AssetId_glitched_telly,
 
 	//TODO: Should this be one_before_first??
-	AssetId_first_collectable,
-	AssetId_collectable_blob = AssetId_first_collectable,
-	AssetId_collectable_clock,
-	AssetId_collectable_diamond,
-	AssetId_collectable_flower,
-	AssetId_collectable_heart,
-	AssetId_collectable_paw,
-	AssetId_collectable_smiley,
-	AssetId_collectable_speech,
-	AssetId_collectable_speed_up,
-	AssetId_collectable_telly,
-	AssetId_one_past_last_collectable,
+	AssetId_first_collect,
+	AssetId_collect_chair = AssetId_first_collect,
+	AssetId_collect_cup,
+	AssetId_collect_mobile,
+	AssetId_collect_necklace,
+	AssetId_collect_shoes,
+	AssetId_one_past_last_collect,
 
-	//TODO: Figure out a way to combine these with the collectable ids!!
+	//TODO: Figure out a way to combine these with the collect ids!!
 	AssetId_first_display,
-	AssetId_display_blob = AssetId_first_display,
-	AssetId_display_clock,
-	AssetId_display_diamond,
-	AssetId_display_flower,
-	AssetId_display_heart,
-	AssetId_display_paw,
-	AssetId_display_smiley,
-	AssetId_display_speech,
-	AssetId_display_speed_up,
-	AssetId_display_telly,
+	AssetId_display_chair = AssetId_first_display,
+	AssetId_display_cup,
+	AssetId_display_mobile,
+	AssetId_display_necklace,
+	AssetId_display_shoes,
 	AssetId_one_past_last_display,
-
-	AssetId_explosion,
 
 	AssetId_btn_play,
 	AssetId_btn_about,
@@ -165,14 +155,24 @@ enum AssetId {
 	AssetId_pickup,
 	AssetId_bang,
 	AssetId_baa,
+	AssetId_special,
+
+	AssetId_click_yes,
+	AssetId_click_no,
+
 	AssetId_tick_tock,
 	AssetId_rocket_sfx,
+	
 	AssetId_game_music,
 	AssetId_space_music,
 
 	//NOTE: Tile maps
 	AssetId_tile_map,
 	AssetId_debug_tile_map,
+
+	AssetId_lower_map,
+	AssetId_upper_map,
+	AssetId_tutorial_map,
 
 	AssetId_count,
 };
