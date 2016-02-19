@@ -6,6 +6,7 @@
 
 struct Texture {
 	math::Vec2 dim;
+	//TODO: Too many things named offset, align instead??
 	math::Vec2 offset;
 
 	//TODO: Should textures/sprites be in union like this??
@@ -35,6 +36,11 @@ struct Asset {
 	ASSET_TYPE_NAME_STRUCT_X
 #undef X
 	};
+};
+
+struct AssetRef {
+	AssetId id;
+	u32 index;
 };
 
 struct AssetGroup {

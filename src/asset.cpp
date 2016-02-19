@@ -10,6 +10,13 @@
 #define MINIZ_NO_TIME
 #include <miniz.c>
 
+AssetRef asset_ref(AssetId id, u32 index = 0) {
+	AssetRef ref;
+	ref.id = id;
+	ref.index = index;
+	return ref;
+}
+
 Asset * get_asset(AssetState * assets, AssetId id, u32 index) {
 	Asset * asset = 0;
 

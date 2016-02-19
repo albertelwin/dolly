@@ -20,6 +20,18 @@ RenderTransform create_render_transform(u32 projection_width, u32 projection_hei
 	return transform;
 }
 
+math::Vec2 project_pos(math::Vec3 pos) {
+	math::Vec2 projected_pos = pos.xy;
+	projected_pos *= 1.0f / (pos.z + 1.0f);
+	return projected_pos;
+}
+
+math::Vec3 unproject_pos(math::Vec2 pos, f32 z) {
+	math::Vec3 unprojected_pos = math::vec3(pos, z);
+	unprojected_pos.xy *= (z * 1.0f);
+	return unprojected_pos;
+}
+
 math::Vec2 project_pos(RenderTransform * transform, math::Vec3 pos) {
 	math::Vec2 projected_pos = pos.xy - transform->pos;
 	projected_pos *= 1.0f / (pos.z + 1.0f);
@@ -510,10 +522,10 @@ void push_colored_quad(RenderGroup * render_group, math::Vec3 pos, math::Vec2 di
 	push_render_elem(render_group, get_asset(render_group->assets, AssetId_white, 0), pos, dim, color);
 }
 
-void push_textured_quad(RenderGroup * render_group, AssetId asset_id, u32 asset_index, math::Vec3 pos = math::vec3(0.0f), math::Vec2 scale = math::vec2(1.0f), math::Vec4 color = math::vec4(1.0f), b32 scrollable = false) {
+void push_textured_quad(RenderGroup * render_group, AssetRef ref, math::Vec3 pos = math::vec3(0.0f), math::Vec2 scale = math::vec2(1.0f), math::Vec4 color = math::vec4(1.0f), b32 scrollable = false) {
 	ASSERT(render_group);
 
-	Asset * asset = get_asset(render_group->assets, asset_id, asset_index);
+	Asset * asset = get_asset(render_group->assets, ref.id, ref.index);
 	ASSERT(asset->type == AssetType_texture || asset->type == AssetType_sprite);
 	RenderElement * elem = push_render_elem(render_group, asset, pos + math::vec3(asset->texture.offset, 0.0f), asset->texture.dim * scale, color, scrollable);
 }

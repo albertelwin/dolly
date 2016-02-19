@@ -525,28 +525,27 @@ int main() {
 		{ AssetId_rocket_large, "rocket_large0.png" },
 		{ AssetId_rocket_large, "rocket_large1.png" },
 		{ AssetId_rocket_large, "rocket_large2.png" },
+		{ AssetId_goggles, "goggles.png" },
 		{ AssetId_shield, "shield.png" },
 		{ AssetId_clone, "clone.png" },
 		{ AssetId_clone_space, "clone_space.png" },
 		{ AssetId_clock, "clock.png" },
 
-		{ AssetId_glitched_telly, "glitched_telly0.png" },
-		{ AssetId_glitched_telly, "glitched_telly1.png" },
-		{ AssetId_glitched_telly, "glitched_telly2.png" },
-		{ AssetId_glitched_telly, "glitched_telly3.png" },
-		{ AssetId_glitched_telly, "glitched_telly4.png" },
+#if 1
+		{ AssetId_atom_smasher, "atom_smasher0.png" },
+		{ AssetId_atom_smasher, "atom_smasher1.png" },
+		{ AssetId_atom_smasher, "atom_smasher2.png" },
+		{ AssetId_atom_smasher, "atom_smasher3.png" },
+		{ AssetId_atom_smasher, "atom_smasher4.png" },
+#endif
 
-		{ AssetId_collect_chair, "collect_chair.png" },
-		{ AssetId_collect_cup, "collect_cup.png" },
-		{ AssetId_collect_mobile, "collect_mobile.png" },
-		{ AssetId_collect_necklace, "collect_necklace.png" },
-		{ AssetId_collect_shoes, "collect_shoes.png" },
+#define X(NAME) { AssetId_collect_##NAME, "collect_" #NAME ".png" },
+		ASSET_ID_COLLECT_X
+#undef X
 
-		{ AssetId_display_chair, "display_chair.png" },
-		{ AssetId_display_cup, "display_cup.png" },
-		{ AssetId_display_mobile, "display_mobile.png" },
-		{ AssetId_display_necklace, "display_necklace.png" },
-		{ AssetId_display_shoes, "display_shoes.png" },
+#define X(NAME) { AssetId_display_##NAME, "display_" #NAME ".png" },
+		ASSET_ID_COLLECT_X
+#undef X
 	};
 	push_packed_texture(&packer, sprite_files, ARRAY_COUNT(sprite_files));
 
@@ -569,10 +568,16 @@ int main() {
 		{ AssetId_icon_clone, "icon_clone.png" },
 		{ AssetId_icon_clock, "icon_clock.png" },
 
+#define X(NAME) { AssetId_info_##NAME, "info_" #NAME ".png" },
+		ASSET_ID_COLLECT_X
+#undef X
+
 		{ AssetId_intro, "intro0.png" },
 		{ AssetId_intro, "intro1.png" },
 		{ AssetId_intro, "intro2.png" },
 		{ AssetId_intro, "intro3.png" },
+
+		{ AssetId_sun, "sun.png" },
 	};
 	push_packed_texture(&packer, ui_sprite_files, ARRAY_COUNT(ui_sprite_files));
 
@@ -592,35 +597,33 @@ int main() {
 		load_texture("highlands_background.png", AssetId_background),
 		load_texture("ocean_background.png", AssetId_background),
 
-		load_texture("city_layer0.png", AssetId_city),
-		load_texture("city_layer1.png", AssetId_city),
-		load_texture("city_layer2.png", AssetId_city),
-		load_texture("city_layer3.png", AssetId_city),
+		load_texture("city_layer0.png", AssetId_scene_city),
+		load_texture("city_layer1.png", AssetId_scene_city),
+		load_texture("city_layer2.png", AssetId_scene_city),
+		load_texture("city_layer3.png", AssetId_scene_city),
 
-		load_texture("highlands_layer0.png", AssetId_highlands),
-		load_texture("highlands_layer1.png", AssetId_highlands),
-		load_texture("highlands_layer2.png", AssetId_highlands),
-		load_texture("highlands_layer3.png", AssetId_highlands),
+		load_texture("highlands_layer0.png", AssetId_scene_highlands),
+		load_texture("highlands_layer1.png", AssetId_scene_highlands),
+		load_texture("highlands_layer2.png", AssetId_scene_highlands),
+		load_texture("highlands_layer3.png", AssetId_scene_highlands),
 
-		load_texture("ocean_layer0.png", AssetId_ocean),
-		load_texture("ocean_layer1.png", AssetId_ocean),
-		load_texture("ocean_layer2.png", AssetId_ocean),
-		load_texture("ocean_layer3.png", AssetId_ocean),
+		load_texture("ocean_layer0.png", AssetId_scene_ocean),
+		load_texture("ocean_layer1.png", AssetId_scene_ocean),
+		load_texture("ocean_layer2.png", AssetId_scene_ocean),
+		load_texture("ocean_layer3.png", AssetId_scene_ocean),
 
-		load_texture("space_layer0.png", AssetId_space),
-		load_texture("space_layer1.png", AssetId_space),
-		load_texture("space_layer2.png", AssetId_space),
-		load_texture("space_layer3.png", AssetId_space),
+		load_texture("space_layer0.png", AssetId_scene_space),
+		load_texture("space_layer1.png", AssetId_scene_space),
+		load_texture("space_layer2.png", AssetId_scene_space),
+		load_texture("space_layer3.png", AssetId_scene_space),
 
-		load_texture("mist.png", AssetId_clouds),
+		load_texture("mist_front.png", AssetId_clouds),
 		load_texture("clouds.png", AssetId_clouds),
 	};
 
 	packer.header.asset_count += ARRAY_COUNT(reg_tex_array);
 
 	AudioClip clips[] = {
-		// load_audio_clip("sin_440.wav", AssetId_sin_440),
-
 		load_audio_clip("pickup0.wav", AssetId_pickup),
 		load_audio_clip("pickup1.wav", AssetId_pickup),
 		load_audio_clip("pickup2.wav", AssetId_pickup),

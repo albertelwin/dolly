@@ -13,14 +13,10 @@
 #define ANIMATION_FRAMES_PER_SEC 30
 #define PARALLAX_LAYER_COUNT 4
 
-#define ENTITY_NULL_POS math::vec3(F32_MAX, F32_MAX, 0.0f)
-
 struct UiElement {
 	u32 id;
 
-	AssetId asset_id;
-	u32 asset_index;
-
+	AssetRef asset;
 	AssetId clip_id;
 };
 
@@ -38,8 +34,7 @@ struct Entity {
 	math::Vec4 color;
 	b32 scrollable;
 
-	AssetId asset_id;
-	u32 asset_index;
+	AssetRef asset;
 
 	math::Vec2 d_pos;
 	math::Vec2 speed;
@@ -57,11 +52,13 @@ struct Entity {
 
 struct EntityArray {
 	u32 count;
-	Entity elems[2048];
+	Entity elems[1024];
 };
 
 struct Player {
 	Entity * e;
+
+	math::Vec3 initial_pos;
 
 	b32 dead;
 	b32 allow_input;
@@ -83,15 +80,14 @@ struct EntityEmitter {
 	Entity * entity_array[512];
 };
 
-enum LocationId {
-	LocationId_lower,
-	LocationId_upper,
+enum SceneId {
+	SceneId_lower,
+	SceneId_upper,
 
-	LocationId_count,
-	LocationId_null = LocationId_count,
+	SceneId_count,
 };
 
-struct Location {
+struct Scene {
 	char * name;
 
 	AssetId asset_id;
@@ -162,6 +158,14 @@ enum TransitionType {
 
 struct IntroFrame {
 	f32 alpha;
+};
+
+struct InfoDisplay {
+	AssetRef asset;
+
+	f32 time_;
+	f32 alpha;
+	f32 scale;
 };
 
 enum ButtonId {
@@ -243,11 +247,10 @@ struct MainMetaState {
 
 	Entity * background[2];
 	Entity * clouds[2];
+	Entity * sun;
 
-	Location locations[LocationId_count];
-	LocationId current_location;
-	LocationId next_location;
-	LocationId last_location;
+	Scene scenes[SceneId_count];
+	SceneId current_scene;
 
 	Player player;
 
@@ -271,8 +274,8 @@ struct MainMetaState {
 	f32 max_time;
 	f32 countdown_time;
 
-	f32 clock_text_scale;
-	f32 clone_text_scale;
+	f32 clock_icon_scale;
+	f32 score_icon_scale;
 
 	b32 show_score_overlay;
 	UiLayer score_ui;
@@ -280,6 +283,7 @@ struct MainMetaState {
 	ScoreValue score_values[ScoreValueId_count];
 
 	UiElement arrow_buttons[2];
+	InfoDisplay info_display;
 
 	u32 quit_transition_id;
 	u32 replay_transition_id;

@@ -75,7 +75,8 @@ struct TileMap {
 };
 #pragma pack(pop)
 
-#define ASSET_GROUP_COUNT(name) (AssetId_one_past_last_##name - AssetId_first_##name)
+#define BEGIN_ASSET_GROUP(name) AssetId_one_before_first_##name
+#define END_ASSET_GROUP(name) AssetId_one_past_last_##name
 
 enum AssetId {
 	AssetId_null,
@@ -90,11 +91,13 @@ enum AssetId {
 
 	AssetId_background,
 
-	//TODO: First lower id??
-	AssetId_city,
-	AssetId_highlands,
-	AssetId_ocean,
-	AssetId_space,
+	BEGIN_ASSET_GROUP(lower_scene),
+	AssetId_scene_city,
+	AssetId_scene_highlands,
+	AssetId_scene_ocean,
+	END_ASSET_GROUP(lower_scene),
+
+	AssetId_scene_space,
 
 	AssetId_clouds,
 
@@ -115,27 +118,38 @@ enum AssetId {
 	AssetId_clock,
 	AssetId_rocket,
 	AssetId_rocket_large,
+	AssetId_goggles,
 	AssetId_shield,
 
-	AssetId_glitched_telly,
+	AssetId_atom_smasher,
+	
+	AssetId_sun,
 
-	//TODO: Should this be one_before_first??
-	AssetId_first_collect,
-	AssetId_collect_chair = AssetId_first_collect,
-	AssetId_collect_cup,
-	AssetId_collect_mobile,
-	AssetId_collect_necklace,
-	AssetId_collect_shoes,
-	AssetId_one_past_last_collect,
+#define ASSET_ID_COLLECT_X	\
+	X(chair)				\
+	X(cup)					\
+	X(mini)					\
+	X(mobile)				\
+	X(necklace) 			\
+	X(shoes)
 
-	//TODO: Figure out a way to combine these with the collect ids!!
-	AssetId_first_display,
-	AssetId_display_chair = AssetId_first_display,
-	AssetId_display_cup,
-	AssetId_display_mobile,
-	AssetId_display_necklace,
-	AssetId_display_shoes,
-	AssetId_one_past_last_display,
+	BEGIN_ASSET_GROUP(collect),
+#define X(NAME) AssetId_collect_##NAME,
+	ASSET_ID_COLLECT_X
+#undef X
+	END_ASSET_GROUP(collect),
+
+	BEGIN_ASSET_GROUP(display),
+#define X(NAME) AssetId_display_##NAME,
+	ASSET_ID_COLLECT_X
+#undef X
+	END_ASSET_GROUP(display),
+
+	BEGIN_ASSET_GROUP(info),
+#define X(NAME) AssetId_info_##NAME,
+	ASSET_ID_COLLECT_X
+#undef X
+	END_ASSET_GROUP(info),
 
 	AssetId_btn_play,
 	AssetId_btn_about,
@@ -151,7 +165,6 @@ enum AssetId {
 	AssetId_intro,
 
 	//NOTE: Audio
-	// AssetId_sin_440,
 	AssetId_pickup,
 	AssetId_bang,
 	AssetId_baa,
@@ -176,6 +189,13 @@ enum AssetId {
 
 	AssetId_count,
 };
+
+#define ASSET_FIRST_GROUP_ID(name) ((AssetId)(AssetId_one_before_first_##name + 1))
+#define ASSET_LAST_GROUP_ID(name) ((AssetId)(AssetId_one_past_last_##name - 1))
+#define ASSET_GROUP_COUNT(name) (AssetId_one_past_last_##name - (AssetId_one_before_first_##name + 1))
+
+#define ASSET_ID_TO_GROUP_INDEX(name, id) (id - (AssetId_one_before_first_##name + 1))
+#define ASSET_GROUP_INDEX_TO_ID(name, index) ((AssetId)(AssetId_one_before_first_##name + 1 + index))
 
 enum AssetType {
 #define ASSET_TYPE_NAME_STRUCT_X	\
