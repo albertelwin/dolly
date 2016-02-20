@@ -32,6 +32,7 @@ struct Entity {
 	math::Vec2 offset;
 	math::Vec2 scale;
 	math::Vec4 color;
+	f32 angle;
 	b32 scrollable;
 
 	AssetRef asset;

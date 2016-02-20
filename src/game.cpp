@@ -807,7 +807,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			game_state->meta_states[i] = allocate_meta_state(game_state, (MetaStateType)i);
 		}
 
-		change_meta_state(game_state, MetaStateType_menu);
+		change_meta_state(game_state, MetaStateType_main);
 
 		game_state->auto_save_time = 5.0f;
 		game_state->save.code = SAVE_FILE_CODE;
@@ -1083,6 +1083,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			player->active_clone_count = 0;
 			for(i32 i = ARRAY_COUNT(player->clones) - 1; i >= 0; i--) {
 				Entity * entity = player->clones[i];
+
+				entity->angle = game_input->total_time * math::TAU;
 
 				if(i == 0) {
 					entity->offset = player->e->pos.xy + player->clone_offset * 4.0f;
@@ -1622,7 +1624,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 			for(u32 i = 0; i < ARRAY_COUNT(intro_state->frames); i++) {
 				IntroFrame * frame = intro_state->frames + i;
-				push_textured_quad(render_group, asset_ref(AssetId_intro, i), math::vec3(0.0f), math::vec2(1.0f), math::vec4(1.0f, 1.0f, 1.0f, frame->alpha));
+				push_textured_quad(render_group, asset_ref(AssetId_intro, i), math::vec3(0.0f), math::vec2(1.0f), 0.0f, math::vec4(1.0f, 1.0f, 1.0f, frame->alpha));
 			}
 
 			render_and_clear_render_group(meta_state->render_state, render_group);
@@ -1637,7 +1639,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			EntityArray * entities = &main_state->entities;
 			for(u32 i = 0; i < entities->count; i++) {
 				Entity * entity = entities->elems + i;
-				push_textured_quad(main_state->render_group, entity->asset, entity->pos + math::vec3(entity->offset, 0.0f), entity->scale, entity->color, entity->scrollable);
+				push_textured_quad(main_state->render_group, entity->asset, entity->pos + math::vec3(entity->offset, 0.0f), entity->scale, entity->angle, entity->color, entity->scrollable);
 			}
 
 			render_and_clear_render_group(meta_state->render_state, main_state->render_group);
@@ -1674,8 +1676,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 			f32 letterbox_pixels = (projection_dim.y - main_state->letterboxed_height) * 0.5f;
 			if(letterbox_pixels > 0.0f) {
-				push_colored_quad(ui_render_group, math::vec3(0.0f, projection_dim.y - letterbox_pixels, 0.0f), projection_dim, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-				push_colored_quad(ui_render_group, math::vec3(0.0f,-projection_dim.y + letterbox_pixels, 0.0f), projection_dim, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+				push_colored_quad(ui_render_group, math::vec3(0.0f, projection_dim.y - letterbox_pixels, 0.0f), projection_dim, 0.0f, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+				push_colored_quad(ui_render_group, math::vec3(0.0f,-projection_dim.y + letterbox_pixels, 0.0f), projection_dim, 0.0f, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 			}
 
 			f32 icon_size = 64.0f;
@@ -1690,10 +1692,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				}
 
 				InfoDisplay * info_display = &main_state->info_display;
-				push_textured_quad(ui_render_group, info_display->asset, math::vec3(0.0f), math::vec2(info_display->scale), math::vec4(1.0f, 1.0f, 1.0f, info_display->alpha));
+				push_textured_quad(ui_render_group, info_display->asset, math::vec3(0.0f), math::vec2(info_display->scale), 0.0f, math::vec4(1.0f, 1.0f, 1.0f, info_display->alpha));
 			}
 			else {
-				push_colored_quad(ui_render_group, math::vec3(0.0f), projection_dim, math::vec4(0.0f, 0.0f, 0.0f, 0.8f));
+				push_colored_quad(ui_render_group, math::vec3(0.0f), projection_dim, 0.0f, math::vec4(0.0f, 0.0f, 0.0f, 0.8f));
 
 				push_ui_layer_to_render_group(&main_state->score_ui, ui_render_group);
 			}

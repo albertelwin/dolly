@@ -247,6 +247,13 @@ namespace math {
 		return x.x * y.x + x.y * y.y;
 	}
 
+	inline Vec2 perp(Vec2 x) {
+		Vec2 y;
+		y.x = -x.y;
+		y.y = x.x;
+		return y;
+	}
+
 	inline Vec2 lerp(Vec2 const & x, Vec2 const & y, f32 t) {
 		return x * (1.0f - t) + y * t;
 	}

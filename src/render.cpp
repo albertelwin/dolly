@@ -146,6 +146,32 @@ void push_quad_to_batch(RenderBatch * batch, math::Vec2 pos0, math::Vec2 pos1, m
 	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
 }
 
+void push_rotated_quad_to_batch(RenderBatch * batch, math::Vec2 pos0, math::Vec2 pos1, math::Vec2 pos2, math::Vec2 pos3, math::Vec2 uv0, math::Vec2 uv1, math::Vec4 color) {
+	ASSERT(batch->v_len >= QUAD_ELEM_COUNT);
+	ASSERT(batch->e <= (batch->v_len - QUAD_ELEM_COUNT));
+	f32 * v = batch->v_arr;
+
+	color.rgb *= color.a;
+	
+	v[batch->e++] =  pos0.x; v[batch->e++] =  pos0.y; v[batch->e++] =   uv0.x; v[batch->e++] =   uv0.y;
+	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
+
+	v[batch->e++] =  pos1.x; v[batch->e++] =  pos1.y; v[batch->e++] =   uv1.x; v[batch->e++] =   uv1.y;
+	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
+
+	v[batch->e++] =  pos2.x; v[batch->e++] =  pos2.y; v[batch->e++] =   uv0.x; v[batch->e++] =   uv1.y;
+	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
+
+	v[batch->e++] =  pos0.x; v[batch->e++] =  pos0.y; v[batch->e++] =   uv0.x; v[batch->e++] =   uv0.y;
+	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
+
+	v[batch->e++] =  pos3.x; v[batch->e++] =  pos3.y; v[batch->e++] =   uv1.x; v[batch->e++] =   uv0.y;
+	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;	
+
+	v[batch->e++] =  pos1.x; v[batch->e++] =  pos1.y; v[batch->e++] =   uv1.x; v[batch->e++] =   uv1.y;
+	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
+}
+
 void push_quad_lines_to_batch(RenderBatch * batch, math::Rec2 * rec, math::Vec4 color) {
 	ASSERT(batch->v_len >= QUAD_LINES_ELEM_COUNT);
 	ASSERT(batch->e <= (batch->v_len - QUAD_LINES_ELEM_COUNT));
@@ -177,14 +203,24 @@ void push_quad_lines_to_batch(RenderBatch * batch, math::Rec2 * rec, math::Vec4 
 	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;	
 }
 
-void push_sprite_to_batch(RenderBatch * batch, Texture * sprite, math::Vec2 pos, math::Vec2 dim, math::Vec4 color) {
-	math::Vec2 pos0 = pos - dim * 0.5f;
-	math::Vec2 pos1 = pos + dim * 0.5f;
+void push_sprite_to_batch(RenderBatch * batch, Texture * sprite, math::Vec2 pos, math::Vec2 dim, f32 angle, math::Vec4 color) {
+	math::Vec2 x_axis = math::vec2(math::cos(angle), math::sin(angle));
+	math::Vec2 y_axis = math::perp(x_axis);
+
+	math::Vec2 v0 = math::vec2(-0.5f,-0.5f) * dim;
+	math::Vec2 v1 = math::vec2( 0.5f, 0.5f) * dim;
+	math::Vec2 v2 = math::vec2(-0.5f, 0.5f) * dim;
+	math::Vec2 v3 = math::vec2( 0.5f,-0.5f) * dim;
+
+	math::Vec2 pos0 = pos + x_axis * v0.x + y_axis * v0.y;
+	math::Vec2 pos1 = pos + x_axis * v1.x + y_axis * v1.y;
+	math::Vec2 pos2 = pos + x_axis * v2.x + y_axis * v2.y;
+	math::Vec2 pos3 = pos + x_axis * v3.x + y_axis * v3.y;
 
 	math::Vec2 uv0 = sprite->tex_coords[0];
 	math::Vec2 uv1 = sprite->tex_coords[1];
 
-	push_quad_to_batch(batch, pos0, pos1, uv0, uv1, color);
+	push_rotated_quad_to_batch(batch, pos0, pos1, pos2, pos3, uv0, uv1, color);
 }
 
 f32 get_str_width_up_new_line(Font * font, f32 scale, char * str, u32 len) {
@@ -480,7 +516,7 @@ RenderGroup * allocate_render_group(RenderState * render_state, MemoryArena * ar
 	return render_group;
 }
 
-RenderElement * push_render_elem(RenderGroup * render_group, Asset * asset, math::Vec3 pos, math::Vec2 dim, math::Vec4 color, b32 scrollable = false) {
+RenderElement * push_render_elem(RenderGroup * render_group, Asset * asset, math::Vec3 pos, math::Vec2 dim, f32 angle, math::Vec4 color, b32 scrollable = false) {
 	ASSERT(render_group);
 	ASSERT(asset);
 	ASSERT(render_group->elem_count < render_group->max_elem_count);
@@ -509,6 +545,7 @@ RenderElement * push_render_elem(RenderGroup * render_group, Asset * asset, math
 		elem->pos = pos2;
 		elem->dim = dim;
 		elem->color = color;
+		elem->angle = angle;
 		elem->scrollable = scrollable;
 		elem->asset = asset;
 	}
@@ -516,18 +553,18 @@ RenderElement * push_render_elem(RenderGroup * render_group, Asset * asset, math
 	return elem;
 }
 
-void push_colored_quad(RenderGroup * render_group, math::Vec3 pos, math::Vec2 dim, math::Vec4 color) {
+void push_colored_quad(RenderGroup * render_group, math::Vec3 pos, math::Vec2 dim, f32 angle, math::Vec4 color) {
 	ASSERT(render_group);
 
-	push_render_elem(render_group, get_asset(render_group->assets, AssetId_white, 0), pos, dim, color);
+	push_render_elem(render_group, get_asset(render_group->assets, AssetId_white, 0), pos, dim, angle, color);
 }
 
-void push_textured_quad(RenderGroup * render_group, AssetRef ref, math::Vec3 pos = math::vec3(0.0f), math::Vec2 scale = math::vec2(1.0f), math::Vec4 color = math::vec4(1.0f), b32 scrollable = false) {
+void push_textured_quad(RenderGroup * render_group, AssetRef ref, math::Vec3 pos = math::vec3(0.0f), math::Vec2 scale = math::vec2(1.0f), f32 angle = 0.0f, math::Vec4 color = math::vec4(1.0f), b32 scrollable = false) {
 	ASSERT(render_group);
 
 	Asset * asset = get_asset(render_group->assets, ref.id, ref.index);
 	ASSERT(asset->type == AssetType_texture || asset->type == AssetType_sprite);
-	RenderElement * elem = push_render_elem(render_group, asset, pos + math::vec3(asset->texture.offset, 0.0f), asset->texture.dim * scale, color, scrollable);
+	RenderElement * elem = push_render_elem(render_group, asset, pos + math::vec3(asset->texture.offset, 0.0f), asset->texture.dim * scale, angle, color, scrollable);
 }
 
 void render_and_clear_render_group(RenderState * render_state, RenderGroup * render_group) {
@@ -557,7 +594,7 @@ void render_and_clear_render_group(RenderState * render_state, RenderGroup * ren
 				current_atlas_index = null_atlas_index;
 			}
 
-			math::Mat4 transform = projection * math::translate(elem->pos.x, elem->pos.y, 0.0f) * math::scale(elem->dim.x, elem->dim.y, 1.0f);
+			math::Mat4 transform = projection * math::translate(elem->pos.x, elem->pos.y, 0.0f) * math::rotate_around_z(elem->angle) * math::scale(elem->dim.x, elem->dim.y, 1.0f);
 			gl::VertexBuffer * v_buf = elem->scrollable ? &render_state->scrollable_quad_v_buf : &render_state->quad_v_buf;
 			render_v_buf(v_buf, RenderMode_triangles, basic_shader, &transform, tex, elem->color);
 		}
@@ -572,7 +609,7 @@ void render_and_clear_render_group(RenderState * render_state, RenderGroup * ren
 				render_batch->tex = get_texture_asset(render_state->assets, AssetId_atlas, sprite->atlas_index);
 			}
 
-			push_sprite_to_batch(render_batch, sprite, elem->pos, elem->dim, elem->color);
+			push_sprite_to_batch(render_batch, sprite, elem->pos, elem->dim, elem->angle, elem->color);
 		}
 	}
 

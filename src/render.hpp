@@ -55,6 +55,7 @@ struct RenderElement {
 	math::Vec2 pos;
 	math::Vec2 dim;
 	math::Vec4 color;
+	f32 angle;
 	//TODO: Temp!!
 	b32 scrollable;
 
