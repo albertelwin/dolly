@@ -144,13 +144,29 @@ void load_assets(AssetState * assets, MemoryArena * arena) {
 			}
 
 			case AssetType_tile_map: {
-				TileMapInfo * info = (TileMapInfo *)&asset_info->tile_map;
+				TileMapInfo * info = &asset_info->tile_map;
 
 				Asset * asset = push_asset(assets, asset_info->id, AssetType_tile_map);
 				asset->tile_map.width = info->width;
 				asset->tile_map.tiles = (Tiles *)file_ptr;
 
 				file_ptr += info->width * sizeof(Tiles);
+
+				break;
+			}
+
+			case AssetType_font: {
+				FontInfo * info = &asset_info->font;
+
+				Asset * asset = push_asset(assets, asset_info->id, AssetType_font);
+				asset->font.glyphs = (FontGlyph *)file_ptr;
+				asset->font.glyph_id = info->glyph_id;
+				asset->font.ascent = info->ascent;
+				asset->font.descent = info->descent;
+				asset->font.whitespace_advance = info->whitespace_advance;
+				asset->font.atlas_index = info->atlas_index;
+
+				file_ptr += sizeof(FontGlyph) * FONT_GLYPH_COUNT;
 
 				break;
 			}

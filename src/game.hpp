@@ -237,7 +237,6 @@ struct MainMetaState {
 	RenderGroup * ui_render_group;
 	f32 letterboxed_height;
 	f32 fixed_letterboxing;
-	Font * font;
 
 	EntityArray entities;
 	math::Vec2 entity_gravity;
@@ -348,10 +347,11 @@ struct GameState {
 	f32 auto_save_time;
 	f32 time_until_next_save;
 
-	Str * debug_str;
 	Str * str;
 
-	b32 debug_render_entity_bounds;
+	RenderGroup * debug_render_group;
+	Str * debug_str;
+	b32 debug_show_overlay;
 };
 
 #endif

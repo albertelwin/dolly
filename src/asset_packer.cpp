@@ -92,6 +92,11 @@ struct TileMapAsset {
 	AssetId id;
 };
 
+struct FontAsset {
+	Font font;
+	AssetId id;
+};
+
 struct AssetPacker {
 	AssetPackHeader header;
 
@@ -299,7 +304,7 @@ Blit blit_texture(Texture * dst, Texture * src) {
 	}
 
 	dst->x += width + pad_2;
-	ASSERT(dst->x <= dst->width);
+	ASSERT(dst->x <= (dst->width + pad));
 	if(dst->x >= dst->width) {
 		dst->x = pad;
 		dst->y = dst->safe_y;
@@ -437,38 +442,63 @@ void push_sprite_sheet(AssetPacker * packer, char const * file_name, AssetId spr
 	packer->header.asset_count += atlas->sprite_count;
 }
 
-void load_font(AssetPacker * packer) {
+FontAsset load_font(AssetPacker * packer, char const * file_name, AssetId font_id, f32 pixel_height) {
 	ASSERT(packer->atlas_count < ARRAY_COUNT(packer->atlases));
 
-	u32 atlas_index = packer->atlas_count++;
-	TextureAtlas * atlas = packer->atlases + atlas_index;
-	atlas->tex = allocate_texture(640, 640, AssetId_atlas);
+	FontAsset font_asset = {};
+	font_asset.id = font_id;
+
+	stbtt_fontinfo ttf_info;
+	MemoryPtr ttf_file = read_file_to_memory(file_name);
+	ASSERT(ttf_file.ptr);
+	stbtt_InitFont(&ttf_info, ttf_file.ptr, stbtt_GetFontOffsetForIndex(ttf_file.ptr, 0));
+
+	f32 scale_factor = stbtt_ScaleForPixelHeight(&ttf_info, pixel_height);
+
+	i32 ascent, descent, line_gap;
+	stbtt_GetFontVMetrics(&ttf_info, &ascent, &descent, &line_gap);
+	// std::printf("LOG: %f\n", line_gap * scale_factor);
+
+	i32 whitespace_advance;
+	stbtt_GetCodepointHMetrics(&ttf_info, ' ', &whitespace_advance, 0);
+
+	Font * font = &font_asset.font;
+	font->glyphs = ALLOC_ARRAY(FontGlyph, FONT_GLYPH_COUNT);
+	font->ascent = ascent * scale_factor;
+	font->descent = descent * scale_factor;
+	font->whitespace_advance = whitespace_advance * scale_factor;
+	font->atlas_index = packer->atlas_count++;
+	font->glyph_id = font_asset.id + 1;
+
+	TextureAtlas * atlas = packer->atlases + font->atlas_index;
+	atlas->tex = allocate_texture(384, 384, AssetId_atlas);
 
 	f32 r_tex_size = 1.0f / (f32)atlas->tex.width;
 
-	stbtt_fontinfo font_info;
-	MemoryPtr ttf_file = read_file_to_memory("supersrc.ttf");
-	stbtt_InitFont(&font_info, ttf_file.ptr, stbtt_GetFontOffsetForIndex(ttf_file.ptr, 0));
-
 	//TODO: Collapse this!!
-	for(u32 glyph_index = 33; glyph_index < 127; glyph_index++) {
-		char glyph_char = (char)glyph_index;
+	for(char code_point = FONT_FIRST_CHAR; code_point < FONT_ONE_PAST_LAST_CHAR; code_point++) {
+		FontGlyph * glyph = font->glyphs + get_font_glyph_index((char)code_point);
 
-		i32 glyph_width, glyph_height;
-		u8 * glyph_bitmap_data = stbtt_GetCodepointBitmap(&font_info, 0, stbtt_ScaleForPixelHeight(&font_info, 64), glyph_char, &glyph_width, &glyph_height, 0, 0);
-		ASSERT(glyph_bitmap_data != 0);
+		i32 bitmap_width, bitmap_height;
+		i32 x_offset, y_offset;
+		u8 * bitmap_data = stbtt_GetCodepointBitmap(&ttf_info, 0, scale_factor, code_point, &bitmap_width, &bitmap_height, &x_offset, &y_offset);
+		ASSERT(bitmap_data != 0);
+
+		i32 advance, left_side_bearing;
+		stbtt_GetCodepointHMetrics(&ttf_info, code_point, &advance, &left_side_bearing);
+
+		glyph->advance = advance * scale_factor;
 
 		Texture tex = {};
-		tex.id = AssetId_atlas;
-		tex.width = (u32)glyph_width;
-		tex.height = (u32)glyph_height;
+		tex.width = (u32)bitmap_width;
+		tex.height = (u32)bitmap_height;
 		tex.sampling = TextureSampling_bilinear;
 		tex.size = tex.width * tex.height * TEXTURE_CHANNELS;
 		tex.ptr = ALLOC_ARRAY(u8, tex.size);
 
 		for(u32 y = 0, i = 0; y < tex.height; y++) {
 			for(u32 x = 0; x < tex.width; x++, i += TEXTURE_CHANNELS) {
-				u8 a = glyph_bitmap_data[((tex.height - 1) - y) * tex.width + x];
+				u8 a = bitmap_data[((tex.height - 1) - y) * tex.width + x];
 
 				tex.ptr[i + 0] = a;
 				tex.ptr[i + 1] = a;
@@ -480,21 +510,21 @@ void load_font(AssetPacker * packer) {
 		math::Vec2 tex_dim = math::vec2(tex.width, tex.height);
 
 		Blit blit = blit_texture(&atlas->tex, &tex);
-		math::Rec2 blit_rec = math::rec2_min_dim(math::vec2(blit.min_x, blit.min_y), math::vec2(blit.width, blit.height));
 
 		ASSERT(atlas->sprite_count < ARRAY_COUNT(atlas->sprites));
 		AssetInfo * info = atlas->sprites + atlas->sprite_count++;
-		info->id = AssetId_debug_font;
+		info->id = (AssetId)font->glyph_id;
 		info->type = AssetType_sprite;
 
 		SpriteInfo * sprite = &info->sprite;
-		sprite->atlas_index = atlas_index;
+		sprite->atlas_index = font->atlas_index;
 		sprite->width = blit.width;
 		sprite->height = blit.height;
-		sprite->offset = math::rec_pos(blit_rec) - tex_dim * 0.5f;
+		sprite->offset = math::vec2(tex_dim.x * 0.5f + x_offset, -tex_dim.y * 0.5f - y_offset);
 		sprite->tex_coords[0] = math::vec2(blit.u, blit.v) * r_tex_size;
 		sprite->tex_coords[1] = math::vec2(blit.u + blit.width, blit.v + blit.height) * r_tex_size;
 
+		stbtt_FreeBitmap(bitmap_data, 0);
 		FREE_MEMORY(tex.ptr);
 	}
 
@@ -502,6 +532,8 @@ void load_font(AssetPacker * packer) {
 	packer->header.asset_count += atlas->sprite_count;
 
 	FREE_MEMORY(ttf_file.ptr);
+
+	return font_asset;
 }
 
 int main() {
@@ -510,7 +542,13 @@ int main() {
 
 	AssetPacker packer = {};
 
-	load_font(&packer);
+	FontAsset fonts[] = {
+		load_font(&packer, "pragmata_pro.ttf", AssetId_pragmata_pro, 15.0f),
+		load_font(&packer, "supersrc.ttf", AssetId_supersrc, 30.0f),
+		load_font(&packer, "arcade_n.ttf", AssetId_arcade_n, 30.0f),
+	};
+
+	packer.header.asset_count += ARRAY_COUNT(fonts);
 
 	AssetFile sprite_files[] = {
 		{ AssetId_dolly_idle, "dolly_idle.png" },
@@ -583,12 +621,8 @@ int main() {
 
 	push_sprite_sheet(&packer, "dolly_fall.png", AssetId_dolly_fall, 64, 64, 4);
 
-	// push_sprite_sheet(&packer, "explosion.png", AssetId_explosion, 500, 500, 16);
-
 	Texture reg_tex_array[] = {
 		load_texture("white.png", AssetId_white),
-
-		load_texture("font_384.png", AssetId_font),
 
 		load_texture("menu_background.png", AssetId_menu_background),
 		load_texture("menu_credits_temp.png", AssetId_menu_background),
@@ -727,6 +761,23 @@ int main() {
 
 		std::fwrite(&info, sizeof(AssetInfo), 1, file_ptr);
 		std::fwrite(map_asset->map.tiles, sizeof(Tiles), map_asset->map.width, file_ptr);
+	}
+
+	for(u32 i = 0; i < ARRAY_COUNT(fonts); i++) {
+		FontAsset * font_asset = fonts + i;
+		Font * font = &font_asset->font;
+
+		AssetInfo info = {};
+		info.id = font_asset->id;
+		info.type = AssetType_font;
+		info.font.glyph_id = font->glyph_id;
+		info.font.ascent = font->ascent;
+		info.font.descent = font->descent;
+		info.font.whitespace_advance = font->whitespace_advance;
+		info.font.atlas_index = font->atlas_index;
+
+		std::fwrite(&info, sizeof(AssetInfo), 1, file_ptr);
+		std::fwrite(font->glyphs, sizeof(FontGlyph), FONT_GLYPH_COUNT, file_ptr);
 	}
 
 	std::fclose(file_ptr);

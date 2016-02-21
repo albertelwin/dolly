@@ -73,14 +73,6 @@ struct RenderGroup {
 	math::Rec2 projection_bounds;
 };
 
-struct Font {
-	RenderBatch * batch;
-
-	u32 glyph_width;
-	u32 glyph_height;
-	u32 glyph_spacing;
-};
-
 enum FontLayoutAnchor {
 	FontLayoutAnchor_top_left,
 	FontLayoutAnchor_top_centre,
@@ -119,8 +111,6 @@ struct RenderState {
 
 	f32 pixelate_time;
 	f32 fade_amount;
-
-	Font * debug_font;
 	
 	RenderBatch * render_batch;
 };

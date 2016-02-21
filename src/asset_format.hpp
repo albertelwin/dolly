@@ -75,17 +75,44 @@ struct TileMap {
 };
 #pragma pack(pop)
 
+#define FONT_FIRST_CHAR '!'
+#define FONT_ONE_PAST_LAST_CHAR ('~' + 1)
+#define FONT_GLYPH_COUNT (FONT_ONE_PAST_LAST_CHAR - FONT_FIRST_CHAR)
+
+inline u32 get_font_glyph_index(char char_) {
+	u32 index = (u32)char_ - FONT_FIRST_CHAR;
+	ASSERT(index < FONT_GLYPH_COUNT);
+	return index;
+}
+
+#pragma pack(push, 1)
+struct FontGlyph {
+	f32 advance;
+};
+
+struct Font {
+	FontGlyph * glyphs;
+	u32 glyph_id;
+
+	f32 ascent;
+	f32 descent;
+	f32 whitespace_advance;
+
+	//TODO: Do we really need this??
+	u32 atlas_index;
+};
+#pragma pack(pop)
+
 #define BEGIN_ASSET_GROUP(name) AssetId_one_before_first_##name
 #define END_ASSET_GROUP(name) AssetId_one_past_last_##name
+
+#define ADD_FONT_ASSET_ID(name) AssetId_##name, AssetId_##name##_glyph
 
 enum AssetId {
 	AssetId_null,
 
 	//NOTE: Textures
 	AssetId_white,
-
-	AssetId_font,
-	AssetId_debug_font,
 
 	AssetId_menu_background,
 
@@ -187,6 +214,11 @@ enum AssetId {
 	AssetId_upper_map,
 	AssetId_tutorial_map,
 
+	//NOTE: Fonts
+	ADD_FONT_ASSET_ID(pragmata_pro),
+	ADD_FONT_ASSET_ID(arcade_n),
+	ADD_FONT_ASSET_ID(supersrc),
+
 	AssetId_count,
 };
 
@@ -202,7 +234,8 @@ enum AssetType {
 	X(texture, Texture)				\
 	X(sprite, Texture)				\
 	X(audio_clip, AudioClip)		\
-	X(tile_map, TileMap)
+	X(tile_map, TileMap)			\
+	X(font, Font)					\
 
 #define X(NAME, STRUCT) AssetType_##NAME,
 	ASSET_TYPE_NAME_STRUCT_X
@@ -242,6 +275,16 @@ struct TileMapInfo {
 	u32 width;
 };
 
+struct FontInfo {
+	u32 glyph_id;
+
+	f32 ascent;
+	f32 descent;
+	f32 whitespace_advance;
+
+	u32 atlas_index;
+};
+
 struct AssetInfo {
 	AssetId id;
 	AssetType type;
@@ -251,6 +294,7 @@ struct AssetInfo {
 		SpriteInfo sprite;
 		AudioClipInfo audio_clip;
 		TileMapInfo tile_map;
+		FontInfo font;
 	};
 };
 #pragma pack(pop)

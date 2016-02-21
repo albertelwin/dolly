@@ -192,25 +192,25 @@ void change_scene_asset_type(MainMetaState * main_state, SceneId scene_id, Asset
 	scene->asset_id = asset_id;
 	switch(scene->asset_id) {
 		case AssetId_scene_city: {
-			scene->name = (char *)"DUNDEE";
+			scene->name = (char *)"Dundee";
 
 			break;
 		}
 
 		case AssetId_scene_highlands: {
-			scene->name = (char *)"HIGHLANDS";
+			scene->name = (char *)"Highlands";
 
 			break;
 		}
 
 		case AssetId_scene_ocean: {
-			scene->name = (char *)"OCEAN";
+			scene->name = (char *)"Ocean";
 
 			break;
 		}
 
 		case AssetId_scene_space: {
-			scene->name = (char *)"SPACE";
+			scene->name = (char *)"Space";
 
 			scene->tile_to_asset_table[TileId_clone] = AssetId_clone_space;
 			scene->tile_to_asset_table[TileId_rocket] = AssetId_clone_space;
@@ -578,7 +578,6 @@ void init_main_meta_state(MetaState * meta_state) {
 	main_state->ui_render_group = allocate_render_group(render_state, &meta_state->arena, screen_width, screen_height);
 	main_state->letterboxed_height = (f32)screen_height;
 	main_state->fixed_letterboxing = 80.0f;
-	main_state->font = allocate_font(render_state, 65536, screen_width, screen_height);
 
 	EntityArray * entities = &main_state->entities;
 	main_state->entity_gravity = math::vec2(0.0f, -6000.0f);
@@ -815,10 +814,9 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		game_state->save.plays = 0;
 		game_state->save.high_score = 0;
 
+		game_state->debug_render_group = allocate_render_group(&game_state->render_state, &game_state->memory_arena, game_input->back_buffer_width, game_input->back_buffer_height, 1024);
 		game_state->debug_str = allocate_str(&game_state->memory_arena, 1024);
-		game_state->str = allocate_str(&game_state->memory_arena, 256);
-
-		game_state->debug_render_entity_bounds = false;
+		game_state->debug_show_overlay = false;
 
 #if __EMSCRIPTEN__ && DEV_ENABLED
 		if(EM_ASM_INT_V({ return Prefs.mute })) {
@@ -879,7 +877,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 #endif
 
 	if(game_input->buttons[ButtonId_debug] & KEY_PRESSED) {
-		game_state->debug_render_entity_bounds = !game_state->debug_render_entity_bounds;
+		game_state->debug_show_overlay = !game_state->debug_show_overlay;
 	}
 
 	switch(game_state->meta_state) {
@@ -1644,7 +1642,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 			render_and_clear_render_group(meta_state->render_state, main_state->render_group);
 
-			if(game_state->debug_render_entity_bounds) {
+			if(game_state->debug_show_overlay) {
 				RenderBatch * render_batch = render_state->render_batch;
 				render_batch->tex = get_texture_asset(render_state->assets, AssetId_white, 0);
 				render_batch->mode = RenderMode_lines;
@@ -1681,10 +1679,11 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			}
 
 			f32 icon_size = 64.0f;
+			f32 fixed_letterboxing = main_state->fixed_letterboxing;
 
 			if(!main_state->show_score_overlay) {
-				push_textured_quad(ui_render_group, asset_ref(AssetId_icon_clone), math::vec3((-projection_dim.x + icon_size) * 0.5f, (projection_dim.y - icon_size) * 0.5f, 0.0f), math::vec2(main_state->score_icon_scale));
-				push_textured_quad(ui_render_group, asset_ref(AssetId_icon_clock), math::vec3((projection_dim.x - icon_size) * 0.5f, (projection_dim.y - icon_size) * 0.5f, 0.0f), math::vec2(main_state->clock_icon_scale));
+				push_textured_quad(ui_render_group, asset_ref(AssetId_icon_clone), math::vec3((-projection_dim.x + icon_size) * 0.5f, (projection_dim.y - main_state->fixed_letterboxing) * 0.5f, 0.0f), math::vec2(main_state->score_icon_scale));
+				push_textured_quad(ui_render_group, asset_ref(AssetId_icon_clock), math::vec3((projection_dim.x - icon_size) * 0.5f, (projection_dim.y - main_state->fixed_letterboxing) * 0.5f, 0.0f), math::vec2(main_state->clock_icon_scale));
 
 				for(u32 i = 0; i < ARRAY_COUNT(main_state->arrow_buttons); i++) {
 					UiElement * elem = main_state->arrow_buttons + i;
@@ -1700,53 +1699,49 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				push_ui_layer_to_render_group(&main_state->score_ui, ui_render_group);
 			}
 
-			render_and_clear_render_group(meta_state->render_state, ui_render_group);
-
 #if 1
 			//TODO: Need a convenient way to make temp strs!!
 			char temp_buf[256];
 			Str temp_str = str_fixed_size(temp_buf, ARRAY_COUNT(temp_buf));
 
+			Font * font = get_font_asset(meta_state->assets, AssetId_arcade_n, 0);
+
 			if(!main_state->show_score_overlay) {
 				{
 					str_clear(&temp_str);
-					str_print(&temp_str, "SCORE: %u", main_state->score_values[ScoreValueId_points].u32_);
+					str_print(&temp_str, "Score: %u", main_state->score_values[ScoreValueId_points].u32_);
 
-					math::Vec2 offset = math::vec2(0.0f);
-					offset.x = icon_size;
-					offset.y = (-icon_size + (f32)(main_state->font->glyph_height + main_state->font->glyph_spacing * 2)) * 0.5f;
-					FontLayout font_layout = create_font_layout(main_state->font, projection_dim, 1.0f, FontLayoutAnchor_top_left, offset);
-					push_str_to_batch(main_state->font, &font_layout, &temp_str);
+					math::Vec2 offset = math::vec2(icon_size, -fixed_letterboxing * 0.5f + 21.0f);
+					FontLayout font_layout = create_font_layout(font, projection_dim, 1.0f, FontLayoutAnchor_top_left, offset);
+					push_str_to_render_group(ui_render_group, font, &font_layout, &temp_str);
 				}
 
 				{
 					str_clear(&temp_str);
-					str_print(&temp_str, "TIME: %.2f", main_state->time_remaining);
+					str_print(&temp_str, "Time: %.2f", main_state->time_remaining);
 
-					math::Vec2 offset = math::vec2(0.0f);
-					offset.x = -icon_size;
-					offset.y = (-icon_size + (f32)(main_state->font->glyph_height + main_state->font->glyph_spacing * 2)) * 0.5f;
-					FontLayout font_layout = create_font_layout(main_state->font, projection_dim, 1.0f, FontLayoutAnchor_top_right, offset);
-					push_str_to_batch(main_state->font, &font_layout, &temp_str);
+					math::Vec2 offset = math::vec2(-icon_size, -fixed_letterboxing * 0.5f + 21.0f);
+					FontLayout font_layout = create_font_layout(font, projection_dim, 1.0f, FontLayoutAnchor_top_right, offset);
+					push_str_to_render_group(ui_render_group, font, &font_layout, &temp_str);
 				}
 
 				{
-					FontLayout font_layout = create_font_layout(main_state->font, projection_dim, 1.0f, FontLayoutAnchor_bottom_left);
-					push_c_str_to_batch(main_state->font, &font_layout, main_state->scenes[main_state->current_scene].name);
-				}				
+					FontLayout font_layout = create_font_layout(font, projection_dim, 1.0f, FontLayoutAnchor_bottom_left, math::vec2(font->whitespace_advance, fixed_letterboxing - (font->ascent - font->descent) - 21.0f));
+					push_c_str_to_render_group(ui_render_group, font, &font_layout, main_state->scenes[main_state->current_scene].name);
+				}
 			}
 			else {
 				str_clear(&temp_str);
-				str_print(&temp_str, "SCORE\n\n");
-				str_print(&temp_str, "TIME PLAYED: %.2f\n", main_state->score_values[ScoreValueId_time_played].display);
-				str_print(&temp_str, "POINTS: %u\n", (u32)main_state->score_values[ScoreValueId_points].display);
+				str_print(&temp_str, "Score\n\n");
+				str_print(&temp_str, "Time played: %.2f\n", main_state->score_values[ScoreValueId_time_played].display);
+				str_print(&temp_str, "Points: %u\n", (u32)main_state->score_values[ScoreValueId_points].display);
 
-				FontLayout font_layout = create_font_layout(main_state->font, projection_dim, 1.0f, FontLayoutAnchor_top_centre, math::vec2(0.0f, -(main_state->fixed_letterboxing + 40.0f)));
-				push_str_to_batch(main_state->font, &font_layout, &temp_str);				
+				FontLayout font_layout = create_font_layout(font, projection_dim, 1.0f, FontLayoutAnchor_top_centre, math::vec2(0.0f, -(main_state->fixed_letterboxing + 40.0f)));
+				push_str_to_render_group(ui_render_group, font, &font_layout, &temp_str);
 			}
 #endif
 
-			render_font(render_state, main_state->font, &ui_render_group->transform);
+			render_and_clear_render_group(meta_state->render_state, ui_render_group);
 
 			break;
 		}
@@ -1754,22 +1749,24 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		INVALID_CASE();
 	}
 
-	Font * debug_font = render_state->debug_font;
-	FontLayout debug_font_layout = create_font_layout(debug_font, math::vec2(render_state->back_buffer_width, render_state->back_buffer_height), 1.0f, FontLayoutAnchor_top_left);
-	push_str_to_batch(debug_font, &debug_font_layout, game_state->str);
-#if 0
-	{
-		// math::Vec4 debug_color = math::vec4(1.0f);
-		math::Vec4 debug_color = math::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+#if DEBUG_ENABLED
+	if(game_state->debug_show_overlay) {
+		RenderGroup * debug_render_group = game_state->debug_render_group;
+
+		Font * debug_font = get_font_asset(assets, AssetId_pragmata_pro, 0);
+		FontLayout debug_font_layout = create_font_layout(debug_font, math::vec2(render_state->back_buffer_width, render_state->back_buffer_height), 1.0f, FontLayoutAnchor_top_left, math::vec2(debug_font->whitespace_advance, 0.0f));
+		push_str_to_render_group(debug_render_group, debug_font, &debug_font_layout, game_state->str);
 
 		char temp_buf[128];
 		Str temp_str = str_fixed_size(temp_buf, ARRAY_COUNT(temp_buf));
-		str_print(&temp_str, "DT: %f\n", game_input->delta_time);
-		str_print(&temp_str, "SOURCES PLAYING: %u | SOURCES TO FREE %u\n", game_state->audio_state.debug_sources_playing, game_state->audio_state.debug_sources_to_free);
+		str_print(&temp_str, "dt: %f\n", game_input->delta_time);
+		str_print(&temp_str, "sources playing: %u | sources to free: %u\n", game_state->audio_state.debug_sources_playing, game_state->audio_state.debug_sources_to_free);
 		str_print(&temp_str, "\n");
-		push_str_to_batch(debug_font, &debug_font_layout, &temp_str, debug_color);
+		push_str_to_render_group(debug_render_group, debug_font, &debug_font_layout, &temp_str);
 
-		push_str_to_batch(debug_font, &debug_font_layout, game_state->debug_str, debug_color);
+		push_str_to_render_group(debug_render_group, debug_font, &debug_font_layout, game_state->debug_str);
+
+		render_and_clear_render_group(render_state, debug_render_group);		
 	}
 #endif
 

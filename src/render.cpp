@@ -60,54 +60,38 @@ RenderBatch * allocate_render_batch(MemoryArena * arena, Texture * tex, u32 v_le
 	return batch;
 }
 
-Font * allocate_font(RenderState * render_state, u32 v_len, u32 projection_width, u32 projection_height) {
-	Font * font = PUSH_STRUCT(render_state->arena, Font);
-
-	font->batch = allocate_render_batch(render_state->arena, get_texture_asset(render_state->assets, AssetId_font, 0), v_len);
-
-#if 0
-	font->glyph_width = 3;
-	font->glyph_height = 5;
-	font->glyph_spacing = 1;
-#else
-	font->glyph_width = 18;
-	font->glyph_height = 30;
-	font->glyph_spacing = 6;
-#endif
-
-	return font;
-}
-
 FontLayout create_font_layout(Font * font, math::Vec2 dim, f32 scale, FontLayoutAnchor anchor, math::Vec2 offset = math::vec2(0.0f)) {
 	FontLayout layout = {};
 	layout.anchor = anchor;
 	layout.scale = scale;
 
+	f32 line_height = (font->ascent - font->descent) * scale;
+
 	switch(anchor) {
 		case FontLayoutAnchor_top_left: {
-			layout.align.x = -dim.x * 0.5f + font->glyph_spacing * scale;
-			layout.align.y = dim.y * 0.5f - (font->glyph_height + font->glyph_spacing) * scale;
+			layout.align.x = -dim.x * 0.5f;
+			layout.align.y = dim.y * 0.5f - line_height;
 
 			break;
 		}
 
 		case FontLayoutAnchor_top_centre: {
 			layout.align.x = 0.0f;
-			layout.align.y = dim.y * 0.5f - (font->glyph_height + font->glyph_spacing) * scale;
+			layout.align.y = dim.y * 0.5f - line_height;
 
 			break;
 		}
 
 		case FontLayoutAnchor_top_right: {
-			layout.align.x = dim.x * 0.5f - font->glyph_spacing * scale;
-			layout.align.y = dim.y * 0.5f - (font->glyph_height + font->glyph_spacing) * scale;
+			layout.align.x = dim.x * 0.5f;
+			layout.align.y = dim.y * 0.5f - line_height;
 
 			break;
 		}
 
 		case FontLayoutAnchor_bottom_left: {
-			layout.align.x = -dim.x * 0.5f + font->glyph_spacing * scale;
-			layout.align.y = -dim.y * 0.5f + font->glyph_spacing * scale;
+			layout.align.x = -dim.x * 0.5f;
+			layout.align.y = -dim.y * 0.5f;
 
 			break;
 		}
@@ -207,103 +191,18 @@ void push_sprite_to_batch(RenderBatch * batch, Texture * sprite, math::Vec2 pos,
 	math::Vec2 x_axis = math::vec2(math::cos(angle), math::sin(angle));
 	math::Vec2 y_axis = math::perp(x_axis);
 
-	math::Vec2 v0 = math::vec2(-0.5f,-0.5f) * dim;
-	math::Vec2 v1 = math::vec2( 0.5f, 0.5f) * dim;
-	math::Vec2 v2 = math::vec2(-0.5f, 0.5f) * dim;
-	math::Vec2 v3 = math::vec2( 0.5f,-0.5f) * dim;
+	x_axis *= dim.x * 0.5f;
+	y_axis *= dim.y * 0.5f;
 
-	math::Vec2 pos0 = pos + x_axis * v0.x + y_axis * v0.y;
-	math::Vec2 pos1 = pos + x_axis * v1.x + y_axis * v1.y;
-	math::Vec2 pos2 = pos + x_axis * v2.x + y_axis * v2.y;
-	math::Vec2 pos3 = pos + x_axis * v3.x + y_axis * v3.y;
+	math::Vec2 pos0 = pos - x_axis - y_axis;
+	math::Vec2 pos1 = pos + x_axis + y_axis;
+	math::Vec2 pos2 = pos - x_axis + y_axis;
+	math::Vec2 pos3 = pos + x_axis - y_axis;
 
 	math::Vec2 uv0 = sprite->tex_coords[0];
 	math::Vec2 uv1 = sprite->tex_coords[1];
 
 	push_rotated_quad_to_batch(batch, pos0, pos1, pos2, pos3, uv0, uv1, color);
-}
-
-f32 get_str_width_up_new_line(Font * font, f32 scale, char * str, u32 len) {
-	f32 width = 0.0f;
-
-	for(u32 i = 0; i < len; i++) {
-		char char_ = str[i];
-		if(char_ != '\n') {
-			width += (font->glyph_width + font->glyph_spacing) * scale;
-		}
-		else {
-			break;
-		}
-	}
-
-	if(width) {
-		width -= font->glyph_spacing * scale;
-	}
-
-	return width;
-}
-
-void push_str_to_batch(Font * font, FontLayout * layout, Str * str, math::Vec4 color = math::vec4(1.0f)) {
-	DEBUG_TIME_BLOCK();
-
-	RenderBatch * batch = font->batch;
-
-	f32 glyph_width = font->glyph_width * layout->scale;
-	f32 glyph_height = font->glyph_height * layout->scale;
-	f32 glyph_spacing = font->glyph_spacing * layout->scale;
-
-	math::Vec2 tex_dim = batch->tex->dim;
-	math::Vec2 r_tex_dim = math::vec2(1.0f / tex_dim.x, 1.0f / tex_dim.y);
-
-	//TODO: Put these in the font struct??
-	u32 glyph_first_char = 24;
-	u32 glyphs_per_row = 12;
-
-	math::Vec2 offset = math::vec2(0.0f);
-	b32 new_line = true;
-
-	for(u32 i = 0; i < str->len; i++) {
-		char char_ = str->ptr[i];
-
-		if(new_line) {
-			if(layout->anchor == FontLayoutAnchor_top_centre) {
-				offset.x = -get_str_width_up_new_line(font, layout->scale, str->ptr + i, str->len - i) * 0.5f;
-			}
-			else if(layout->anchor == FontLayoutAnchor_top_right) {
-				offset.x = -get_str_width_up_new_line(font, layout->scale, str->ptr + i, str->len - i);
-			}
-
-			new_line = false;
-		}
-
-		if(char_ == '\n') {
-			layout->pos.x = layout->align.x;
-			layout->pos.y -= (glyph_height + glyph_spacing);
-
-			new_line = true;
-		}
-		else {
-			math::Vec2 pos0 = layout->pos + offset;
-			math::Vec2 pos1 = math::vec2(pos0.x + glyph_width, pos0.y + glyph_height);
-
-			layout->pos.x += (glyph_width + glyph_spacing);
-
-			if(char_ != ' ') {
-				u32 u = ((char_ - glyph_first_char) % glyphs_per_row) * (font->glyph_width + font->glyph_spacing * 2) + font->glyph_spacing;
-				u32 v = ((char_ - glyph_first_char) / glyphs_per_row) * (font->glyph_height + font->glyph_spacing * 2) + font->glyph_spacing;
-
-				math::Vec2 uv0 = math::vec2(u, (u32)tex_dim.y - (v + font->glyph_height)) * r_tex_dim;
-				math::Vec2 uv1 = math::vec2(u + font->glyph_width, (u32)tex_dim.y - v) * r_tex_dim;
-
-				push_quad_to_batch(batch, pos0, pos1, uv0, uv1, color);
-			}
-		}
-	} 
-}
-
-void push_c_str_to_batch(Font * font, FontLayout * layout, char const * c_str) {
-	Str str = str_from_c_str(c_str);
-	push_str_to_batch(font, layout, &str);
 }
 
 void render_v_buf(gl::VertexBuffer * v_buf, RenderMode render_mode, Shader * shader, math::Mat4 * transform, Texture * tex0, math::Vec4 color = math::vec4(1.0f)) {
@@ -432,17 +331,10 @@ void load_render(RenderState * render_state, MemoryArena * arena, AssetState * a
 
 	render_state->scrollable_quad_v_buf = gl::create_vertex_buffer(scrollable_quad_verts, ARRAY_COUNT(scrollable_quad_verts), VERT_ELEM_COUNT, GL_STATIC_DRAW);
 
-	render_state->debug_font = allocate_font(render_state, 65536, render_state->back_buffer_width, render_state->back_buffer_height);
-
 	render_state->render_batch = allocate_render_batch(render_state->arena, get_texture_asset(assets, AssetId_white, 0), QUAD_ELEM_COUNT * 512);
 
 	glEnable(GL_CULL_FACE);
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-}
-
-void render_font(RenderState * render_state, Font * font, RenderTransform * render_transform) {
-	math::Mat4 projection = math::orthographic_projection((f32)render_transform->projection_width, (f32)render_transform->projection_height);
-	render_and_clear_render_batch(font->batch, &render_state->basic_shader, &projection);
 }
 
 void begin_render(RenderState * render_state) {
@@ -495,9 +387,6 @@ void end_render(RenderState * render_state) {
 		glDrawArrays(GL_TRIANGLES, 0, v_buf->vert_count);
 	}
 
-	RenderTransform font_render_transform = create_render_transform(render_state->back_buffer_width, render_state->back_buffer_height);
-	render_font(render_state, render_state->debug_font, &font_render_transform);
-
 	glDisable(GL_BLEND);
 }
 
@@ -523,6 +412,7 @@ RenderElement * push_render_elem(RenderGroup * render_group, Asset * asset, math
 
 	math::Vec2 pos2 = project_pos(&render_group->transform, pos);
 
+	//TODO: Need to do an AABB test now that we have rotation!!
 	b32 culled = true;
 	if(color.a > 0.0f) {
 		if(asset->type == AssetType_texture) {
@@ -567,6 +457,85 @@ void push_textured_quad(RenderGroup * render_group, AssetRef ref, math::Vec3 pos
 	RenderElement * elem = push_render_elem(render_group, asset, pos + math::vec3(asset->texture.offset, 0.0f), asset->texture.dim * scale, angle, color, scrollable);
 }
 
+f32 get_str_width_to_new_line(AssetState * assets, Font * font, f32 scale, char * str, u32 len) {
+	f32 width = 0.0f;
+
+	for(u32 i = 0; i < len; i++) {
+		char char_ = str[i];
+		if(char_ != '\n') {
+			if(char_ != ' ') {
+				u32 glyph_index = get_font_glyph_index(char_);
+				width += font->glyphs[glyph_index].advance;
+			}
+			else {
+				width += font->whitespace_advance;
+			}
+		}
+		else {
+			break;
+		}
+	}
+
+	return width;
+}
+
+void push_str_to_render_group(RenderGroup * render_group, Font * font, FontLayout * layout, Str * str, math::Vec4 color = math::vec4(1.0f)) {
+	DEBUG_TIME_BLOCK();
+
+	ASSERT(render_group);
+
+	f32 line_height = font->ascent + font->descent;
+	//TODO: Can we get this from the font??
+	f32 line_gap = line_height * 0.75f;
+
+	math::Vec2 offset = math::vec2(0.0f);
+	b32 new_line = true;
+
+	for(u32 i = 0; i < str->len; i++) {
+		char char_ = str->ptr[i];
+
+		if(new_line) {
+			if(layout->anchor == FontLayoutAnchor_top_centre) {
+				offset.x = -get_str_width_to_new_line(render_group->assets, font, layout->scale, str->ptr + i, str->len - i) * 0.5f;
+			}
+			else if(layout->anchor == FontLayoutAnchor_top_right) {
+				offset.x = -get_str_width_to_new_line(render_group->assets, font, layout->scale, str->ptr + i, str->len - i);
+			}
+
+			new_line = false;
+		}
+
+		if(char_ == '\n') {
+			layout->pos.x = layout->align.x;
+			layout->pos.y -= (line_height + line_gap);
+
+			new_line = true;
+		}
+		else {
+			if(char_ != ' ') {
+				u32 glyph_index = get_font_glyph_index(char_);
+
+				Asset * asset = get_asset(render_group->assets, (AssetId)font->glyph_id, glyph_index);
+				Texture * sprite = &asset->sprite;
+
+				math::Vec2 pos = layout->pos + offset + sprite->offset;
+
+				layout->pos.x += font->glyphs[glyph_index].advance;
+
+				push_render_elem(render_group, asset, math::vec3(pos, 0.0f), sprite->dim, 0.0f, color);
+			}
+			else {
+				layout->pos.x += font->whitespace_advance;
+			}
+		}
+	} 
+}
+
+void push_c_str_to_render_group(RenderGroup * render_group, Font * font, FontLayout * layout, char const * c_str) {
+	Str str = str_from_c_str(c_str);
+	push_str_to_render_group(render_group, font, layout, &str);
+}
+
 void render_and_clear_render_group(RenderState * render_state, RenderGroup * render_group) {
 	ASSERT(render_group);
 	DEBUG_TIME_BLOCK();
@@ -594,6 +563,7 @@ void render_and_clear_render_group(RenderState * render_state, RenderGroup * ren
 				current_atlas_index = null_atlas_index;
 			}
 
+			//TODO: This is total overkill!!
 			math::Mat4 transform = projection * math::translate(elem->pos.x, elem->pos.y, 0.0f) * math::rotate_around_z(elem->angle) * math::scale(elem->dim.x, elem->dim.y, 1.0f);
 			gl::VertexBuffer * v_buf = elem->scrollable ? &render_state->scrollable_quad_v_buf : &render_state->quad_v_buf;
 			render_v_buf(v_buf, RenderMode_triangles, basic_shader, &transform, tex, elem->color);
