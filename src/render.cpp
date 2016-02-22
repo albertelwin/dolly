@@ -60,10 +60,11 @@ RenderBatch * allocate_render_batch(MemoryArena * arena, Texture * tex, u32 v_le
 	return batch;
 }
 
-FontLayout create_font_layout(Font * font, math::Vec2 dim, f32 scale, FontLayoutAnchor anchor, math::Vec2 offset = math::vec2(0.0f)) {
+FontLayout create_font_layout(Font * font, math::Vec2 dim, f32 scale, FontLayoutAnchor anchor, math::Vec2 offset = math::vec2(0.0f), b32 pixel_align = true) {
 	FontLayout layout = {};
 	layout.anchor = anchor;
 	layout.scale = scale;
+	layout.pixel_align = pixel_align;
 
 	f32 line_height = (font->ascent - font->descent) * scale;
 
@@ -390,7 +391,7 @@ void end_render(RenderState * render_state) {
 	glDisable(GL_BLEND);
 }
 
-RenderGroup * allocate_render_group(RenderState * render_state, MemoryArena * arena, u32 projection_width, u32 projection_height, u32 max_elem_count = 64) {
+RenderGroup * allocate_render_group(RenderState * render_state, MemoryArena * arena, u32 projection_width, u32 projection_height, u32 max_elem_count = 256) {
 	RenderGroup * render_group = PUSH_STRUCT(arena, RenderGroup);
 
 	render_group->max_elem_count = max_elem_count;
@@ -476,7 +477,7 @@ f32 get_str_width_to_new_line(AssetState * assets, Font * font, f32 scale, char 
 		}
 	}
 
-	return width;
+	return width * scale;
 }
 
 void push_str_to_render_group(RenderGroup * render_group, Font * font, FontLayout * layout, Str * str, math::Vec4 color = math::vec4(1.0f)) {
@@ -484,7 +485,7 @@ void push_str_to_render_group(RenderGroup * render_group, Font * font, FontLayou
 
 	ASSERT(render_group);
 
-	f32 line_height = font->ascent + font->descent;
+	f32 line_height = (font->ascent + font->descent) * layout->scale;
 	//TODO: Can we get this from the font??
 	f32 line_gap = line_height * 0.75f;
 
@@ -518,22 +519,27 @@ void push_str_to_render_group(RenderGroup * render_group, Font * font, FontLayou
 				Asset * asset = get_asset(render_group->assets, (AssetId)font->glyph_id, glyph_index);
 				Texture * sprite = &asset->sprite;
 
-				math::Vec2 pos = layout->pos + offset + sprite->offset;
+				math::Vec2 align = layout->pos + offset;
+				//TODO: We need something that works universally!!
+				if(layout->pixel_align) {
+					align.x = (i32)align.x;
+					align.y = (i32)align.y;					
+				}
 
-				layout->pos.x += font->glyphs[glyph_index].advance;
+				push_render_elem(render_group, asset, math::vec3(align + sprite->offset * layout->scale, 0.0f), sprite->dim * layout->scale, 0.0f, color);
 
-				push_render_elem(render_group, asset, math::vec3(pos, 0.0f), sprite->dim, 0.0f, color);
+				layout->pos.x += font->glyphs[glyph_index].advance * layout->scale;
 			}
 			else {
-				layout->pos.x += font->whitespace_advance;
+				layout->pos.x += font->whitespace_advance * layout->scale;
 			}
 		}
 	} 
 }
 
-void push_c_str_to_render_group(RenderGroup * render_group, Font * font, FontLayout * layout, char const * c_str) {
+void push_c_str_to_render_group(RenderGroup * render_group, Font * font, FontLayout * layout, char const * c_str, math::Vec4 color = math::vec4(1.0f)) {
 	Str str = str_from_c_str(c_str);
-	push_str_to_render_group(render_group, font, layout, &str);
+	push_str_to_render_group(render_group, font, layout, &str, color);
 }
 
 void render_and_clear_render_group(RenderState * render_state, RenderGroup * render_group) {

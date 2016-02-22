@@ -569,13 +569,12 @@ int main() {
 		{ AssetId_clone_space, "clone_space.png" },
 		{ AssetId_clock, "clock.png" },
 
-#if 1
 		{ AssetId_atom_smasher, "atom_smasher0.png" },
 		{ AssetId_atom_smasher, "atom_smasher1.png" },
 		{ AssetId_atom_smasher, "atom_smasher2.png" },
 		{ AssetId_atom_smasher, "atom_smasher3.png" },
 		{ AssetId_atom_smasher, "atom_smasher4.png" },
-#endif
+		{ AssetId_atom_smasher, "atom_smasher5.png" },
 
 #define X(NAME) { AssetId_collect_##NAME, "collect_" #NAME ".png" },
 		ASSET_ID_COLLECT_X
@@ -605,10 +604,6 @@ int main() {
 
 		{ AssetId_icon_clone, "icon_clone.png" },
 		{ AssetId_icon_clock, "icon_clock.png" },
-
-#define X(NAME) { AssetId_info_##NAME, "info_" #NAME ".png" },
-		ASSET_ID_COLLECT_X
-#undef X
 
 		{ AssetId_intro, "intro0.png" },
 		{ AssetId_intro, "intro1.png" },
@@ -651,7 +646,6 @@ int main() {
 		load_texture("space_layer2.png", AssetId_scene_space),
 		load_texture("space_layer3.png", AssetId_scene_space),
 
-		load_texture("mist_front.png", AssetId_clouds),
 		load_texture("clouds.png", AssetId_clouds),
 	};
 

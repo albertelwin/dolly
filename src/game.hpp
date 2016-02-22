@@ -273,6 +273,7 @@ struct MainMetaState {
 	f32 start_time;
 	f32 max_time;
 	f32 countdown_time;
+	f32 clock_pickup_time;
 
 	f32 clock_icon_scale;
 	f32 score_icon_scale;

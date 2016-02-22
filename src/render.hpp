@@ -85,6 +85,7 @@ struct FontLayout {
 	math::Vec2 align;
 	math::Vec2 pos;
 	FontLayoutAnchor anchor;
+	b32 pixel_align;
 
 	//TODO: Remove this from layout??
 	f32 scale;

@@ -172,12 +172,6 @@ enum AssetId {
 #undef X
 	END_ASSET_GROUP(display),
 
-	BEGIN_ASSET_GROUP(info),
-#define X(NAME) AssetId_info_##NAME,
-	ASSET_ID_COLLECT_X
-#undef X
-	END_ASSET_GROUP(info),
-
 	AssetId_btn_play,
 	AssetId_btn_about,
 	AssetId_btn_back,
