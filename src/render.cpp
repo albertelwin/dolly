@@ -97,6 +97,13 @@ FontLayout create_font_layout(Font * font, math::Vec2 dim, f32 scale, FontLayout
 			break;
 		}
 
+		case FontLayoutAnchor_bottom_centre: {
+			layout.align.x = 0.0f;
+			layout.align.y = -dim.y * 0.5f;
+
+			break;
+		}
+
 		INVALID_CASE();
 	}
 
@@ -496,11 +503,13 @@ void push_str_to_render_group(RenderGroup * render_group, Font * font, FontLayou
 		char char_ = str->ptr[i];
 
 		if(new_line) {
-			if(layout->anchor == FontLayoutAnchor_top_centre) {
-				offset.x = -get_str_width_to_new_line(render_group->assets, font, layout->scale, str->ptr + i, str->len - i) * 0.5f;
+			f32 width = get_str_width_to_new_line(render_group->assets, font, layout->scale, str->ptr + i, str->len - i);
+
+			if(layout->anchor == FontLayoutAnchor_top_centre || layout->anchor == FontLayoutAnchor_bottom_centre) {
+				offset.x = -width * 0.5f;
 			}
 			else if(layout->anchor == FontLayoutAnchor_top_right) {
-				offset.x = -get_str_width_to_new_line(render_group->assets, font, layout->scale, str->ptr + i, str->len - i);
+				offset.x = -width;
 			}
 
 			new_line = false;

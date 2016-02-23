@@ -70,6 +70,12 @@ struct Player {
 	u32 active_clone_count;
 };
 
+struct Concord {
+	Entity * e;
+
+	b32 playing;
+};
+
 struct EntityEmitter {
 	f32 cursor;
 	u32 last_read_pos;
@@ -223,6 +229,8 @@ struct MenuMetaState {
 struct IntroMetaState {
 	RenderGroup * render_group;
 
+	UiLayer ui_layer;
+
 	IntroFrame frames[4];
 	f32 anim_time;
 
@@ -257,12 +265,15 @@ struct MainMetaState {
 	EntityEmitter entity_emitter;
 	RocketSequence rocket_seq;
 
+	Concord concord;
+
 	//TODO: Should this be part of the player??
 	f32 d_speed;
 	f32 dd_speed;
 	f32 accel_time;
 
 	b32 boost_always_on;
+	f32 boost_letterboxing;
 	f32 boost_speed;
 	f32 boost_accel;
 	f32 boost_time;

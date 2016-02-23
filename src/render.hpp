@@ -79,6 +79,7 @@ enum FontLayoutAnchor {
 	FontLayoutAnchor_top_right,
 
 	FontLayoutAnchor_bottom_left,
+	FontLayoutAnchor_bottom_centre,
 };
 
 struct FontLayout {

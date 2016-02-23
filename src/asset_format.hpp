@@ -115,6 +115,7 @@ enum AssetId {
 	AssetId_white,
 
 	AssetId_menu_background,
+	AssetId_intro_background,
 
 	AssetId_background,
 
@@ -146,6 +147,7 @@ enum AssetId {
 	AssetId_rocket,
 	AssetId_rocket_large,
 	AssetId_goggles,
+	AssetId_concord,
 	AssetId_shield,
 
 	AssetId_atom_smasher,
@@ -166,11 +168,11 @@ enum AssetId {
 #undef X
 	END_ASSET_GROUP(collect),
 
-	BEGIN_ASSET_GROUP(display),
-#define X(NAME) AssetId_display_##NAME,
+	BEGIN_ASSET_GROUP(menu_collect),
+#define X(NAME) AssetId_menu_collect_##NAME,
 	ASSET_ID_COLLECT_X
 #undef X
-	END_ASSET_GROUP(display),
+	END_ASSET_GROUP(menu_collect),
 
 	AssetId_btn_play,
 	AssetId_btn_about,
@@ -179,6 +181,7 @@ enum AssetId {
 	AssetId_btn_replay,
 	AssetId_btn_up,
 	AssetId_btn_down,
+	AssetId_btn_skip,
 
 	AssetId_icon_clone,
 	AssetId_icon_clock,
@@ -210,7 +213,6 @@ enum AssetId {
 
 	//NOTE: Fonts
 	ADD_FONT_ASSET_ID(pragmata_pro),
-	ADD_FONT_ASSET_ID(arcade_n),
 	ADD_FONT_ASSET_ID(supersrc),
 
 	AssetId_count,

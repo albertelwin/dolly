@@ -536,19 +536,22 @@ FontAsset load_font(AssetPacker * packer, char const * file_name, AssetId font_i
 	return font_asset;
 }
 
+#define PACK_EVERYTHING 1
+
 int main() {
 	//TODO: Automatically sync these up!!
-	ASSERT(ASSET_GROUP_COUNT(collect) == ASSET_GROUP_COUNT(display));
+	ASSERT(ASSET_GROUP_COUNT(collect) == ASSET_GROUP_COUNT(menu_collect));
 
 	AssetPacker packer = {};
 
+#if PACK_EVERYTHING
 	FontAsset fonts[] = {
-		load_font(&packer, "pragmata_pro.ttf", AssetId_pragmata_pro, 15.0f),
+		load_font(&packer, "pragmata_pro.ttf", AssetId_pragmata_pro, 20.0f),
 		load_font(&packer, "supersrc.ttf", AssetId_supersrc, 30.0f),
-		load_font(&packer, "arcade_n.ttf", AssetId_arcade_n, 30.0f),
 	};
 
 	packer.header.asset_count += ARRAY_COUNT(fonts);
+#endif
 
 	AssetFile sprite_files[] = {
 		{ AssetId_dolly_idle, "dolly_idle.png" },
@@ -563,26 +566,36 @@ int main() {
 		{ AssetId_rocket_large, "rocket_large0.png" },
 		{ AssetId_rocket_large, "rocket_large1.png" },
 		{ AssetId_rocket_large, "rocket_large2.png" },
-		{ AssetId_goggles, "goggles.png" },
+		{ AssetId_goggles, "speed_up.png" },
 		{ AssetId_shield, "shield.png" },
 		{ AssetId_clone, "clone.png" },
 		{ AssetId_clone_space, "clone_space.png" },
-		{ AssetId_clock, "clock.png" },
+		{ AssetId_clock, "clock_.png" },
 
+#if 0
+		{ AssetId_atom_smasher, "atom_smasher_long0.png" },
+		{ AssetId_atom_smasher, "atom_smasher_long1.png" },
+		{ AssetId_atom_smasher, "atom_smasher_long2.png" },
+		{ AssetId_atom_smasher, "atom_smasher_long3.png" },
+#else
 		{ AssetId_atom_smasher, "atom_smasher0.png" },
 		{ AssetId_atom_smasher, "atom_smasher1.png" },
 		{ AssetId_atom_smasher, "atom_smasher2.png" },
 		{ AssetId_atom_smasher, "atom_smasher3.png" },
 		{ AssetId_atom_smasher, "atom_smasher4.png" },
 		{ AssetId_atom_smasher, "atom_smasher5.png" },
+#endif
 
 #define X(NAME) { AssetId_collect_##NAME, "collect_" #NAME ".png" },
 		ASSET_ID_COLLECT_X
 #undef X
 
-#define X(NAME) { AssetId_display_##NAME, "display_" #NAME ".png" },
+#define X(NAME) { AssetId_menu_collect_##NAME, "menu_collect_" #NAME ".png" },
 		ASSET_ID_COLLECT_X
 #undef X
+
+		{ AssetId_concord, "concord0.png" },
+		{ AssetId_concord, "concord1.png" },
 	};
 	push_packed_texture(&packer, sprite_files, ARRAY_COUNT(sprite_files));
 
@@ -601,9 +614,11 @@ int main() {
 		{ AssetId_btn_up, "btn_up1.png" },
 		{ AssetId_btn_down, "btn_down0.png" },
 		{ AssetId_btn_down, "btn_down1.png" },
+		{ AssetId_btn_skip, "btn_skip0.png" },
+		{ AssetId_btn_skip, "btn_skip1.png" },
 
 		{ AssetId_icon_clone, "icon_clone.png" },
-		{ AssetId_icon_clock, "icon_clock.png" },
+		{ AssetId_icon_clock, "clock_.png" },
 
 		{ AssetId_intro, "intro0.png" },
 		{ AssetId_intro, "intro1.png" },
@@ -620,7 +635,9 @@ int main() {
 		load_texture("white.png", AssetId_white),
 
 		load_texture("menu_background.png", AssetId_menu_background),
-		load_texture("menu_credits_temp.png", AssetId_menu_background),
+		load_texture("menu_about.png", AssetId_menu_background),
+
+		load_texture("intro_background.png", AssetId_intro_background),
 
 		load_texture("city_background.png", AssetId_background),
 		load_texture("highlands_background.png", AssetId_background),
@@ -651,6 +668,7 @@ int main() {
 
 	packer.header.asset_count += ARRAY_COUNT(reg_tex_array);
 
+#if PACK_EVERYTHING
 	AudioClip clips[] = {
 		load_audio_clip("pickup0.wav", AssetId_pickup),
 		load_audio_clip("pickup1.wav", AssetId_pickup),
@@ -664,6 +682,15 @@ int main() {
 		load_audio_clip("baa4.wav", AssetId_baa),
 		load_audio_clip("baa5.wav", AssetId_baa),
 		load_audio_clip("baa6.wav", AssetId_baa),
+		load_audio_clip("baa7.wav", AssetId_baa),
+		load_audio_clip("baa8.wav", AssetId_baa),
+		load_audio_clip("baa9.wav", AssetId_baa),
+		load_audio_clip("baa10.wav", AssetId_baa),
+		load_audio_clip("baa11.wav", AssetId_baa),
+		load_audio_clip("baa12.wav", AssetId_baa),
+		load_audio_clip("baa13.wav", AssetId_baa),
+		load_audio_clip("baa14.wav", AssetId_baa),
+		load_audio_clip("baa15.wav", AssetId_baa),
 		load_audio_clip("special.wav", AssetId_special),
 
 		load_audio_clip("click_yes.wav", AssetId_click_yes),
@@ -677,20 +704,25 @@ int main() {
 	};
 
 	packer.header.asset_count += ARRAY_COUNT(clips);
+#endif
 
+#if PACK_EVERYTHING
 	TileMapAsset tile_maps[] = {
 		load_tile_map("tile_map0.png", AssetId_tile_map),
 		load_tile_map("tile_map1.png", AssetId_tile_map),
 
-		load_tile_map("lower_map0.png", AssetId_lower_map),
-		load_tile_map("lower_map1.png", AssetId_lower_map),
+		load_tile_map("placement0.png", AssetId_lower_map),
+		load_tile_map("placement1.png", AssetId_lower_map),
+		load_tile_map("placement2.png", AssetId_lower_map),
+		load_tile_map("placement3.png", AssetId_lower_map),
 
-		load_tile_map("upper_map0.png", AssetId_upper_map),
+		load_tile_map("placement_space0.png", AssetId_upper_map),
 
-		load_tile_map("tutorial_map.png", AssetId_tutorial_map),
+		load_tile_map("tutorial.png", AssetId_tutorial_map),
 	};
 
 	packer.header.asset_count += ARRAY_COUNT(tile_maps);
+#endif
 
 	std::FILE * file_ptr = std::fopen("asset.pak", "wb");
 	ASSERT(file_ptr != 0);
@@ -732,6 +764,7 @@ int main() {
 		std::fwrite(tex->ptr, tex->size, 1, file_ptr);
 	}
 
+#if PACK_EVERYTHING
 	for(u32 i = 0; i < ARRAY_COUNT(clips); i++) {
 		AudioClip * clip = clips + i;
 
@@ -773,6 +806,7 @@ int main() {
 		std::fwrite(&info, sizeof(AssetInfo), 1, file_ptr);
 		std::fwrite(font->glyphs, sizeof(FontGlyph), FONT_GLYPH_COUNT, file_ptr);
 	}
+#endif
 
 	std::fclose(file_ptr);
 

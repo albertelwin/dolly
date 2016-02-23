@@ -47,11 +47,11 @@ math::Rec2 get_asset_bounds(AssetState * assets, AssetId asset_id, u32 asset_ind
 }
 
 math::Rec2 get_entity_render_bounds(AssetState * assets, Entity * entity) {
-	return get_asset_bounds(assets, entity->asset.id, entity->asset.index, entity->scale);
+	return math::rec_offset(get_asset_bounds(assets, entity->asset.id, entity->asset.index, entity->scale), entity->offset);
 }
 
 math::Rec2 get_entity_collider_bounds(Entity * entity) {
-	return math::rec_scale(math::rec_offset(entity->collider, entity->pos.xy), entity->scale);
+	return math::rec_scale(math::rec_offset(entity->collider, entity->pos.xy + entity->offset), entity->scale);
 }
 
 void change_entity_asset(Entity * entity, AssetState * assets, AssetRef asset) {
@@ -65,7 +65,7 @@ void change_entity_asset(Entity * entity, AssetState * assets, AssetRef asset) {
 	if(entity->asset.id != asset.id) {
 		entity->asset = asset;
 		//TODO: Always do this??
-		entity->collider = get_entity_render_bounds(assets, entity);
+		entity->collider = get_asset_bounds(assets, entity->asset.id, entity->asset.index);
 		entity->anim_time = 0.0f;		
 	}
 }
@@ -118,7 +118,7 @@ void change_player_speed(MainMetaState * main_state, Player * player, f32 accel,
 	main_state->dd_speed = accel;
 	main_state->accel_time = time_;
 
-	player->invincibility_time = time_ + 2.0f;
+	player->invincibility_time = time_ + 1.0f;
 }
 
 void kill_player(MainMetaState * main_state, Player * player) {
@@ -192,25 +192,25 @@ void change_scene_asset_type(MainMetaState * main_state, SceneId scene_id, Asset
 	scene->asset_id = asset_id;
 	switch(scene->asset_id) {
 		case AssetId_scene_city: {
-			scene->name = (char *)"Dundee";
+			scene->name = (char *)"DUNDEE";
 
 			break;
 		}
 
 		case AssetId_scene_highlands: {
-			scene->name = (char *)"Highlands";
+			scene->name = (char *)"HIGHLANDS";
 
 			break;
 		}
 
 		case AssetId_scene_ocean: {
-			scene->name = (char *)"Ocean";
+			scene->name = (char *)"OCEAN";
 
 			break;
 		}
 
 		case AssetId_scene_space: {
-			scene->name = (char *)"Space";
+			scene->name = (char *)"SPACE";
 
 			scene->tile_to_asset_table[TileId_clone] = AssetId_clone_space;
 			scene->tile_to_asset_table[TileId_rocket] = AssetId_clone_space;
@@ -260,7 +260,21 @@ void switch_lower_scene_asset_type(MainMetaState * main_state, AssetState * asse
 	change_scene_asset_type(main_state, SceneId_lower, assets, (AssetId)id);
 }
 
-void begin_rocket_sequence(GameState * game_state, MetaState * meta_state) {
+void begin_concord_sequence(MetaState * meta_state) {
+	ASSERT(meta_state->type == MetaStateType_main);
+	MainMetaState * main_state = meta_state->main;
+
+	Player * player = &main_state->player;
+	Concord * concord = &main_state->concord;
+	concord->playing = true;
+
+	change_player_speed(main_state, player, main_state->boost_accel, main_state->boost_time);
+
+	f32 width = math::rec_dim(get_entity_render_bounds(meta_state->assets, concord->e)).x;
+	concord->e->pos.x = -(f32)main_state->render_group->transform.projection_width * 0.5f - width * 0.5f;
+}
+
+void begin_rocket_sequence(MetaState * meta_state) {
 	ASSERT(meta_state->type == MetaStateType_main);
 	MainMetaState * main_state = meta_state->main;
 
@@ -293,7 +307,7 @@ void begin_rocket_sequence(GameState * game_state, MetaState * meta_state) {
 	}
 }
 
-void play_rocket_sequence(GameState * game_state, MetaState * meta_state, f32 dt) {
+void play_rocket_sequence(MetaState * meta_state, f32 dt) {
 	ASSERT(meta_state->type == MetaStateType_main);
 	MainMetaState * main_state = meta_state->main;
 
@@ -351,6 +365,7 @@ void play_rocket_sequence(GameState * game_state, MetaState * meta_state, f32 dt
 					change_volume(main_state->music, math::vec2(1.0f), 1.0f);
 					
 					player->allow_input = false;
+					main_state->accel_time = 0.0f;
 					player->invincibility_time = F32_MAX;
 					player->e->use_gravity = true;
 					change_entity_asset(player->e, meta_state->assets, asset_ref(AssetId_dolly_fall));
@@ -365,7 +380,7 @@ void play_rocket_sequence(GameState * game_state, MetaState * meta_state, f32 dt
 
 					player->e->use_gravity = false;
 					player->allow_input = true;
-					player->invincibility_time = 2.0f;
+					player->invincibility_time = 1.0f;
 					change_entity_asset(player->e, meta_state->assets, asset_ref(AssetId_dolly_idle));
 
 					seq->playing = false;
@@ -553,6 +568,8 @@ void init_intro_meta_state(MetaState * meta_state) {
 		IntroFrame * frame = intro_state->frames + i;
 		frame->alpha = 0.0f;
 	}
+
+	push_ui_elem(&intro_state->ui_layer, 0, AssetId_btn_skip, AssetId_click_yes);
 }
 
 void init_main_meta_state(MetaState * meta_state) {
@@ -687,6 +704,9 @@ void init_main_meta_state(MetaState * meta_state) {
 	seq->playing = false;
 	seq->time_ = 0.0f;
 
+	Concord * concord = &main_state->concord;
+	concord->e = push_entity(entities, assets, asset_ref(AssetId_concord), math::vec3(screen_width * 4.0f, main_state->height_above_ground, 0.0f));
+
 	f32 cloud_y_offsets[ARRAY_COUNT(main_state->clouds)] = {
 		-220.0f,
 		//TODO: Automatically position this based on the cloud height??
@@ -730,12 +750,13 @@ void init_main_meta_state(MetaState * meta_state) {
 
 	main_state->info_display.asset = asset_ref(ASSET_FIRST_GROUP_ID(collect));
 
-	main_state->start_time = 30.0f;
+	main_state->start_time = 60.0f;
 	main_state->clock_pickup_time = 10.0f;
 
-	main_state->boost_speed = 2.5f;
+	main_state->boost_letterboxing = 80.0f;
+	main_state->boost_speed = 2.0f;
 	main_state->boost_accel = 40.0f;
-	main_state->boost_time = 5.0f;
+	main_state->boost_time = 4.0f;
 	main_state->slow_down_speed = 0.25f;
 	main_state->slow_down_time = 1.0f;
 
@@ -745,6 +766,7 @@ void init_main_meta_state(MetaState * meta_state) {
 	main_state->clock_pickup_time = (f32)EM_ASM_DOUBLE_V({ return Prefs.clock_pickup_time });
 
 	main_state->boost_always_on = EM_ASM_INT_V({ return Prefs.boost_always_on });
+	main_state->boost_letterboxing = (f32)EM_ASM_DOUBLE_V({ return Prefs.boost_letterboxing });
 	main_state->boost_speed = (f32)EM_ASM_DOUBLE_V({ return Prefs.boost_speed });
 	main_state->boost_time = (f32)EM_ASM_DOUBLE_V({ return Prefs.boost_time });
 	main_state->slow_down_speed = (f32)EM_ASM_DOUBLE_V({ return Prefs.slow_down_speed });
@@ -935,10 +957,14 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			MetaState * meta_state = get_meta_state(game_state, MetaStateType_intro);
 			IntroMetaState * intro_state = meta_state->intro;
 
-			//TODO: Collapse this!!
+			UiElement * interact_elem = process_ui_layer(meta_state, &intro_state->ui_layer, intro_state->render_group, game_input);
 			if(!game_state->transitioning) {
+				if(interact_elem) {
+					intro_state->transition_id = begin_transition(game_state);
+				}
+
 				f32 frame_index = (u32)intro_state->anim_time + 1;
-				intro_state->anim_time += game_input->delta_time * 1.5f;
+				intro_state->anim_time += game_input->delta_time * 1.0f;
 
 				u32 last_frame_index = ARRAY_COUNT(intro_state->frames) - 1;
 				if(frame_index <= last_frame_index) {
@@ -1027,24 +1053,30 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				}
 			}
 
+			b32 time_frozen = main_state->concord.playing || main_state->rocket_seq.playing;
+
 			if(!player->dead) {
 				f32 dt = game_input->delta_time;
-				f32 new_time_remaining = main_state->time_remaining - dt;
-				if(new_time_remaining < 0.0f) {
-					dt = -new_time_remaining;
-					new_time_remaining = 0.0f;
 
-					kill_player(main_state, player);
-				}
-				else if(new_time_remaining <= main_state->countdown_time && main_state->time_remaining > main_state->countdown_time) {
-					//TODO: How do we do this if the pick up time is less than the countdown time??
-					if(main_state->countdown_time <= main_state->clock_pickup_time) {
-						ASSERT(!main_state->tick_tock);
-						main_state->tick_tock = play_audio_clip(&game_state->audio_state, get_audio_clip_asset(assets, AssetId_tick_tock, 0));						
+				if(!time_frozen) {
+					f32 new_time_remaining = main_state->time_remaining - dt;
+					if(new_time_remaining < 0.0f) {
+						dt = -new_time_remaining;
+						new_time_remaining = 0.0f;
+
+						kill_player(main_state, player);
 					}
+					else if(new_time_remaining <= main_state->countdown_time && main_state->time_remaining > main_state->countdown_time) {
+						//TODO: How do we do this if the pick up time is less than the countdown time??
+						if(main_state->countdown_time <= main_state->clock_pickup_time) {
+							ASSERT(!main_state->tick_tock);
+							main_state->tick_tock = play_audio_clip(&game_state->audio_state, get_audio_clip_asset(assets, AssetId_tick_tock, 0));
+						}
+					}
+
+					main_state->time_remaining = new_time_remaining;
 				}
 
-				main_state->time_remaining = new_time_remaining;
 				main_state->score_values[ScoreValueId_time_played].f32_ += dt;
 			}
 			else {
@@ -1053,41 +1085,29 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				}
 			}
 
-			{
-				main_state->accel_time -= game_input->delta_time;
-				if(main_state->accel_time <= 0.0f) {
-					main_state->dd_speed = 0.0f;
-					main_state->accel_time = 0.0f;
-				}
-
-				if(main_state->boost_always_on) {
-					main_state->dd_speed = main_state->boost_accel;
-					main_state->accel_time = F32_MAX;
-				}
-
-				f32 damp = 0.1f;
-				main_state->d_speed += main_state->dd_speed * game_input->delta_time;
-				main_state->d_speed *= (1.0f - damp);
-
-				f32 pitch = math::max(main_state->d_speed + 1.0f, 0.5f);
-				if(pitch >= 1.0f) {
-					pitch = 1.0f + (pitch - 1.0f) * 0.02f;
-				}
-
-				change_pitch(main_state->music, pitch);				
+			main_state->accel_time -= game_input->delta_time;
+			if(main_state->accel_time <= 0.0f) {
+				main_state->dd_speed = 0.0f;
+				main_state->accel_time = 0.0f;
 			}
+
+			if(main_state->boost_always_on) {
+				main_state->dd_speed = main_state->boost_accel;
+				main_state->accel_time = F32_MAX;
+			}
+
+			main_state->d_speed += main_state->dd_speed * game_input->delta_time;
+			main_state->d_speed *= 0.9f;
 
 			f32 player_d_pos = player->e->speed.x * math::clamp(main_state->d_speed + 1.0f, main_state->slow_down_speed, main_state->boost_speed) * game_input->delta_time;
 
-			f32 letterboxing = math::max(main_state->d_speed, 0.0f) * main_state->boost_accel;
-			letterboxing = math::min(letterboxing, render_state->screen_height * 0.25f);
+			f32 letterboxing = math::max(main_state->d_speed, 0.0f) * (main_state->boost_letterboxing / 3.0f);
+			letterboxing = math::min(letterboxing, main_state->boost_letterboxing * 2.0f);
 			main_state->letterboxed_height = (f32)render_state->screen_height - (main_state->fixed_letterboxing * 2.0f + letterboxing);
 
 			player->active_clone_count = 0;
 			for(i32 i = ARRAY_COUNT(player->clones) - 1; i >= 0; i--) {
 				Entity * entity = player->clones[i];
-
-				entity->angle = game_input->total_time * math::TAU;
 
 				if(i == 0) {
 					entity->offset = player->e->pos.xy + player->clone_offset * 4.0f;
@@ -1187,7 +1207,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			player->e->pos.xy += player->e->d_pos * game_input->delta_time;
 			//TODO: Really player d_pos should be driving d_speed and not the other way around!!
 			if(!player->dead) {
-				f32 offset_x = math::clamp(main_state->d_speed * 40.0f, -80.0f, 80.0f);
+				f32 offset_x = math::clamp(main_state->d_speed * 40.0f, -80.0f, 40.0f);
 				player->e->pos.x = math::lerp(player->e->pos.x, player->initial_pos.x + offset_x, game_input->delta_time * 8.0f);
 			}
 
@@ -1222,6 +1242,22 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			}
 #endif
 
+			{
+				Concord * concord = &main_state->concord;
+
+				concord->e->pos.x += player_d_pos + game_input->delta_time * 2000.0f;
+				if(main_state->dd_speed > 1.0f) {
+					concord->e->pos.x = math::min(concord->e->pos.x, player->e->pos.x - 465.0f);
+					concord->e->pos.y = player->e->pos.y;
+				}
+				else {
+					concord->playing = false;
+				}
+
+				concord->e->anim_time += game_input->delta_time * ANIMATION_FRAMES_PER_SEC;
+				concord->e->asset.index = (u32)concord->e->anim_time % get_asset_count(assets, concord->e->asset.id);
+			}
+
 			f32 zero_height = main_state->scenes[main_state->current_scene].y + main_state->height_above_ground;
 
 			f32 camera_movement = 0.75f;
@@ -1237,7 +1273,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			render_transform->offset = (math::rand_vec2() * 2.0f - 1.0f) * math::max(main_state->d_speed, 0.0f);
 
 			if(main_state->rocket_seq.playing) {
-				play_rocket_sequence(game_state, meta_state, game_input->delta_time);
+				play_rocket_sequence(meta_state, game_input->delta_time);
 			}
 
 			Scene * current_scene = main_state->scenes + main_state->current_scene;
@@ -1259,7 +1295,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				if(entity->hit) {
 					entity->offset.y = 0.0f;
 
-#if 1
 					f32 anim_speed = 4.0f;
 
 					entity->scale += anim_speed * game_input->delta_time;
@@ -1272,12 +1307,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 						entity->color.a = 0.0f;
 						destroy = true;
 					}
-#else
-					if((u32)entity->anim_time >= (get_asset_count(assets, entity->asset_id) - 1)) {
-						entity->color.a = 0.0f;
-						destroy = true;
-					}
-#endif
 				}
 
 				entity->anim_time += game_input->delta_time * ANIMATION_FRAMES_PER_SEC;
@@ -1314,8 +1343,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 						}
 
 						case AssetId_rocket: {
-							begin_rocket_sequence(game_state, meta_state);
-
+							begin_rocket_sequence(meta_state);
 							inc_score(main_state, 50);
 
 							break;
@@ -1334,7 +1362,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 						}
 
 						case AssetId_goggles: {
-							change_player_speed(main_state, player, main_state->boost_accel, main_state->boost_time);
+							begin_concord_sequence(meta_state);
 							inc_score(main_state, 50);
 
 							break;
@@ -1372,7 +1400,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					change_entity_asset(entity, assets, asset_ref(AssetId_shield));
 					entity->anim_time = 0.0f;
 					entity->scale = math::vec2(0.5f);
-					// entity->scale = math::vec2(1.0f);
 				}
 
 				if(destroy) {
@@ -1454,7 +1481,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 								change_entity_asset(entity, assets, asset_ref(asset_id));
 								if(tile_id == TileId_bad) {
-									entity->collider = math::rec_scale(get_entity_render_bounds(assets, entity), 0.5f);
+									entity->collider = math::rec_scale(get_asset_bounds(assets, entity->asset.id, entity->asset.index), 0.5f);
 								}
 
 								entity->hit = false;
@@ -1604,10 +1631,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			push_textured_quad(render_group, asset_ref(AssetId_menu_background, menu_state->current_page));
 
 			if(menu_state->current_page == MenuPageId_main) {
-				u32 display_item_count = ASSET_GROUP_COUNT(display);
+				u32 display_item_count = ASSET_GROUP_COUNT(menu_collect);
 				for(u32 i = 0; i < ARRAY_COUNT(game_state->save.collect_unlock_states); i++) {
 					if(game_state->save.collect_unlock_states[i]) {
-						push_textured_quad(render_group, asset_ref(ASSET_GROUP_INDEX_TO_ID(display, i)));
+						push_textured_quad(render_group, asset_ref(ASSET_GROUP_INDEX_TO_ID(menu_collect, i)));
 					}
 				}				
 			}
@@ -1625,10 +1652,14 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 			RenderGroup * render_group = intro_state->render_group;
 
+			push_textured_quad(render_group, asset_ref(AssetId_intro_background));
+
 			for(u32 i = 0; i < ARRAY_COUNT(intro_state->frames); i++) {
 				IntroFrame * frame = intro_state->frames + i;
 				push_textured_quad(render_group, asset_ref(AssetId_intro, i), math::vec3(0.0f), math::vec2(1.0f), 0.0f, math::vec4(1.0f, 1.0f, 1.0f, frame->alpha));
 			}
+
+			push_ui_layer_to_render_group(&intro_state->ui_layer, render_group);
 
 			render_and_clear_render_group(meta_state->render_state, render_group);
 
@@ -1658,9 +1689,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				for(u32 i = 0; i < entities->count; i++) {
 					Entity * entity = entities->elems + i;
 
-					// math::Rec2 bounds = get_entity_render_bounds(assets, entity);
 					math::Rec2 bounds = math::rec_scale(entity->collider, entity->scale);
-					math::Vec2 pos = project_pos(render_transform, entity->pos + math::vec3(math::rec_pos(bounds), 0.0f));
+					math::Vec2 pos = project_pos(render_transform, entity->pos + math::vec3(math::rec_pos(bounds) + entity->offset, 0.0f));
 					bounds = math::rec2_pos_dim(pos, math::rec_dim(bounds));
 
 					u32 elems_remaining = render_batch->v_len - render_batch->e;
@@ -1683,7 +1713,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				push_colored_quad(ui_render_group, math::vec3(0.0f,-projection_dim.y + letterbox_pixels, 0.0f), projection_dim, 0.0f, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 			}
 
-			f32 icon_size = 64.0f;
 			f32 fixed_letterboxing = main_state->fixed_letterboxing;
 
 			Font * font = get_font_asset(meta_state->assets, AssetId_supersrc, 0);
@@ -1692,8 +1721,24 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			Str temp_str = str_fixed_size(temp_buf, ARRAY_COUNT(temp_buf));
 
 			if(!main_state->show_score_overlay) {
-				push_textured_quad(ui_render_group, asset_ref(AssetId_icon_clone), math::vec3((-projection_dim.x + icon_size) * 0.5f, (projection_dim.y - main_state->fixed_letterboxing) * 0.5f, 0.0f), math::vec2(main_state->score_icon_scale));
-				push_textured_quad(ui_render_group, asset_ref(AssetId_icon_clock), math::vec3((projection_dim.x - icon_size) * 0.5f, (projection_dim.y - main_state->fixed_letterboxing) * 0.5f, 0.0f), math::vec2(main_state->clock_icon_scale));
+				{
+					f32 icon_width = 74.0f;
+					f32 clock_str_width = 120.0f;
+
+					push_textured_quad(ui_render_group, asset_ref(AssetId_icon_clock), math::vec3(-(icon_width + clock_str_width) * 0.5f, (projection_dim.y - main_state->fixed_letterboxing) * 0.5f, 0.0f), math::vec2(main_state->clock_icon_scale));
+
+					str_clear(&temp_str);
+					str_print(&temp_str, "Time: %.2f", main_state->time_remaining);
+
+					math::Vec2 offset = math::vec2((projection_dim.x - clock_str_width) * 0.5f, -fixed_letterboxing * 0.5f + 21.0f);
+					FontLayout font_layout = create_font_layout(font, projection_dim, 1.0f, FontLayoutAnchor_top_left, offset);
+					push_str_to_render_group(ui_render_group, font, &font_layout, &temp_str);
+				}
+
+				{
+					FontLayout font_layout = create_font_layout(font, projection_dim, 1.0f, FontLayoutAnchor_bottom_centre, math::vec2(0.0f, fixed_letterboxing - (font->ascent - font->descent) - 21.0f));
+					push_c_str_to_render_group(ui_render_group, font, &font_layout, main_state->scenes[main_state->current_scene].name);
+				}
 
 				{
 					InfoDisplay * info_display = &main_state->info_display;
@@ -1710,29 +1755,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 					FontLayout font_layout = create_font_layout(font, projection_dim, info_display->scale, FontLayoutAnchor_top_centre, math::vec2(0.0f, -155.0f), false);
 					push_c_str_to_render_group(ui_render_group, font, &font_layout, info_strs[info_index], math::vec4(1.0f, 1.0f, 1.0f, info_display->alpha));
-				}
-
-				{
-					str_clear(&temp_str);
-					str_print(&temp_str, "Score: %u", main_state->score_values[ScoreValueId_points].u32_);
-
-					math::Vec2 offset = math::vec2(icon_size, -fixed_letterboxing * 0.5f + 21.0f);
-					FontLayout font_layout = create_font_layout(font, projection_dim, 1.0f, FontLayoutAnchor_top_left, offset);
-					push_str_to_render_group(ui_render_group, font, &font_layout, &temp_str);
-				}
-
-				{
-					str_clear(&temp_str);
-					str_print(&temp_str, "Time: %.2f", main_state->time_remaining);
-
-					math::Vec2 offset = math::vec2(-icon_size, -fixed_letterboxing * 0.5f + 21.0f);
-					FontLayout font_layout = create_font_layout(font, projection_dim, 1.0f, FontLayoutAnchor_top_right, offset);
-					push_str_to_render_group(ui_render_group, font, &font_layout, &temp_str);
-				}
-
-				{
-					FontLayout font_layout = create_font_layout(font, projection_dim, 1.0f, FontLayoutAnchor_bottom_left, math::vec2(font->whitespace_advance, fixed_letterboxing - (font->ascent - font->descent) - 21.0f));
-					push_c_str_to_render_group(ui_render_group, font, &font_layout, main_state->scenes[main_state->current_scene].name);
 				}
 
 				//TODO: Make the offset into the texture!!
@@ -1771,7 +1793,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		char temp_buf[128];
 		Str temp_str = str_fixed_size(temp_buf, ARRAY_COUNT(temp_buf));
-		str_print(&temp_str, "dt: %f\n", game_input->delta_time);
+		str_print(&temp_str, "decompression time: %fms\n", debug_decompression_time);
+		str_print(&temp_str, "dt: %fms\n", game_input->delta_time);
 		str_print(&temp_str, "sources playing: %u | sources to free: %u\n", game_state->audio_state.debug_sources_playing, game_state->audio_state.debug_sources_to_free);
 		str_print(&temp_str, "\n");
 		push_str_to_render_group(debug_render_group, debug_font, &debug_font_layout, &temp_str);

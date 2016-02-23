@@ -68,16 +68,21 @@ Asset * push_asset(AssetState * assets, AssetId id, AssetType type) {
 	return asset;
 }
 
+static f32 debug_decompression_time = 0.0f;
+
 void load_assets(AssetState * assets, MemoryArena * arena) {
 	DEBUG_TIME_BLOCK();
 
 	assets->arena = arena;
 
+	debug_decompression_time = emscripten_get_now();
+
 	MemoryPtr file_buf;
 	file_buf.ptr = (u8 *)mz_zip_extract_archive_file_to_heap("asset.zip", "asset.pak", &file_buf.size, 0);
 	u8 * file_ptr = file_buf.ptr;
 
-	std::printf("LOG: Uncompressed asset footprint: %uKB\n", file_buf.size / 1024);
+	debug_decompression_time = emscripten_get_now() - debug_decompression_time;
+	std::printf("LOG: %f -> %uKB\n", (f32)debug_decompression_time, file_buf.size / 1024);
 
 	AssetPackHeader * pack = (AssetPackHeader *)file_ptr;
 	file_ptr += sizeof(AssetPackHeader);
