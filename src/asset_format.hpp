@@ -183,8 +183,7 @@ enum AssetId {
 	AssetId_btn_down,
 	AssetId_btn_skip,
 
-	AssetId_icon_clone,
-	AssetId_icon_clock,
+	AssetId_label_clock,
 
 	AssetId_intro,
 
@@ -197,9 +196,9 @@ enum AssetId {
 	AssetId_click_yes,
 	AssetId_click_no,
 
-	AssetId_tick_tock,
 	AssetId_rocket_sfx,
-	
+
+	AssetId_menu_music,
 	AssetId_game_music,
 	AssetId_space_music,
 

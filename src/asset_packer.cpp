@@ -570,7 +570,7 @@ int main() {
 		{ AssetId_shield, "shield.png" },
 		{ AssetId_clone, "clone.png" },
 		{ AssetId_clone_space, "clone_space.png" },
-		{ AssetId_clock, "clock_.png" },
+		{ AssetId_clock, "clock.png" },
 
 #define X(NAME) { AssetId_collect_##NAME, "collect_" #NAME ".png" },
 		ASSET_ID_COLLECT_X
@@ -603,8 +603,7 @@ int main() {
 		{ AssetId_btn_skip, "btn_skip0.png" },
 		{ AssetId_btn_skip, "btn_skip1.png" },
 
-		{ AssetId_icon_clone, "icon_clone.png" },
-		{ AssetId_icon_clock, "clock_.png" },
+		{ AssetId_label_clock, "label_clock.png" },
 
 		{ AssetId_intro, "intro0.png" },
 		{ AssetId_intro, "intro1.png" },
@@ -683,9 +682,9 @@ int main() {
 		load_audio_clip("click_yes.wav", AssetId_click_yes),
 		load_audio_clip("click_no.wav", AssetId_click_no),
 
-		load_audio_clip("tick_tock.wav", AssetId_tick_tock),
 		load_audio_clip("rocket_sfx.wav", AssetId_rocket_sfx),
 
+		load_audio_clip("menu_music.wav", AssetId_menu_music),
 		load_audio_clip("game_music.wav", AssetId_game_music),
 		load_audio_clip("space_music.wav", AssetId_space_music),
 	};

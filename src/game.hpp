@@ -118,14 +118,15 @@ struct ScoreValue {
 	char * name;
 	u32 value;
 	u32 points_per_value;
+	b32 show_value;
 };
 
 enum ScoreValueId {
 	ScoreValueId_clones,
 	ScoreValueId_items,
+	ScoreValueId_time_played,
 	ScoreValueId_rocket,
 	ScoreValueId_concord,
-	ScoreValueId_time_played,
 
 	ScoreValueId_count,
 };
@@ -138,18 +139,18 @@ struct ScoreSystem {
 	//TODO: Should these be part of the score value??
 	u32 clones;
 	u32 items;
+	f32 time_played;
 	b32 rocket;
 	b32 concord;
-	f32 time_played;
 	
-	u32 value_index;
+	u32 value_count;
 	ScoreValue values[ScoreValueId_count];
 
-	u32 total;
+	u32 current_total;
 	u32 target_total;
+	u32 display_total;
 
-	f32 current_time;
-	f32 total_time;
+	f32 time_;
 };
 
 enum MenuButtonId {
@@ -234,6 +235,8 @@ enum MetaStateType {
 };
 
 struct MenuMetaState {
+	AudioSource * music;
+
 	RenderGroup * render_group;
 
 	UiLayer pages[MenuPageId_count];
@@ -257,7 +260,6 @@ struct IntroMetaState {
 
 struct MainMetaState {
 	AudioSource * music;
-	AudioSource * tick_tock;
 
 	RenderGroup * render_group;
 	RenderGroup * ui_render_group;
@@ -304,7 +306,9 @@ struct MainMetaState {
 	f32 countdown_time;
 	f32 clock_pickup_time;
 
-	f32 clock_icon_scale;
+	f32 clock_label_scale;
+	f32 clock_label_alpha;
+	
 	UiElement arrow_buttons[2];
 	InfoDisplay info_display;
 
