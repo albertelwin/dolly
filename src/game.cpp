@@ -272,6 +272,8 @@ void begin_concord_sequence(MetaState * meta_state) {
 
 	f32 width = math::rec_dim(get_entity_render_bounds(meta_state->assets, concord->e)).x;
 	concord->e->pos.x = -(f32)main_state->render_group->transform.projection_width * 0.5f - width * 0.5f;
+
+	main_state->score_system.concord = true;
 }
 
 void begin_rocket_sequence(MetaState * meta_state) {
@@ -304,6 +306,8 @@ void begin_rocket_sequence(MetaState * meta_state) {
 		main_state->music = play_audio_clip(meta_state->audio_state, AssetId_space_music, true);
 		change_volume(main_state->music, math::vec2(0.0f), 0.0f);
 		change_volume(main_state->music, math::vec2(1.0f), 1.0f);
+
+		main_state->score_system.rocket = true;
 	}
 }
 
@@ -716,6 +720,7 @@ void init_main_meta_state(MetaState * meta_state) {
 	for(u32 i = 0; i < ARRAY_COUNT(main_state->clouds); i++) {
 		Entity * entity = push_entity(entities, meta_state->assets, asset_ref(AssetId_clouds), math::vec3(0.0f, cloud_y_offsets[i], 0.0f));
 		entity->scrollable = true;
+		// entity->color.a = 0.0f;
 
 		main_state->clouds[i] = entity;
 	}
@@ -740,10 +745,15 @@ void init_main_meta_state(MetaState * meta_state) {
 		scene->layers[layer_index] = entity;
 	}
 
-	push_ui_elem(&main_state->score_ui, ScoreButtonId_back, AssetId_btn_back, AssetId_click_no);
-	push_ui_elem(&main_state->score_ui, ScoreButtonId_replay, AssetId_btn_replay, AssetId_click_yes);
-	main_state->score_values[ScoreValueId_time_played].is_f32 = true;
-	main_state->score_values[ScoreValueId_points].is_f32 = false;
+	ScoreSystem * score_system = &main_state->score_system;
+	push_ui_elem(&score_system->ui, ScoreButtonId_back, AssetId_btn_back, AssetId_click_no);
+	push_ui_elem(&score_system->ui, ScoreButtonId_replay, AssetId_btn_replay, AssetId_click_yes);
+	score_system->values[ScoreValueId_clones] = { (char *)"Clones", 0, 10 };
+	score_system->values[ScoreValueId_items] = { (char *)"Items", 0, 1000 };
+	score_system->values[ScoreValueId_rocket] = { (char *)"Rocket bonus", 0, 500 };
+	score_system->values[ScoreValueId_concord] = { (char *)"Concord bonus", 0, 500 };
+	score_system->values[ScoreValueId_time_played] = { (char *)"Time played", 0, 10 };
+	score_system->total_time = 1.0f;
 
 	main_state->arrow_buttons[0].asset = asset_ref(AssetId_btn_up);
 	main_state->arrow_buttons[1].asset = asset_ref(AssetId_btn_down);
@@ -754,7 +764,7 @@ void init_main_meta_state(MetaState * meta_state) {
 	main_state->clock_pickup_time = 10.0f;
 
 	main_state->boost_letterboxing = 80.0f;
-	main_state->boost_speed = 2.0f;
+	main_state->boost_speed = 3.0f;
 	main_state->boost_accel = 40.0f;
 	main_state->boost_time = 4.0f;
 	main_state->slow_down_speed = 0.25f;
@@ -778,7 +788,6 @@ void init_main_meta_state(MetaState * meta_state) {
 	main_state->time_remaining = main_state->start_time;
 
 	main_state->clock_icon_scale = 1.0f;
-	main_state->score_icon_scale = 1.0f;
 }
 
 void change_meta_state(GameState * game_state, MetaStateType type) {
@@ -806,12 +815,6 @@ void change_meta_state(GameState * game_state, MetaStateType type) {
 	}
 }
 
-void inc_score(MainMetaState * main_state, u32 val) {
-	main_state->score_icon_scale = 2.0f;
-	//TODO: Negative score??
-	main_state->score_values[ScoreValueId_points].u32_ += val;
-}
-
 void game_tick(GameMemory * game_memory, GameInput * game_input) {
 	ASSERT(sizeof(GameState) <= game_memory->size);
 	GameState * game_state = (GameState *)game_memory->ptr;
@@ -836,7 +839,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		game_state->save.code = SAVE_FILE_CODE;
 		game_state->save.version = SAVE_FILE_VERSION;
 		game_state->save.plays = 0;
-		game_state->save.high_score = 0;
 
 		game_state->debug_render_group = allocate_render_group(&game_state->render_state, &game_state->memory_arena, game_input->back_buffer_width, game_input->back_buffer_height, 1024);
 		game_state->debug_str = allocate_str(&game_state->memory_arena, 1024);
@@ -857,8 +859,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 				if(header->code == SAVE_FILE_CODE && header->version == SAVE_FILE_VERSION) {
 					game_state->save.plays = header->plays + 1;
-					game_state->save.high_score = math::max(game_state->save.high_score, header->high_score);
-					game_state->save.longest_run = math::max(game_state->save.longest_run, header->longest_run);
 
 					for(u32 i = 0; i < ARRAY_COUNT(game_state->save.collect_unlock_states); i++) {
 						if(header->collect_unlock_states[i]) {
@@ -1041,7 +1041,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				switch_lower_scene_asset_type(main_state, meta_state->assets);
 			}
 
-			main_state->score_icon_scale = math::lerp(main_state->score_icon_scale, 1.0f, game_input->delta_time * 12.0f);
 			main_state->clock_icon_scale = math::lerp(main_state->clock_icon_scale, 1.0f, game_input->delta_time * 12.0f);
 
 			{
@@ -1052,6 +1051,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					info_display->alpha -= game_input->delta_time * 12.0f;
 				}
 			}
+
+			ScoreSystem * score_system = &main_state->score_system;
 
 			b32 time_frozen = main_state->concord.playing || main_state->rocket_seq.playing;
 
@@ -1077,11 +1078,11 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					main_state->time_remaining = new_time_remaining;
 				}
 
-				main_state->score_values[ScoreValueId_time_played].f32_ += dt;
+				score_system->time_played += dt;
 			}
 			else {
 				if(player->e->pos.x > (f32)render_transform->projection_width * 2.0f) {
-					main_state->show_score_overlay = true;
+					score_system->show = true;
 				}
 			}
 
@@ -1298,7 +1299,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					f32 anim_speed = 4.0f;
 
 					entity->scale += anim_speed * game_input->delta_time;
-					//TODO: Vec2 clamp??
+					//TODO: Vec2 clamp??	
 					entity->scale.x = math::min(entity->scale.x, 1.0f);
 					entity->scale.y = math::min(entity->scale.y, 1.0f);
 
@@ -1310,7 +1311,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				}
 
 				entity->anim_time += game_input->delta_time * ANIMATION_FRAMES_PER_SEC;
-				entity->asset.index = (u32)entity->anim_time % get_asset_count(assets, entity->asset.id);
+				entity->asset.index = ((u32)entity->anim_time + entity->rand_id) % get_asset_count(assets, entity->asset.id);
 
 				math::Rec2 bounds = get_entity_collider_bounds(entity);
 				//TODO: When should this check happen??
@@ -1324,7 +1325,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 						case AssetId_clone_space:
 						case AssetId_clone: {
 							push_player_clone(player);
-							inc_score(main_state, 1);
+
+							score_system->clones++;
 
 							clip_id = AssetId_baa;
 
@@ -1344,7 +1346,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 						case AssetId_rocket: {
 							begin_rocket_sequence(meta_state);
-							inc_score(main_state, 50);
 
 							break;
 						}
@@ -1354,8 +1355,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 							main_state->time_remaining = math::min(main_state->time_remaining, main_state->max_time);
 							stop_audio_clip(meta_state->audio_state, &main_state->tick_tock);
 
-							inc_score(main_state, 10);
-
 							main_state->clock_icon_scale = 2.0f;
 
 							break;
@@ -1363,7 +1362,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 						case AssetId_goggles: {
 							begin_concord_sequence(meta_state);
-							inc_score(main_state, 50);
 
 							break;
 						}
@@ -1384,7 +1382,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 						game_state->save.collect_unlock_states[collect_index] = true;
 						game_state->time_until_next_save = 0.0f;
 
-						inc_score(main_state, 100);
+						score_system->items++;
 
 						change_info_display(&main_state->info_display, entity->asset.id);
 
@@ -1530,8 +1528,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				}
 			}
 
-			if(main_state->show_score_overlay) {
-				UiElement * interact_elem = process_ui_layer(meta_state, &main_state->score_ui, main_state->ui_render_group, game_input);
+			if(score_system->show) {
+				UiElement * interact_elem = process_ui_layer(meta_state, &score_system->ui, main_state->ui_render_group, game_input);
 
 				if(interact_elem) {
 					if(!game_state->transitioning) {
@@ -1545,21 +1543,27 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					}
 				}
 
-				if(main_state->score_value_index < ARRAY_COUNT(main_state->score_values)) {
-					ScoreValue * value = main_state->score_values + main_state->score_value_index;
+				score_system->values[ScoreValueId_clones].value = score_system->clones;
+				score_system->values[ScoreValueId_items].value = score_system->items;
+				score_system->values[ScoreValueId_rocket].value = score_system->rocket ? 1 : 0;
+				score_system->values[ScoreValueId_concord].value = score_system->concord ? 1 : 0;
+				//TODO: Should we round here??
+				score_system->values[ScoreValueId_time_played].value = (u32)score_system->time_played;
 
-					f32 to = value->is_f32 ? value->f32_ : (f32)value->u32_;
-					value->display = math::lerp(0.0f, to, math::clamp01(value->time_));
-					value->time_ += game_input->delta_time;
+				score_system->target_total = 0;
+				for(u32 i = 0; i < ARRAY_COUNT(score_system->values); i++) {
+					ScoreValue * value = score_system->values + i;
+					score_system->target_total += value->value * value->points_per_value;
+				}
 
-					if(value->time_ > 2.0f) {
-						main_state->score_value_index++;
+				//TODO: This doesn't work for negative totals!!
+				if(score_system->current_time < score_system->total_time) {
+					score_system->current_time += game_input->delta_time;
+					if(score_system->current_time >= score_system->total_time) {
+						score_system->total = score_system->target_total;
 					}
 				}
 			}
-
-			game_state->save.high_score = math::max(game_state->save.high_score, main_state->score_values[ScoreValueId_points].u32_);
-			game_state->save.longest_run = math::max(game_state->save.longest_run, main_state->score_values[ScoreValueId_time_played].f32_);
 
 			break;
 		}
@@ -1720,7 +1724,9 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			char temp_buf[256];
 			Str temp_str = str_fixed_size(temp_buf, ARRAY_COUNT(temp_buf));
 
-			if(!main_state->show_score_overlay) {
+			ScoreSystem * score_system = &main_state->score_system;
+
+			if(!score_system->show) {
 				{
 					f32 icon_width = 74.0f;
 					f32 clock_str_width = 120.0f;
@@ -1765,14 +1771,21 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				push_colored_quad(ui_render_group, math::vec3(0.0f), projection_dim, 0.0f, math::vec4(0.0f, 0.0f, 0.0f, 0.8f));
 
 				str_clear(&temp_str);
-				str_print(&temp_str, "Score\n\n");
-				str_print(&temp_str, "Time played: %.2f\n", main_state->score_values[ScoreValueId_time_played].display);
-				str_print(&temp_str, "Points: %u\n", (u32)main_state->score_values[ScoreValueId_points].display);
+				str_print(&temp_str, "Score\n");
+				str_print(&temp_str, "\n");
+				for(u32 i = 0; i < ARRAY_COUNT(score_system->values); i++) {
+					ScoreValue * value = score_system->values + i;
+					str_print(&temp_str, "%s: %u\n", value->name, value->value);
+				}
+				str_print(&temp_str, "\n");
+
+				u32 score_total = (u32)math::lerp((f32)score_system->total, (f32)score_system->target_total, score_system->current_time / score_system->total_time);
+				str_print(&temp_str, "Total: %u\n", score_total);
 
 				FontLayout font_layout = create_font_layout(font, projection_dim, 1.0f, FontLayoutAnchor_top_centre, math::vec2(0.0f, -(main_state->fixed_letterboxing + 40.0f)));
 				push_str_to_render_group(ui_render_group, font, &font_layout, &temp_str);
 
-				push_ui_layer_to_render_group(&main_state->score_ui, ui_render_group);
+				push_ui_layer_to_render_group(&score_system->ui, ui_render_group);
 			}
 
 			render_and_clear_render_group(meta_state->render_state, ui_render_group);

@@ -572,20 +572,6 @@ int main() {
 		{ AssetId_clone_space, "clone_space.png" },
 		{ AssetId_clock, "clock_.png" },
 
-#if 0
-		{ AssetId_atom_smasher, "atom_smasher_long0.png" },
-		{ AssetId_atom_smasher, "atom_smasher_long1.png" },
-		{ AssetId_atom_smasher, "atom_smasher_long2.png" },
-		{ AssetId_atom_smasher, "atom_smasher_long3.png" },
-#else
-		{ AssetId_atom_smasher, "atom_smasher0.png" },
-		{ AssetId_atom_smasher, "atom_smasher1.png" },
-		{ AssetId_atom_smasher, "atom_smasher2.png" },
-		{ AssetId_atom_smasher, "atom_smasher3.png" },
-		{ AssetId_atom_smasher, "atom_smasher4.png" },
-		{ AssetId_atom_smasher, "atom_smasher5.png" },
-#endif
-
 #define X(NAME) { AssetId_collect_##NAME, "collect_" #NAME ".png" },
 		ASSET_ID_COLLECT_X
 #undef X
@@ -630,6 +616,7 @@ int main() {
 	push_packed_texture(&packer, ui_sprite_files, ARRAY_COUNT(ui_sprite_files));
 
 	push_sprite_sheet(&packer, "dolly_fall.png", AssetId_dolly_fall, 64, 64, 4);
+	push_sprite_sheet(&packer, "atom_smasher.png", AssetId_atom_smasher, 128, 128, 19);
 
 	Texture reg_tex_array[] = {
 		load_texture("white.png", AssetId_white),
@@ -641,7 +628,7 @@ int main() {
 
 		load_texture("city_background.png", AssetId_background),
 		load_texture("highlands_background.png", AssetId_background),
-		load_texture("ocean_background.png", AssetId_background),
+		load_texture("ocean_background_.png", AssetId_background),
 
 		load_texture("city_layer0.png", AssetId_scene_city),
 		load_texture("city_layer1.png", AssetId_scene_city),
@@ -655,13 +642,13 @@ int main() {
 
 		load_texture("ocean_layer0.png", AssetId_scene_ocean),
 		load_texture("ocean_layer1.png", AssetId_scene_ocean),
-		load_texture("ocean_layer2.png", AssetId_scene_ocean),
-		load_texture("ocean_layer3.png", AssetId_scene_ocean),
+		load_texture("empty_layer.png", AssetId_scene_ocean),
+		load_texture("empty_layer.png", AssetId_scene_ocean),
 
 		load_texture("space_layer0.png", AssetId_scene_space),
 		load_texture("space_layer1.png", AssetId_scene_space),
 		load_texture("space_layer2.png", AssetId_scene_space),
-		load_texture("space_layer3.png", AssetId_scene_space),
+		load_texture("empty_layer.png", AssetId_scene_space),
 
 		load_texture("clouds.png", AssetId_clouds),
 	};

@@ -114,22 +114,42 @@ struct RocketSequence {
 	u32 transition_id;
 };
 
+struct ScoreValue {
+	char * name;
+	u32 value;
+	u32 points_per_value;
+};
+
 enum ScoreValueId {
+	ScoreValueId_clones,
+	ScoreValueId_items,
+	ScoreValueId_rocket,
+	ScoreValueId_concord,
 	ScoreValueId_time_played,
-	ScoreValueId_points,
 
 	ScoreValueId_count,
 };
 
-struct ScoreValue {
-	f32 display;
-	f32 time_;
+struct ScoreSystem {
+	b32 show;
 
-	b32 is_f32;
-	union {
-		f32 f32_;
-		u32 u32_;
-	};
+	UiLayer ui;
+
+	//TODO: Should these be part of the score value??
+	u32 clones;
+	u32 items;
+	b32 rocket;
+	b32 concord;
+	f32 time_played;
+	
+	u32 value_index;
+	ScoreValue values[ScoreValueId_count];
+
+	u32 total;
+	u32 target_total;
+
+	f32 current_time;
+	f32 total_time;
 };
 
 enum MenuButtonId {
@@ -199,8 +219,6 @@ struct SaveFileHeader {
 	u32 version;
 
 	u32 plays;
-	u32 high_score;
-	f32 longest_run;
 
 	b32 collect_unlock_states[ASSET_GROUP_COUNT(collect)];
 };
@@ -287,15 +305,10 @@ struct MainMetaState {
 	f32 clock_pickup_time;
 
 	f32 clock_icon_scale;
-	f32 score_icon_scale;
-
-	b32 show_score_overlay;
-	UiLayer score_ui;
-	u32 score_value_index;
-	ScoreValue score_values[ScoreValueId_count];
-
 	UiElement arrow_buttons[2];
 	InfoDisplay info_display;
+
+	ScoreSystem score_system;
 
 	u32 quit_transition_id;
 	u32 replay_transition_id;
