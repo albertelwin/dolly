@@ -554,7 +554,6 @@ int main() {
 #endif
 
 	AssetFile sprite_files[] = {
-		{ AssetId_dolly_idle, "dolly_idle.png" },
 		{ AssetId_dolly_up, "dolly_up.png" },
 		{ AssetId_dolly_down, "dolly_down.png" },
 
@@ -603,7 +602,8 @@ int main() {
 		{ AssetId_btn_skip, "btn_skip0.png" },
 		{ AssetId_btn_skip, "btn_skip1.png" },
 
-		{ AssetId_label_clock, "label_clock.png" },
+		{ AssetId_label_clock, "label_clock0_.png" },
+		{ AssetId_label_clock, "label_clock1_.png" },
 
 		{ AssetId_intro, "intro0.png" },
 		{ AssetId_intro, "intro1.png" },
@@ -615,7 +615,12 @@ int main() {
 	push_packed_texture(&packer, ui_sprite_files, ARRAY_COUNT(ui_sprite_files));
 
 	push_sprite_sheet(&packer, "dolly_fall.png", AssetId_dolly_fall, 64, 64, 4);
-	push_sprite_sheet(&packer, "atom_smasher.png", AssetId_atom_smasher, 128, 128, 19);
+	push_sprite_sheet(&packer, "dolly_idle.png", AssetId_dolly_idle, 64, 64, 4);
+	push_sprite_sheet(&packer, "atom_smasher_small.png", AssetId_atom_smasher_small, 64, 128, 7);
+	push_sprite_sheet(&packer, "atom_smasher_medium.png", AssetId_atom_smasher_medium, 64, 256, 11);
+	push_sprite_sheet(&packer, "atom_smasher_large.png", AssetId_atom_smasher_large, 64, 512, 11);
+
+	push_sprite_sheet(&packer, "glow.png", AssetId_glow, 128, 128, 16);
 
 	Texture reg_tex_array[] = {
 		load_texture("white.png", AssetId_white),
@@ -633,6 +638,8 @@ int main() {
 		load_texture("city_layer1.png", AssetId_scene_city),
 		load_texture("city_layer2.png", AssetId_scene_city),
 		load_texture("city_layer3.png", AssetId_scene_city),
+
+		load_texture("city_alt_layer.png", AssetId_scene_city_alt),
 
 		load_texture("highlands_layer0.png", AssetId_scene_highlands),
 		load_texture("highlands_layer1.png", AssetId_scene_highlands),

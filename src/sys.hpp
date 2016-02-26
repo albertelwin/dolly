@@ -39,7 +39,7 @@
 #else
 
 #define ASSERT(...)
-#define INVALID_CASE(...)
+#define INVALID_CASE(...) default: { break; }
 
 #endif
 

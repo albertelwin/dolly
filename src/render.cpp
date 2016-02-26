@@ -66,7 +66,7 @@ FontLayout create_font_layout(Font * font, math::Vec2 dim, f32 scale, FontLayout
 	layout.scale = scale;
 	layout.pixel_align = pixel_align;
 
-	f32 line_height = (font->ascent - font->descent) * scale;
+	f32 line_height = get_font_line_height(font) * scale;
 
 	switch(anchor) {
 		case FontLayoutAnchor_top_left: {
@@ -414,6 +414,8 @@ RenderGroup * allocate_render_group(RenderState * render_state, MemoryArena * ar
 }
 
 RenderElement * push_render_elem(RenderGroup * render_group, Asset * asset, math::Vec3 pos, math::Vec2 dim, f32 angle, math::Vec4 color, b32 scrollable = false) {
+	DEBUG_TIME_BLOCK();
+
 	ASSERT(render_group);
 	ASSERT(asset);
 	ASSERT(render_group->elem_count < render_group->max_elem_count);
@@ -492,9 +494,7 @@ void push_str_to_render_group(RenderGroup * render_group, Font * font, FontLayou
 
 	ASSERT(render_group);
 
-	f32 line_height = (font->ascent + font->descent) * layout->scale;
-	//TODO: Can we get this from the font??
-	f32 line_gap = line_height * 0.75f;
+	f32 line_height = get_font_line_height(font) * layout->scale;
 
 	math::Vec2 offset = math::vec2(0.0f);
 	b32 new_line = true;
@@ -517,7 +517,7 @@ void push_str_to_render_group(RenderGroup * render_group, Font * font, FontLayou
 
 		if(char_ == '\n') {
 			layout->pos.x = layout->align.x;
-			layout->pos.y -= (line_height + line_gap);
+			layout->pos.y -= line_height;
 
 			new_line = true;
 		}

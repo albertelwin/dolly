@@ -131,6 +131,11 @@ void kill_player(MainMetaState * main_state, Player * player) {
 	}
 }
 
+math::Vec4 get_rand_clone_color() {
+	// return math::vec4(math::lerp(math::rand_vec3(), math::vec3(1.0f), 0.75f), 1.0f);
+	return math::vec4(math::lerp(math::vec3(math::rand_f32()), math::vec3(1.0f), 0.75f), 1.0f);
+}
+
 void push_player_clone(Player * player) {
 	for(u32 i = 0; i < ARRAY_COUNT(player->clones); i++) {
 		Entity * entity = player->clones[i];
@@ -182,7 +187,9 @@ void change_scene(MainMetaState * main_state, SceneId scene_id) {
 void change_scene_asset_type(MainMetaState * main_state, SceneId scene_id, AssetState * assets, AssetId asset_id) {
 	Scene * scene = main_state->scenes + scene_id;
 
-	scene->tile_to_asset_table[TileId_bad] = AssetId_atom_smasher;
+	scene->tile_to_asset_table[TileId_bad_small] = AssetId_atom_smasher_small;
+	scene->tile_to_asset_table[TileId_bad_medium] = AssetId_atom_smasher_medium;
+	scene->tile_to_asset_table[TileId_bad_large] = AssetId_atom_smasher_large;
 	scene->tile_to_asset_table[TileId_time] = AssetId_clock;
 	scene->tile_to_asset_table[TileId_clone] = AssetId_clone;
 	scene->tile_to_asset_table[TileId_collect] = ASSET_FIRST_GROUP_ID(collect);
@@ -234,6 +241,15 @@ void change_scene_asset_type(MainMetaState * main_state, SceneId scene_id, Asset
 		}
 	}
 
+	if(scene->asset_id == AssetId_scene_city) {
+		if(scene->alt) {
+			scene->name = (char *)"EDINBURGH";
+			change_entity_asset(scene->layers[0], assets, asset_ref(AssetId_scene_city_alt, 0));
+		}
+
+		scene->alt = !scene->alt;
+	}
+
 	if(scene_id == SceneId_lower) {
 		Entity * bg0 = main_state->background[0];
 		Entity * bg1 = main_state->background[1];
@@ -273,7 +289,7 @@ void begin_concord_sequence(MetaState * meta_state) {
 	f32 width = math::rec_dim(get_entity_render_bounds(meta_state->assets, concord->e)).x;
 	concord->e->pos.x = -(f32)main_state->render_group->transform.projection_width * 0.5f - width * 0.5f;
 
-	main_state->score_system.concord = true;
+	main_state->score_system.bonus_area++;
 }
 
 void begin_rocket_sequence(MetaState * meta_state) {
@@ -307,7 +323,7 @@ void begin_rocket_sequence(MetaState * meta_state) {
 		change_volume(main_state->music, math::vec2(0.0f), 0.0f);
 		change_volume(main_state->music, math::vec2(1.0f), 1.0f);
 
-		main_state->score_system.rocket = true;
+		main_state->score_system.bonus_area++;
 	}
 }
 
@@ -448,7 +464,10 @@ void change_page(MenuMetaState * menu_state, MenuPageId next_page) {
 }
 
 void show_score(ScoreSystem * score_system) {
-	score_system->show = true;
+	if(!score_system->show) {
+		score_system->show = true;
+		score_system->time_ = score_system->value_delay_time;
+	}
 }
 
 UiElement * process_ui_layer(MetaState * meta_state, UiLayer * ui_layer, RenderGroup * render_group, GameInput * game_input) {
@@ -657,9 +676,7 @@ void init_main_meta_state(MetaState * meta_state) {
 
 	for(u32 i = 0; i < SceneId_count; i++) {	
 		Scene * scene = main_state->scenes + i;
-
 		scene->y = scene_y_offset * i;
-		scene->tint = math::vec4(1.0f);
 	
 		for(u32 layer_index = 0; layer_index < ARRAY_COUNT(scene->layers) - 1; layer_index++) {
 			Entity * entity = push_entity(entities, meta_state->assets, asset_ref(scene->asset_id, layer_index));
@@ -687,7 +704,7 @@ void init_main_meta_state(MetaState * meta_state) {
 	for(i32 i = ARRAY_COUNT(player->clones) - 1; i >= 0; i--) {
 		Entity * entity = push_entity(entities, assets, asset_ref(AssetId_clone));
 		entity->scale = math::vec2(0.75f);
-		entity->color.rgb = math::lerp(math::rand_vec3(), math::vec3(1.0f), 0.75f);
+		entity->color = get_rand_clone_color();
 		entity->color.a = 0.0f;
 
 		entity->hidden = true;
@@ -703,6 +720,9 @@ void init_main_meta_state(MetaState * meta_state) {
 
 	EntityEmitter * emitter = &main_state->entity_emitter;
 	emitter->pos = math::vec3(screen_width * 0.75f, main_state->height_above_ground, 0.0f);
+	emitter->glow = push_entity(entities, assets, asset_ref(AssetId_glow), emitter->pos);
+	emitter->glow->scale = math::vec2(4.0f);
+	emitter->glow->color.a = 0.0f;
 	for(u32 i = 0; i < ARRAY_COUNT(emitter->entity_array); i++) {
 		emitter->entity_array[i] = push_entity(entities, assets, asset_ref(ASSET_FIRST_GROUP_ID(collect)), emitter->pos);
 	}
@@ -754,11 +774,12 @@ void init_main_meta_state(MetaState * meta_state) {
 	ScoreSystem * score_system = &main_state->score_system;
 	push_ui_elem(&score_system->ui, ScoreButtonId_back, AssetId_btn_back, AssetId_click_no);
 	push_ui_elem(&score_system->ui, ScoreButtonId_replay, AssetId_btn_replay, AssetId_click_yes);
-	score_system->values[ScoreValueId_clones] = { (char *)"Clones", 0, 10, true };
-	score_system->values[ScoreValueId_items] = { (char *)"Items", 0, 1000, true };
-	score_system->values[ScoreValueId_rocket] = { (char *)"Rocket bonus", 0, 500, false };
-	score_system->values[ScoreValueId_concord] = { (char *)"Concord bonus", 0, 500, false };
-	score_system->values[ScoreValueId_time_played] = { (char *)"Time played", 0, 10, true };
+	score_system->values[ScoreValueId_clones] = { (char *)"Clones", 10 };
+	score_system->values[ScoreValueId_items] = { (char *)"Items", 1000 };
+	score_system->values[ScoreValueId_distance] = { (char *)"Distance", 10 };
+	score_system->values[ScoreValueId_bonus_area] = { (char *)"Bonus area", 500 };
+	score_system->value_delay_time = 1.25f;
+	score_system->value_tally_time = 0.5f;
 
 	main_state->arrow_buttons[0].asset = asset_ref(AssetId_btn_up);
 	main_state->arrow_buttons[1].asset = asset_ref(AssetId_btn_down);
@@ -769,7 +790,7 @@ void init_main_meta_state(MetaState * meta_state) {
 	main_state->clock_pickup_time = 10.0f;
 
 	main_state->boost_letterboxing = 80.0f;
-	main_state->boost_speed = 3.0f;
+	main_state->boost_speed = 2.5f;
 	main_state->boost_accel = 40.0f;
 	main_state->boost_time = 4.0f;
 	main_state->slow_down_speed = 0.25f;
@@ -793,7 +814,7 @@ void init_main_meta_state(MetaState * meta_state) {
 	main_state->time_remaining = main_state->start_time;
 
 	main_state->clock_label_scale = 1.0f;
-	main_state->clock_label_alpha = 1.0f;
+	main_state->clock_label_index = 0;
 }
 
 void change_meta_state(GameState * game_state, MetaStateType type) {
@@ -857,6 +878,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 #endif
 	}
 
+#if !DEV_ENABLED
 	if(!game_state->save_file) {
 		PlatformAsyncFile * file = platform_open_async_file("/user_dat/save.dat");
 		if(file) {
@@ -886,6 +908,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			}
 		}
 	}
+#endif
 
 	AssetState * assets = &game_state->assets;
 	AudioState * audio_state = &game_state->audio_state;
@@ -1046,7 +1069,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				switch_lower_scene_asset_type(main_state, meta_state->assets);
 			}
 
-			
 			{
 				InfoDisplay * info_display = &main_state->info_display;
 				info_display->time_ += game_input->delta_time;
@@ -1074,7 +1096,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					main_state->time_remaining = new_time_remaining;
 				}
 
-				score_system->time_played += dt;
+				score_system->distance += dt;
 			}
 			else {
 				if(player->e->pos.x > (f32)render_transform->projection_width * 2.0f) {
@@ -1083,7 +1105,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			}
 
 			main_state->clock_label_scale = math::lerp(main_state->clock_label_scale, 1.0f, game_input->delta_time * 12.0f);
-			main_state->clock_label_alpha = ((u32)(math::clamp(main_state->time_remaining, 0.0f, 10.0f) * 4.0f) & 1) == 0 ? 1.0f : 0.0f;
+			main_state->clock_label_index = (u32)(math::clamp(main_state->time_remaining, 0.0f, 10.0f) * 4.0f) & 1;
 
 			main_state->accel_time -= game_input->delta_time;
 			if(main_state->accel_time <= 0.0f) {
@@ -1282,6 +1304,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 			EntityEmitter * emitter = &main_state->entity_emitter;
 
+			emitter->glow->anim_time += game_input->delta_time * ANIMATION_FRAMES_PER_SEC;
+			emitter->glow->asset.index = (u32)emitter->glow->anim_time % get_asset_count(assets, emitter->glow->asset.id);
+			move_entity(meta_state, render_transform, emitter->glow, player_d_pos);
+
 			for(u32 i = 0; i < emitter->entity_count; i++) {
 				Entity * entity = emitter->entity_array[i];
 				b32 destroy = false;
@@ -1298,7 +1324,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					f32 anim_speed = 4.0f;
 
 					entity->scale += anim_speed * game_input->delta_time;
-					//TODO: Vec2 clamp??	
+					//TODO: Vec2 clamp??
 					entity->scale.x = math::min(entity->scale.x, 1.0f);
 					entity->scale.y = math::min(entity->scale.y, 1.0f);
 
@@ -1332,7 +1358,9 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 							break;
 						}
 
-						case AssetId_atom_smasher: {
+						case AssetId_atom_smasher_small:
+						case AssetId_atom_smasher_medium:
+						case AssetId_atom_smasher_large: {
 							if(!player->invincibility_time) {	
 								pop_player_clones(player, 50);
 								is_slow_down = true;
@@ -1385,6 +1413,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 						change_info_display(&main_state->info_display, entity->asset.id);
 
 						clip_id = AssetId_special;
+
+						emitter->glow->color.a = 0.0f;
 					}
 					
 					//TODO: Should there be a helper function for this??
@@ -1396,6 +1426,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					change_entity_asset(entity, assets, asset_ref(AssetId_shield));
 					entity->anim_time = 0.0f;
 					entity->scale = math::vec2(0.5f);
+					entity->color = math::vec4(1.0f);
 				}
 
 				if(destroy) {
@@ -1466,19 +1497,56 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 								entity->pos.x += x_offset;
 								entity->pos.y += (((f32)y + 0.5f) / (f32)TILE_MAP_HEIGHT) * projection_dim.y - projection_dim.y * 0.5f;
 								entity->scale = math::vec2(1.0f);
+
 								entity->color = math::vec4(1.0f);
+								if(tile_id == TileId_clone) {
+									entity->color = get_rand_clone_color();
+								}
 
 								entity->anim_time = 0.0f;
 
 								AssetId asset_id = current_scene->tile_to_asset_table[tile_id];
 								if(tile_id == TileId_collect) {
-									asset_id = (AssetId)(ASSET_FIRST_GROUP_ID(collect) + math::rand_u32() % ASSET_GROUP_COUNT(collect));
+									u32 item_count = 0;
+									AssetId items_ids[ASSET_GROUP_COUNT(collect)];
+									for(u32 i = 0; i < ASSET_GROUP_COUNT(collect); i++) {
+										if(!game_state->save.collect_unlock_states[i]) {
+											items_ids[item_count++] = ASSET_GROUP_INDEX_TO_ID(collect, i);
+										}
+									}
+
+									if(item_count) {
+										asset_id = items_ids[math::rand_u32() % item_count];
+
+										emitter->glow->pos = entity->pos;
+										emitter->glow->color.a = 1.0f;
+									}
+									else {
+										asset_id = current_scene->tile_to_asset_table[TileId_clone];
+									}
 								}
 
 								change_entity_asset(entity, assets, asset_ref(asset_id));
-								if(tile_id == TileId_bad) {
-									entity->collider = math::rec_scale(get_asset_bounds(assets, entity->asset.id, entity->asset.index), 0.5f);
+
+								math::Vec2 collider_scale = math::vec2(1.0f);
+								switch(tile_id) {
+									case TileId_bad_small: {
+										collider_scale = math::vec2(0.5f, 1.0f - 1.0f / 2.0f);
+										break;
+									}
+
+									case TileId_bad_medium: {
+										collider_scale = math::vec2(0.5f, 1.0f - 1.0f / 4.0f);
+										break;
+									}
+
+									case TileId_bad_large: {
+										collider_scale = math::vec2(0.5f, 1.0f - 1.0f / 12.0f);
+										break;
+									}
 								}
+
+								entity->collider = math::rec_scale(get_asset_bounds(assets, entity->asset.id, entity->asset.index), collider_scale);
 
 								entity->hit = false;
 							}
@@ -1541,16 +1609,26 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					}
 				}
 
+#if 0
+				score_system->clones = 232;
+				score_system->items = 7;
+				score_system->distance = 32.1f;
+				score_system->bonus_area = 3;
+#endif
+
 				score_system->values[ScoreValueId_clones].value = score_system->clones;
 				score_system->values[ScoreValueId_items].value = score_system->items;
-				score_system->values[ScoreValueId_time_played].value = (u32)(score_system->time_played + 0.5f);
-				score_system->values[ScoreValueId_rocket].value = score_system->rocket ? 1 : 0;
-				score_system->values[ScoreValueId_concord].value = score_system->concord ? 1 : 0;
+				score_system->values[ScoreValueId_distance].value = (u32)(score_system->distance + 0.5f);
+				score_system->values[ScoreValueId_bonus_area].value = score_system->bonus_area;
 
-				f32 delay_time = 0.5f;
+				if(score_system->value_count <= ARRAY_COUNT(score_system->values)) {
+					if(score_system->value_count) {
+						ScoreValue * score_value = score_system->values + (score_system->value_count - 1);
+						score_value->time_ = score_system->time_;
+					}
 
-				if(score_system->value_count < ARRAY_COUNT(score_system->values)) {
-					if(score_system->time_ >= delay_time) {
+					f32 total_time = score_system->value_delay_time + score_system->value_tally_time;
+					if(score_system->time_ >= total_time) {
 						score_system->value_count++;
 						score_system->time_ = 0.0f;
 					}
@@ -1562,6 +1640,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 						score_system->target_total += value->value * value->points_per_value;
 					}
 
+					f32 delay_time = 0.5f;
 					score_system->display_total = (u32)math::lerp((f32)score_system->current_total, (f32)score_system->target_total, math::clamp01(score_system->time_ - delay_time));
 				}
 
@@ -1727,46 +1806,46 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			char temp_buf[256];
 			Str temp_str = str_fixed_size(temp_buf, ARRAY_COUNT(temp_buf));
 
-			{
-				math::Vec3 label_pos = math::vec3(0.0f, projection_dim.y * 0.5f - (main_state->fixed_letterboxing + 12.0f * main_state->clock_label_scale), 0.0f);
-				math::Vec4 label_color = math::vec4(1.0f, 1.0f, 1.0f, main_state->clock_label_alpha);
-				push_textured_quad(ui_render_group, asset_ref(AssetId_label_clock), label_pos, math::vec2(main_state->clock_label_scale), 0.0f, label_color);
+			ScoreSystem * score_system = &main_state->score_system;
+
+			if(!score_system->show) {
+				math::Vec3 label_pos = math::vec3(0.0f, projection_dim.y * 0.5f - main_state->fixed_letterboxing, 0.0f);
+				push_textured_quad(ui_render_group, asset_ref(AssetId_label_clock, main_state->clock_label_index), label_pos, math::vec2(main_state->clock_label_scale));
 
 				str_clear(&temp_str);
 				str_print(&temp_str, "%u", (u32)math::ceil_to_i32(main_state->time_remaining));
 
 				f32 font_scale = 1.0f * main_state->clock_label_scale;
 				FontLayout font_layout = create_font_layout(font, projection_dim, font_scale, FontLayoutAnchor_top_centre, math::vec2(3.0f, -main_state->fixed_letterboxing + 20.0f * font_scale), false);
-				push_str_to_render_group(ui_render_group, font, &font_layout, &temp_str, math::vec4(0.0f, 0.0f, 0.0f, main_state->clock_label_alpha));
+				push_str_to_render_group(ui_render_group, font, &font_layout, &temp_str, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+
+				{
+					FontLayout font_layout = create_font_layout(font, projection_dim, 1.0f, FontLayoutAnchor_bottom_centre, math::vec2(0.0f, fixed_letterboxing - (font->ascent - font->descent) - 21.0f));
+					push_c_str_to_render_group(ui_render_group, font, &font_layout, main_state->scenes[main_state->current_scene].name);
+				}
+
+				{
+					InfoDisplay * info_display = &main_state->info_display;
+					u32 info_index = ASSET_ID_TO_GROUP_INDEX(collect, info_display->asset.id);
+
+					char const * info_strs[] = {
+						"Dolly found the WW Stool!!",
+						"Dolly found the Hamilton-Rothschild tazza!!",
+						"Dolly found the Mini Cooper!!",
+						"Dolly found the mobile phone!!",
+						"Dolly found the Coral Cement necklace!!",
+						"Dolly found the McQueen ankle boots!!",
+					};
+
+					FontLayout font_layout = create_font_layout(font, projection_dim, info_display->scale, FontLayoutAnchor_top_centre, math::vec2(0.0f, -170.0f), false);
+					push_c_str_to_render_group(ui_render_group, font, &font_layout, info_strs[info_index], math::vec4(1.0f, 1.0f, 1.0f, info_display->alpha));
+				}
+
+				//TODO: Bake the offset into the texture!!
+				push_textured_quad(ui_render_group, main_state->arrow_buttons[0].asset, math::vec3(0.0f, 30.0f, 0.0f));
+				push_textured_quad(ui_render_group, main_state->arrow_buttons[1].asset, math::vec3(0.0f,-30.0f, 0.0f));
 			}
 
-			{
-				FontLayout font_layout = create_font_layout(font, projection_dim, 1.0f, FontLayoutAnchor_bottom_centre, math::vec2(0.0f, fixed_letterboxing - (font->ascent - font->descent) - 21.0f));
-				push_c_str_to_render_group(ui_render_group, font, &font_layout, main_state->scenes[main_state->current_scene].name);
-			}
-
-			{
-				InfoDisplay * info_display = &main_state->info_display;
-				u32 info_index = ASSET_ID_TO_GROUP_INDEX(collect, info_display->asset.id);
-
-				char const * info_strs[] = {
-					"Dolly found the WW Stool!!",
-					"Dolly found the Hamilton-Rothschild tazza!!",
-					"Dolly found the Mini Cooper!!",
-					"Dolly found the mobile phone!!",
-					"Dolly found the Coral Cement necklace!!",
-					"Dolly found the McQueen ankle boots!!",
-				};
-
-				FontLayout font_layout = create_font_layout(font, projection_dim, info_display->scale, FontLayoutAnchor_top_centre, math::vec2(0.0f, -170.0f), false);
-				push_c_str_to_render_group(ui_render_group, font, &font_layout, info_strs[info_index], math::vec4(1.0f, 1.0f, 1.0f, info_display->alpha));
-			}
-
-			//TODO: Bake the offset into the texture!!
-			push_textured_quad(ui_render_group, main_state->arrow_buttons[0].asset, math::vec3(0.0f, 30.0f, 0.0f));
-			push_textured_quad(ui_render_group, main_state->arrow_buttons[1].asset, math::vec3(0.0f,-30.0f, 0.0f));
-
-			ScoreSystem * score_system = &main_state->score_system;
 			if(score_system->show) {
 				push_colored_quad(ui_render_group, math::vec3(0.0f), projection_dim, 0.0f, math::vec4(0.0f, 0.0f, 0.0f, 0.8f));
 
@@ -1777,47 +1856,64 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				FontLayout title_layout = create_font_layout(font, projection_dim, 1.0f, FontLayoutAnchor_top_centre, math::vec2(0.0f, -(main_state->fixed_letterboxing + 40.0f)));
 				push_str_to_render_group(ui_render_group, font, &title_layout, &temp_str);
 
-				f32 offset_x = projection_dim.x * 0.25f;
+				f32 value_offset0 = projection_dim.x * 0.25f;
+				f32 value_offset1 = -projection_dim.x * 0.375f;
+				f32 value_offset2 = projection_dim.x * 0.675f;
+
+				u32 value_count = math::min(score_system->value_count, ARRAY_COUNT(score_system->values));
 
 				{
 					str_clear(&temp_str);
-					for(u32 i = 0; i < score_system->value_count; i++) {
+					for(u32 i = 0; i < value_count; i++) {
 						ScoreValue * score_value = score_system->values + i;
-						if(score_value->show_value) {
-							str_print(&temp_str, "%s: %u\n", score_value->name, score_value->value);
-						}
-						else {
-							str_print(&temp_str, "%s\n", score_value->name);
-						}
+						str_print(&temp_str, "%s\n", score_value->name, score_value->value);
 					}
 
-					FontLayout font_layout = create_font_layout(font, projection_dim, 1.0f, FontLayoutAnchor_top_left, math::vec2(offset_x, 0.0f));
+					FontLayout font_layout = create_font_layout(font, projection_dim, 1.0f, FontLayoutAnchor_top_left, math::vec2(value_offset0, 0.0f));
 					font_layout.pos.y = title_layout.pos.y;
 					push_str_to_render_group(ui_render_group, font, &font_layout, &temp_str);
 				}
 
 				{
 					str_clear(&temp_str);
-					for(u32 i = 0; i < score_system->value_count; i++) {
+					for(u32 i = 0; i < value_count; i++) {
 						ScoreValue * score_value = score_system->values + i;
-						str_print(&temp_str, "+%u\n", score_value->value * score_value->points_per_value);
+
+						if(score_value->time_ > 0.5f) {
+							f32 lerp_t = math::clamp01((score_value->time_ - score_system->value_delay_time) / score_system->value_tally_time);
+							u32 display_value = (u32)math::lerp((f32)score_value->value, 0.0f, lerp_t);
+							str_print(&temp_str, "%u\n", display_value);							
+						}
 					}
 
-					FontLayout font_layout = create_font_layout(font, projection_dim, 1.0f, FontLayoutAnchor_top_right, math::vec2(-offset_x, 0.0f));
+					FontLayout font_layout = create_font_layout(font, projection_dim, 1.0f, FontLayoutAnchor_top_right, math::vec2(value_offset1, 0.0f));
 					font_layout.pos.y = title_layout.pos.y;
 					push_str_to_render_group(ui_render_group, font, &font_layout, &temp_str);
 				}
 
 				{
 					str_clear(&temp_str);
-					for(u32 i = 0; i < ARRAY_COUNT(score_system->values); i++) {
-						str_print(&temp_str, "\n");
+					for(u32 i = 0; i < value_count; i++) {
+						ScoreValue * score_value = score_system->values + i;
+
+						if(score_value->time_ > score_system->value_delay_time) {
+							f32 lerp_t = math::clamp01((score_value->time_ - score_system->value_delay_time) / score_system->value_tally_time);
+							u32 display_value = (u32)math::lerp(0.0f, (f32)(score_value->value * score_value->points_per_value), lerp_t);
+							str_print(&temp_str, "+%u\n", display_value);
+						}
 					}
-					str_print(&temp_str, "\n");
+
+					FontLayout font_layout = create_font_layout(font, projection_dim, 1.0f, FontLayoutAnchor_top_left, math::vec2(value_offset2, 0.0f));
+					font_layout.pos.y = title_layout.pos.y;
+					push_str_to_render_group(ui_render_group, font, &font_layout, &temp_str);
+				}
+
+				{
+					str_clear(&temp_str);
 					str_print(&temp_str, "Total: %u\n", score_system->display_total);
 
 					FontLayout font_layout = create_font_layout(font, projection_dim, 1.0f, FontLayoutAnchor_top_centre);
-					font_layout.pos.y = title_layout.pos.y;
+					font_layout.pos.y = title_layout.pos.y - get_font_line_height(font) * (ARRAY_COUNT(score_system->values) + 1);
 					push_str_to_render_group(ui_render_group, font, &font_layout, &temp_str);					
 				}
 
@@ -1844,7 +1940,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		Str temp_str = str_fixed_size(temp_buf, ARRAY_COUNT(temp_buf));
 		str_print(&temp_str, "decompression time: %fms\n", debug_decompression_time);
 		str_print(&temp_str, "dt: %fms\n", game_input->delta_time);
-		str_print(&temp_str, "sources playing: %u | sources to free: %u\n", game_state->audio_state.debug_sources_playing, game_state->audio_state.debug_sources_to_free);
+		str_print(&temp_str, "supported: %s | sources playing: %u | sources to free: %u\n", game_state->audio_state.supported ? "true" : "false", game_state->audio_state.debug_sources_playing, game_state->audio_state.debug_sources_to_free);
 		str_print(&temp_str, "\n");
 		push_str_to_render_group(debug_render_group, debug_font, &debug_font_layout, &temp_str);
 

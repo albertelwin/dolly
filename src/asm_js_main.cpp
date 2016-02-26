@@ -10,11 +10,14 @@
 #include <game.cpp>
 
 extern "C" {
+	extern void emscripten_SDL_SetAudioFixCallback(void * callback);
+
 	extern b32 web_audio_init(u32 channels, u32 samples, u32 * samples_per_second, void * callback, void * user_ptr);
 	extern void web_audio_suspend();
 	extern void web_audio_resume();
 	extern void web_audio_close();
 	extern void web_audio_request_samples();
+	extern void web_audio_ios_fix();
 }
 
 struct MainLoopArgs {	
@@ -114,6 +117,10 @@ void audio_callback(void * user_ptr, u8 * buffer_ptr, i32 buffer_size) {
 	game_sample(&args->game_memory, (i16 *)buffer_ptr, (u32)buffer_size / (args->bytes_per_sample * args->channels), args->samples_per_second);
 }
 
+void audio_fix_callback() {
+	web_audio_ios_fix();
+}
+
 math::Vec2 get_mouse_pos() {
 	i32 mouse_x;
 	i32 mouse_y;
@@ -135,10 +142,6 @@ void main_loop(void * user_ptr) {
 			args->time_when_hidden = 0.0;
 			args->time_when_shown = 0.0;
 		}
-
-		// if(delta_time > 33.333333333333333333333333333333f) {
-		// 	std::printf("LOG: dt: %f\n", delta_time);
-		// }
 
 		args->game_input.delta_time = (f32)(delta_time / 1000.0);
 		args->game_input.total_time += args->game_input.delta_time;
@@ -296,6 +299,8 @@ int main_init() {
 	if(web_audio_init(args.channels, 2048, &args.samples_per_second, (void *)audio_callback, &args)) {
 		args.game_input.audio_supported = true;
 		async_audio_request(0);
+
+		emscripten_SDL_SetAudioFixCallback((void *)audio_fix_callback);
 	}
 	else {
 		args.game_input.audio_supported = false;

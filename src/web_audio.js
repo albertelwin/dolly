@@ -90,6 +90,18 @@ var LibraryWebAudio = {
 			}
 		}
 	},
+
+	web_audio_ios_fix: function() {
+		if(WebAudio.context) {
+			if(WebAudio.context.currentTime == 0) {
+				var buffer = WebAudio.context.createBuffer(1, 1, WebAudio.samples_per_second);
+				var source = WebAudio.context.createBufferSource();
+				source.buffer = buffer;
+				source.connect(WebAudio.context.destination);
+				source.start ? source.start(0) : source.noteOn(0);
+			}
+		}
+	},
 };
 
 autoAddDeps(LibraryWebAudio, '$WebAudio');

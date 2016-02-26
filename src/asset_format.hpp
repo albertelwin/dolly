@@ -21,7 +21,9 @@ enum TextureSampling {
 #define TILE_MAP_HEIGHT 37
 
 enum TileId {
-	TileId_bad,
+	TileId_bad_small,
+	TileId_bad_medium,
+	TileId_bad_large,
 	TileId_time,
 	TileId_clone,
 	TileId_collect,
@@ -56,11 +58,13 @@ inline b32 colors_are_equal(ColorRGB8 color0, ColorRGB8 color1) {
 }
 
 static TileIdColorRGB8 tile_id_color_table[] = {
-	{ TileId_bad, color_rgb8(255, 0, 0) },
+	{ TileId_bad_small, color_rgb8(255, 255, 0) },
+	{ TileId_bad_medium, color_rgb8(255, 128, 0) },
+	{ TileId_bad_large, color_rgb8(255, 0, 0) },
 	{ TileId_time, color_rgb8(0, 255, 0) },
 	{ TileId_clone, color_rgb8(255, 255, 255) },
 	{ TileId_collect, color_rgb8(0, 0, 255) },
-	{ TileId_concord, color_rgb8(255, 255, 0) },
+	{ TileId_concord, color_rgb8(255, 0, 255) },
 	{ TileId_rocket, color_rgb8(0, 255, 255) },
 };
 
@@ -103,6 +107,10 @@ struct Font {
 };
 #pragma pack(pop)
 
+inline f32 get_font_line_height(Font * font) {
+	return font->ascent - font->descent;
+}
+
 #define BEGIN_ASSET_GROUP(name) AssetId_one_before_first_##name
 #define END_ASSET_GROUP(name) AssetId_one_past_last_##name
 
@@ -124,6 +132,8 @@ enum AssetId {
 	AssetId_scene_highlands,
 	AssetId_scene_ocean,
 	END_ASSET_GROUP(lower_scene),
+
+	AssetId_scene_city_alt,
 
 	AssetId_scene_space,
 
@@ -149,8 +159,11 @@ enum AssetId {
 	AssetId_goggles,
 	AssetId_concord,
 	AssetId_shield,
+	AssetId_glow,
 
-	AssetId_atom_smasher,
+	AssetId_atom_smasher_small,
+	AssetId_atom_smasher_medium,
+	AssetId_atom_smasher_large,
 	
 	AssetId_sun,
 

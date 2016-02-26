@@ -53,7 +53,7 @@ struct Entity {
 
 struct EntityArray {
 	u32 count;
-	Entity elems[1024];
+	Entity elems[512];
 };
 
 struct Player {
@@ -65,7 +65,7 @@ struct Player {
 	b32 allow_input;
 	f32 invincibility_time;
 
-	Entity * clones[200];
+	Entity * clones[100];
 	math::Vec2 clone_offset;
 	u32 active_clone_count;
 };
@@ -84,7 +84,9 @@ struct EntityEmitter {
 	math::Vec3 pos;
 
 	u32 entity_count;
-	Entity * entity_array[512];
+	Entity * entity_array[256];
+
+	Entity * glow;
 };
 
 enum SceneId {
@@ -100,10 +102,10 @@ struct Scene {
 	AssetId asset_id;
 	Entity * layers[PARALLAX_LAYER_COUNT];
 	f32 y;
-	math::Vec4 tint;
 
 	AssetId tile_to_asset_table[TileId_count];
 	AssetId map_id;
+	b32 alt;
 };
 
 struct RocketSequence {
@@ -116,17 +118,17 @@ struct RocketSequence {
 
 struct ScoreValue {
 	char * name;
-	u32 value;
 	u32 points_per_value;
-	b32 show_value;
+
+	u32 value;
+	f32 time_;
 };
 
 enum ScoreValueId {
 	ScoreValueId_clones,
 	ScoreValueId_items,
-	ScoreValueId_time_played,
-	ScoreValueId_rocket,
-	ScoreValueId_concord,
+	ScoreValueId_distance,
+	ScoreValueId_bonus_area,
 
 	ScoreValueId_count,
 };
@@ -139,16 +141,18 @@ struct ScoreSystem {
 	//TODO: Should these be part of the score value??
 	u32 clones;
 	u32 items;
-	f32 time_played;
-	b32 rocket;
-	b32 concord;
+	f32 distance;
+	u32 bonus_area;
 	
 	u32 value_count;
 	ScoreValue values[ScoreValueId_count];
+	f32 value_delay_time;
+	f32 value_tally_time;
 
 	u32 current_total;
 	u32 target_total;
 	u32 display_total;
+	
 
 	f32 time_;
 };
@@ -307,7 +311,7 @@ struct MainMetaState {
 	f32 clock_pickup_time;
 
 	f32 clock_label_scale;
-	f32 clock_label_alpha;
+	f32 clock_label_index;
 	
 	UiElement arrow_buttons[2];
 	InfoDisplay info_display;
