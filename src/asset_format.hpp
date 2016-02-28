@@ -237,6 +237,11 @@ enum AssetId {
 #define ASSET_ID_TO_GROUP_INDEX(name, id) (id - (AssetId_one_before_first_##name + 1))
 #define ASSET_GROUP_INDEX_TO_ID(name, index) ((AssetId)(AssetId_one_before_first_##name + 1 + index))
 
+struct AssetFile {
+	char * name;
+	AssetId id;
+};
+
 enum AssetType {
 #define ASSET_TYPE_NAME_STRUCT_X	\
 	X(texture, Texture)				\

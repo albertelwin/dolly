@@ -10,6 +10,8 @@
 #define MINIZ_NO_TIME
 #include <miniz.c>
 
+#include <stb_vorbis.c>
+
 AssetRef asset_ref(AssetId id, u32 index = 0) {
 	AssetRef ref;
 	ref.id = id;
@@ -75,6 +77,40 @@ void load_assets(AssetState * assets, MemoryArena * arena) {
 
 	assets->arena = arena;
 
+	AssetFile audio_asset_files[] = {
+		{ (char *)"audio/pickup0.ogg", AssetId_pickup },
+		{ (char *)"audio/pickup1.ogg", AssetId_pickup },
+		{ (char *)"audio/pickup2.ogg", AssetId_pickup },
+		{ (char *)"audio/bang0.ogg", AssetId_bang },
+		{ (char *)"audio/bang1.ogg", AssetId_bang },
+		{ (char *)"audio/baa0.ogg", AssetId_baa },
+		{ (char *)"audio/baa1.ogg", AssetId_baa },
+		{ (char *)"audio/baa2.ogg", AssetId_baa },
+		{ (char *)"audio/baa3.ogg", AssetId_baa },
+		{ (char *)"audio/baa4.ogg", AssetId_baa },
+		{ (char *)"audio/baa5.ogg", AssetId_baa },
+		{ (char *)"audio/baa6.ogg", AssetId_baa },
+		{ (char *)"audio/baa7.ogg", AssetId_baa },
+		{ (char *)"audio/baa8.ogg", AssetId_baa },
+		{ (char *)"audio/baa9.ogg", AssetId_baa },
+		{ (char *)"audio/baa10.ogg", AssetId_baa },
+		{ (char *)"audio/baa11.ogg", AssetId_baa },
+		{ (char *)"audio/baa12.ogg", AssetId_baa },
+		{ (char *)"audio/baa13.ogg", AssetId_baa },
+		{ (char *)"audio/baa14.ogg", AssetId_baa },
+		{ (char *)"audio/baa15.ogg", AssetId_baa },
+		{ (char *)"audio/special.ogg", AssetId_special },
+
+		{ (char *)"audio/click_yes.ogg", AssetId_click_yes },
+		{ (char *)"audio/click_no.ogg", AssetId_click_no },
+
+		{ (char *)"audio/rocket_sfx.ogg", AssetId_rocket_sfx },
+
+		{ (char *)"audio/menu_music.ogg", AssetId_menu_music },
+		{ (char *)"audio/game_music.ogg", AssetId_game_music },
+		{ (char *)"audio/space_music.ogg", AssetId_space_music },
+	};
+
 	debug_decompression_time = emscripten_get_now();
 
 	MemoryPtr file_buf;
@@ -93,7 +129,23 @@ void load_assets(AssetState * assets, MemoryArena * arena) {
 	total_asset_count += ARRAY_COUNT(debug_global_asset_file_names);
 #endif
 
+	total_asset_count += ARRAY_COUNT(audio_asset_files);
+
 	assets->assets = PUSH_ARRAY(assets->arena, Asset, total_asset_count);
+
+	for(u32 i = 0; i < ARRAY_COUNT(audio_asset_files); i++) {
+		AssetFile * asset_file = audio_asset_files + i;
+
+		i32 channels, sample_rate;
+		i16 * samples;
+		i32 sample_count = stb_vorbis_decode_filename(asset_file->name, &channels, &sample_rate, &samples);
+		ASSERT(channels == AUDIO_CHANNELS);
+
+		Asset * asset = push_asset(assets, asset_file->id, AssetType_audio_clip);
+		//TODO: Need to add the padding sample to the front of the source audio clip!!
+		asset->audio_clip.samples = (u32)(sample_count - AUDIO_PADDING_SAMPLES);
+		asset->audio_clip.sample_data = samples;
+	}
  
 	for(u32 i = 0; i < pack->asset_count; i++) {
 		AssetInfo * asset_info = (AssetInfo *)file_ptr;

@@ -15,10 +15,10 @@ IF %COMPILE_AND_RUN_ASSET_PACKER%==1 (
 )
 
 rem TODO: Keep memory footprint under 128MB!
-set COMMON_COMPILER_FLAGS=-s TOTAL_MEMORY=268435456 -std=c++11 -Werror -Wall -Wno-missing-braces -Wno-unused-variable -DDEBUG_ENABLED=1 -DDEV_ENABLED=0
+set COMMON_COMPILER_FLAGS=-s TOTAL_MEMORY=268435456 -std=c++11 -Werror -Wall -Wno-missing-braces -Wno-unused-variable -Wno-unused-function -DDEBUG_ENABLED=1 -DDEV_ENABLED=0
 
 rem set COMPILER_FLAGS=%COMMON_COMPILER_FLAGS% -s SAFE_HEAP=0
 set COMPILER_FLAGS=%COMMON_COMPILER_FLAGS% -s GL_UNSAFE_OPTS=1 -O3
 
-em++ %COMPILER_FLAGS% -I../src --js-library ../src/web_audio.js ../src/asm_js_main.cpp -o dolly.html --shell-file ../src/template.html --preload-file ../dat/asset.zip@asset.zip
+em++ %COMPILER_FLAGS% -I../src --js-library ../src/web_audio.js ../src/asm_js_main.cpp -o dolly.html --shell-file ../src/template.html --preload-file ../dat/asset.zip@asset.zip --preload-file ../dat/audio_ogg@audio
 cd ..
