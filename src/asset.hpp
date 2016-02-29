@@ -4,9 +4,18 @@
 
 #include <asset_format.hpp>
 
-struct AssetPackZipFile {
+enum AssetFileType {
+	AssetFileType_pak,
+	AssetFileType_ogg,
+};
+struct AssetFile {
 	char * file_name;
-	char * archive_name;
+
+	AssetFileType type;
+	union {
+		char * archive_name;
+		AssetId asset_id;
+	};
 };
 
 #if DEV_ENABLED
@@ -70,6 +79,9 @@ struct AssetGroup {
 
 struct AssetState {
 	MemoryArena * arena;
+
+	u32 last_loaded_file_index;
+	u32 loaded_file_count;
 
 	u32 asset_count;
 	Asset assets[2048];

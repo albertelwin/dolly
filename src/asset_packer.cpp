@@ -95,6 +95,11 @@ struct FontAsset {
 	AssetId id;
 };
 
+struct AssetFile {
+	char * name;
+	AssetId id;
+};
+
 struct AssetPacker {
 	u32 asset_count;
 
@@ -345,7 +350,7 @@ AudioClip load_audio_clip(char const * file_name, AssetId id) {
 
 	WavFormat * wav_format = (WavFormat *)((u8 *)wav_format_header + sizeof(WavChunkHeader));
 	ASSERT(wav_format->channels <= AUDIO_CHANNELS);
-	ASSERT(wav_format->samples_per_second == AUDIO_CLIP_SAMPLES_PER_SECOND);
+	ASSERT(wav_format->samples_per_second == AUDIO_SAMPLE_RATE);
 	ASSERT((wav_format->bits_per_sample / 8) == sizeof(i16));
 
 	WavChunkHeader * wav_data_header = (WavChunkHeader *)((u8 *)wav_format_header + sizeof(WavChunkHeader) + wav_format_header->size);
@@ -705,7 +710,7 @@ int main() {
 	}
 
 	{
-		push_texture(packer, "white.png", AssetId_white);
+		// push_texture(packer, "white.png", AssetId_white);
 
 		push_texture(packer, "menu_background.png", AssetId_menu_background);
 		push_texture(packer, "menu_about.png", AssetId_menu_background);
@@ -781,6 +786,7 @@ int main() {
 	}
 #endif
 
+	//TODO: Spread atlases across multiple files??
 	{
 		push_font(packer, "pragmata_pro.ttf", AssetId_pragmata_pro, 20.0f),
 		push_font(packer, "supersrc.ttf", AssetId_supersrc, 30.0f),

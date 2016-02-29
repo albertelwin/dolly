@@ -129,7 +129,7 @@ void audio_output_samples(AudioState * audio_state, i16 * sample_memory_ptr, u32
 	audio_state->debug_sources_to_free = 0;
 	audio_state->debug_sources_playing = 0;
 
-	f32 playback_rate = samples_per_second != AUDIO_CLIP_SAMPLES_PER_SECOND ? (f32)AUDIO_CLIP_SAMPLES_PER_SECOND / (f32)samples_per_second : 1.0f;
+	f32 playback_rate = samples_per_second != AUDIO_SAMPLE_RATE ? (f32)AUDIO_SAMPLE_RATE / (f32)samples_per_second : 1.0f;
 	f32 seconds_per_sample = 1.0f / samples_per_second;
 
 	AudioSource ** source_ptr = &audio_state->sources;

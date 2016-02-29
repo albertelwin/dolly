@@ -340,7 +340,7 @@ struct GameMemory {
 	size_t size;
 	u8 * ptr;
 
-	b32 initialized;
+	b32 initialised;
 };
 
 struct GameInput {
@@ -362,9 +362,16 @@ struct GameInput {
 struct GameState {
 	MemoryArena memory_arena;
 
+	b32 loaded;
 	AssetState assets;
+
+	//TODO: This is nasty!!
+	b32 initialised;
+
 	AudioState audio_state;
 	RenderState render_state;
+
+	RenderGroup * loading_render_group;
 
 	MetaStateType meta_state;
 	MetaState * meta_states[MetaStateType_count];
