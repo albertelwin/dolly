@@ -123,7 +123,7 @@ enum AssetId {
 	AssetId_white,
 
 	AssetId_menu_background,
-	AssetId_intro_background,
+	AssetId_about_background,
 
 	AssetId_background,
 
@@ -186,6 +186,9 @@ enum AssetId {
 	ASSET_ID_COLLECT_X
 #undef X
 	END_ASSET_GROUP(menu_collect),
+
+	AssetId_about_title,
+	AssetId_about_body,
 
 	AssetId_btn_play,
 	AssetId_btn_about,

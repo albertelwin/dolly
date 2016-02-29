@@ -106,7 +106,7 @@ inline u32 c_str_len(char const * str) {
 	return len;
 }
 
-inline void c_str_copy(char * dst, char const * src) {
+inline void c_str_cpy(char * dst, char const * src) {
 	while(*src) {
 		*dst++ = *src++;
 	}
@@ -114,14 +114,14 @@ inline void c_str_copy(char * dst, char const * src) {
 	*dst = 0;
 }
 
-inline b32 c_str_comp(char const * str0, char const * str1) {
+inline b32 c_str_eql(char const * str0, char const * str1) {
 	while(*str0 && *str1) {
 		if(*str0++ != *str1++) {
 			break;
 		}
 	}
 
-	return *str0 == 0;
+	return *str0 == 0 && *str1 == 0;
 }
 
 struct MemoryPtr {

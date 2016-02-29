@@ -43,7 +43,7 @@ PlatformAsyncFile * platform_open_async_file(char const * file_name) {
 		ASSERT(c_str_len(file_name) < ARRAY_COUNT(async_file->name));
 
 		async_file = ALLOC_STRUCT(PlatformAsyncFile);
-		c_str_copy(async_file->name, file_name);
+		c_str_cpy(async_file->name, file_name);
 		async_file->memory = read_file_to_memory(file_name);
 	}
 

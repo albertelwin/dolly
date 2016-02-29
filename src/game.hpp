@@ -25,6 +25,8 @@ struct UiLayer {
 	UiElement elems[8];
 
 	UiElement * interact_elem;
+
+	AssetRef background;
 };
 
 struct Entity {

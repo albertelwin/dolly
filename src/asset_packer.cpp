@@ -713,9 +713,7 @@ int main() {
 		// push_texture(packer, "white.png", AssetId_white);
 
 		push_texture(packer, "menu_background.png", AssetId_menu_background);
-		push_texture(packer, "menu_about.png", AssetId_menu_background);
-
-		push_texture(packer, "intro_background.png", AssetId_intro_background);
+		push_texture(packer, "about_background.png", AssetId_about_background);
 
 		push_texture(packer, "city_background.png", AssetId_background);
 		push_texture(packer, "highlands_background.png", AssetId_background);
@@ -849,6 +847,9 @@ int main() {
 		push_sprite(packer, "intro1.png", AssetId_intro);
 		push_sprite(packer, "intro2.png", AssetId_intro);
 		push_sprite(packer, "intro3.png", AssetId_intro);
+
+		push_sprite(packer, "about_body.png", AssetId_about_body);
+		push_sprite(packer, "about_title.png", AssetId_about_title);
 
 		push_sprite(packer, "sun.png", AssetId_sun);
 

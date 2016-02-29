@@ -1739,7 +1739,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 				RenderGroup * render_group = menu_state->render_group;
 
-				push_textured_quad(render_group, asset_ref(AssetId_menu_background, menu_state->current_page));
+				AssetId background_id = menu_state->current_page == MenuPageId_main ? AssetId_menu_background : AssetId_about_background;
+				push_textured_quad(render_group, asset_ref(background_id));
 
 				if(menu_state->current_page == MenuPageId_main) {
 					u32 display_item_count = ASSET_GROUP_COUNT(menu_collect);
@@ -1748,6 +1749,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 							push_textured_quad(render_group, asset_ref(ASSET_GROUP_INDEX_TO_ID(menu_collect, i)));
 						}
 					}				
+				}
+				else {
+					push_textured_quad(render_group, asset_ref(AssetId_about_title));
+					push_textured_quad(render_group, asset_ref(AssetId_about_body));
 				}
 
 				push_ui_layer_to_render_group(menu_state->pages + menu_state->current_page, render_group);
@@ -1763,7 +1768,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 				RenderGroup * render_group = intro_state->render_group;
 
-				push_textured_quad(render_group, asset_ref(AssetId_intro_background));
+				push_textured_quad(render_group, asset_ref(AssetId_about_background));
 
 				for(u32 i = 0; i < ARRAY_COUNT(intro_state->frames); i++) {
 					IntroFrame * frame = intro_state->frames + i;
