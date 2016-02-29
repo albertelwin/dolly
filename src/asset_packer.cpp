@@ -80,6 +80,7 @@ struct AudioClip {
 struct TextureAtlas {
 	Texture tex;
 
+	//TODO: These can just be part of the texture struct and we'll alloc them!!
 	u32 sprite_count;
 	AssetInfo sprites[128];
 };
@@ -95,10 +96,25 @@ struct FontAsset {
 };
 
 struct AssetPacker {
-	AssetPackHeader header;
+	u32 asset_count;
 
 	u32 atlas_count;
-	TextureAtlas atlases[64];
+	TextureAtlas atlases[32];
+
+	u32 font_count;
+	FontAsset fonts[256];
+
+	u32 texture_count;
+	Texture textures[256];
+
+	u32 audio_clip_count;
+	AudioClip audio_clips[256];
+
+	u32 tile_map_count;
+	TileMapAsset tile_maps[256];
+
+	u32 working_sprite_count;
+	AssetFile working_sprites[256];
 };
 
 u8 * load_image_from_file(char const * file_name, i32 * width, i32 * height, i32 * channels) {
@@ -393,8 +409,8 @@ void push_packed_texture(AssetPacker * packer, AssetFile * files, u32 file_count
 		sprite->tex_coords[1] = math::vec2(blit.u + blit.width, blit.v + blit.height) * r_tex_size;
 	}
 
-	packer->header.asset_count++;
-	packer->header.asset_count += atlas->sprite_count;
+	packer->asset_count++;
+	packer->asset_count += atlas->sprite_count;
 }
 
 void push_sprite_sheet(AssetPacker * packer, char const * file_name, AssetId sprite_id, u32 sprite_width, u32 sprite_height, u32 sprite_count) {
@@ -435,15 +451,16 @@ void push_sprite_sheet(AssetPacker * packer, char const * file_name, AssetId spr
 
 	atlas->sprite_count = sprite_count;
 
-	packer->header.asset_count++;
-	packer->header.asset_count += atlas->sprite_count;
+	packer->asset_count++;
+	packer->asset_count += atlas->sprite_count;
 }
 
-FontAsset load_font(AssetPacker * packer, char const * file_name, AssetId font_id, f32 pixel_height) {
+void push_font(AssetPacker * packer, char const * file_name, AssetId font_id, f32 pixel_height) {
 	ASSERT(packer->atlas_count < ARRAY_COUNT(packer->atlases));
+	ASSERT(packer->font_count < ARRAY_COUNT(packer->fonts));
 
-	FontAsset font_asset = {};
-	font_asset.id = font_id;
+	FontAsset * font_asset = packer->fonts + packer->font_count++;
+	font_asset->id = font_id;
 
 	stbtt_fontinfo ttf_info;
 	MemoryPtr ttf_file = read_file_to_memory(file_name);
@@ -459,13 +476,13 @@ FontAsset load_font(AssetPacker * packer, char const * file_name, AssetId font_i
 	i32 whitespace_advance;
 	stbtt_GetCodepointHMetrics(&ttf_info, ' ', &whitespace_advance, 0);
 
-	Font * font = &font_asset.font;
+	Font * font = &font_asset->font;
 	font->glyphs = ALLOC_ARRAY(FontGlyph, FONT_GLYPH_COUNT);
 	font->ascent = ascent * scale_factor;
 	font->descent = descent * scale_factor;
 	font->whitespace_advance = whitespace_advance * scale_factor;
 	font->atlas_index = packer->atlas_count++;
-	font->glyph_id = font_asset.id + 1;
+	font->glyph_id = font_asset->id + 1;
 
 	TextureAtlas * atlas = packer->atlases + font->atlas_index;
 	atlas->tex = allocate_texture(384, 384, AssetId_atlas);
@@ -525,195 +542,67 @@ FontAsset load_font(AssetPacker * packer, char const * file_name, AssetId font_i
 		FREE_MEMORY(tex.ptr);
 	}
 
-	packer->header.asset_count++;
-	packer->header.asset_count += atlas->sprite_count;
+	packer->asset_count += atlas->sprite_count + 2;
 
 	FREE_MEMORY(ttf_file.ptr);
-
-	return font_asset;
 }
 
-int main() {
-	//TODO: Automatically sync these up!!
-	ASSERT(ASSET_GROUP_COUNT(collect) == ASSET_GROUP_COUNT(menu_collect));
+void push_texture(AssetPacker * packer, char * file_name, AssetId asset_id, TextureSampling sampling = TextureSampling_bilinear) {
+	ASSERT(packer->texture_count < ARRAY_COUNT(packer->textures));
 
-	AssetPacker packer = {};
+	Texture * texture = packer->textures + packer->texture_count++;
+	*texture = load_texture(file_name, asset_id, sampling);
 
-	FontAsset fonts[] = {
-		load_font(&packer, "pragmata_pro.ttf", AssetId_pragmata_pro, 20.0f),
-		load_font(&packer, "supersrc.ttf", AssetId_supersrc, 30.0f),
-	};
+	packer->asset_count++;
+}
 
-	packer.header.asset_count += ARRAY_COUNT(fonts);
+void begin_packed_texture(AssetPacker * packer) {
+	ASSERT(!packer->working_sprite_count);
+}
 
-	AssetFile sprite_files[] = {
-		{ "dolly_up.png", AssetId_dolly_up },
-		{ "dolly_down.png", AssetId_dolly_down },
+void end_packed_texture(AssetPacker * packer) {
+	ASSERT(packer->working_sprite_count);
 
-		{ "dolly_space_idle.png", AssetId_dolly_space_idle },
-		{ "dolly_space_up.png", AssetId_dolly_space_up },
-		{ "dolly_space_down.png", AssetId_dolly_space_down },
+	push_packed_texture(packer, packer->working_sprites, packer->working_sprite_count);
+	packer->working_sprite_count = 0;
+}
 
-		{ "rocket.png", AssetId_rocket },
-		{ "rocket_large0.png", AssetId_rocket_large },
-		{ "rocket_large1.png", AssetId_rocket_large },
-		{ "rocket_large2.png", AssetId_rocket_large },
-		{ "speed_up.png", AssetId_goggles },
-		{ "shield.png", AssetId_shield },
-		{ "clone.png", AssetId_clone },
-		{ "clone_space.png", AssetId_clone_space },
-		{ "clock.png", AssetId_clock },
+void push_sprite(AssetPacker * packer, char * file_name, AssetId asset_id) {
+	ASSERT(packer->working_sprite_count < ARRAY_COUNT(packer->working_sprites));
 
-#define X(NAME) { "collect_" #NAME ".png", AssetId_collect_##NAME },
-		ASSET_ID_COLLECT_X
-#undef X
+	AssetFile * asset_file = packer->working_sprites + packer->working_sprite_count++;
+	asset_file->name = file_name;
+	asset_file->id = asset_id;
+}
 
-#define X(NAME) { "menu_collect_" #NAME ".png", AssetId_menu_collect_##NAME },
-		ASSET_ID_COLLECT_X
-#undef X
+void push_audio_clip(AssetPacker * packer, char * file_name, AssetId asset_id) {
+	ASSERT(packer->audio_clip_count < ARRAY_COUNT(packer->audio_clips));
 
-		{ "concord0.png", AssetId_concord },
-		{ "concord1.png", AssetId_concord },
-	};
-	push_packed_texture(&packer, sprite_files, ARRAY_COUNT(sprite_files));
+	AudioClip * audio_clip = packer->audio_clips + packer->audio_clip_count++;
+	*audio_clip = load_audio_clip(file_name, asset_id);
 
-	AssetFile ui_sprite_files[] = {
-		{ "btn_play0.png", AssetId_btn_play },
-		{ "btn_play1.png", AssetId_btn_play },
-		{ "btn_about0.png", AssetId_btn_about },
-		{ "btn_about1.png", AssetId_btn_about },
-		{ "btn_back0.png", AssetId_btn_back },
-		{ "btn_back1.png", AssetId_btn_back },
-		{ "btn_baa0.png", AssetId_btn_baa },
-		{ "btn_baa1.png", AssetId_btn_baa },
-		{ "btn_replay0.png", AssetId_btn_replay },
-		{ "btn_replay1.png", AssetId_btn_replay },
-		{ "btn_up0.png", AssetId_btn_up },
-		{ "btn_up1.png", AssetId_btn_up },
-		{ "btn_down0.png", AssetId_btn_down },
-		{ "btn_down1.png", AssetId_btn_down },
-		{ "btn_skip0.png", AssetId_btn_skip },
-		{ "btn_skip1.png", AssetId_btn_skip },
+	packer->asset_count++;
+}
 
-		{ "label_clock0_.png", AssetId_label_clock },
-		{ "label_clock1_.png", AssetId_label_clock },
+void push_tile_map(AssetPacker * packer, char * file_name, AssetId asset_id) {
+	ASSERT(packer->tile_map_count < ARRAY_COUNT(packer->tile_maps));
 
-		{ "intro0.png", AssetId_intro },
-		{ "intro1.png", AssetId_intro },
-		{ "intro2.png", AssetId_intro },
-		{ "intro3.png", AssetId_intro },
+	TileMapAsset * tile_map = packer->tile_maps + packer->tile_map_count++;
+	*tile_map = load_tile_map(file_name, asset_id);
 
-		{ "sun.png", AssetId_sun },
-	};
-	push_packed_texture(&packer, ui_sprite_files, ARRAY_COUNT(ui_sprite_files));
+	packer->asset_count++;
+}
 
-	push_sprite_sheet(&packer, "dolly_fall.png", AssetId_dolly_fall, 64, 64, 4);
-	push_sprite_sheet(&packer, "dolly_idle.png", AssetId_dolly_idle, 64, 64, 4);
-	push_sprite_sheet(&packer, "atom_smasher_small.png", AssetId_atom_smasher_small, 64, 128, 7);
-	push_sprite_sheet(&packer, "atom_smasher_medium.png", AssetId_atom_smasher_medium, 64, 256, 11);
-	push_sprite_sheet(&packer, "atom_smasher_large.png", AssetId_atom_smasher_large, 64, 512, 11);
-
-	push_sprite_sheet(&packer, "glow.png", AssetId_glow, 128, 128, 16);
-
-	Texture reg_tex_array[] = {
-		load_texture("white.png", AssetId_white),
-
-		load_texture("menu_background.png", AssetId_menu_background),
-		load_texture("menu_about.png", AssetId_menu_background),
-
-		load_texture("intro_background.png", AssetId_intro_background),
-
-		load_texture("city_background.png", AssetId_background),
-		load_texture("highlands_background.png", AssetId_background),
-		load_texture("ocean_background_.png", AssetId_background),
-
-		load_texture("city_layer0.png", AssetId_scene_city),
-		load_texture("city_layer1.png", AssetId_scene_city),
-		load_texture("city_layer2.png", AssetId_scene_city),
-		load_texture("city_layer3.png", AssetId_scene_city),
-
-		load_texture("city_alt_layer.png", AssetId_scene_city_alt),
-
-		load_texture("highlands_layer0.png", AssetId_scene_highlands),
-		load_texture("highlands_layer1.png", AssetId_scene_highlands),
-		load_texture("highlands_layer2.png", AssetId_scene_highlands),
-		load_texture("highlands_layer3.png", AssetId_scene_highlands),
-
-		load_texture("ocean_layer0.png", AssetId_scene_ocean),
-		load_texture("ocean_layer1.png", AssetId_scene_ocean),
-		load_texture("empty_layer.png", AssetId_scene_ocean),
-		load_texture("empty_layer.png", AssetId_scene_ocean),
-
-		load_texture("space_layer0.png", AssetId_scene_space),
-		load_texture("space_layer1.png", AssetId_scene_space),
-		load_texture("space_layer2.png", AssetId_scene_space),
-		load_texture("empty_layer.png", AssetId_scene_space),
-
-		load_texture("clouds.png", AssetId_clouds),
-	};
-
-	packer.header.asset_count += ARRAY_COUNT(reg_tex_array);
-
-#if PACK_AUDIO_ASSETS
-	AudioClip clips[] = {
-		load_audio_clip("audio_wav/pickup0.wav", AssetId_pickup),
-		load_audio_clip("audio_wav/pickup1.wav", AssetId_pickup),
-		load_audio_clip("audio_wav/pickup2.wav", AssetId_pickup),
-		load_audio_clip("audio_wav/bang0.wav", AssetId_bang),
-		load_audio_clip("audio_wav/bang1.wav", AssetId_bang),
-		load_audio_clip("audio_wav/baa0.wav", AssetId_baa),
-		load_audio_clip("audio_wav/baa1.wav", AssetId_baa),
-		load_audio_clip("audio_wav/baa2.wav", AssetId_baa),
-		load_audio_clip("audio_wav/baa3.wav", AssetId_baa),
-		load_audio_clip("audio_wav/baa4.wav", AssetId_baa),
-		load_audio_clip("audio_wav/baa5.wav", AssetId_baa),
-		load_audio_clip("audio_wav/baa6.wav", AssetId_baa),
-		load_audio_clip("audio_wav/baa7.wav", AssetId_baa),
-		load_audio_clip("audio_wav/baa8.wav", AssetId_baa),
-		load_audio_clip("audio_wav/baa9.wav", AssetId_baa),
-		load_audio_clip("audio_wav/baa10.wav", AssetId_baa),
-		load_audio_clip("audio_wav/baa11.wav", AssetId_baa),
-		load_audio_clip("audio_wav/baa12.wav", AssetId_baa),
-		load_audio_clip("audio_wav/baa13.wav", AssetId_baa),
-		load_audio_clip("audio_wav/baa14.wav", AssetId_baa),
-		load_audio_clip("audio_wav/baa15.wav", AssetId_baa),
-		load_audio_clip("audio_wav/special.wav", AssetId_special),
-
-		load_audio_clip("audio_wav/click_yes.wav", AssetId_click_yes),
-		load_audio_clip("audio_wav/click_no.wav", AssetId_click_no),
-
-		load_audio_clip("audio_wav/rocket_sfx.wav", AssetId_rocket_sfx),
-
-		load_audio_clip("audio_wav/menu_music.wav", AssetId_menu_music),
-		load_audio_clip("audio_wav/game_music.wav", AssetId_game_music),
-		load_audio_clip("audio_wav/space_music.wav", AssetId_space_music),
-	};
-	packer.header.asset_count += ARRAY_COUNT(clips);
-#endif
-
-	TileMapAsset tile_maps[] = {
-		load_tile_map("tile_map0.png", AssetId_tile_map),
-		load_tile_map("tile_map1.png", AssetId_tile_map),
-
-		load_tile_map("placement0.png", AssetId_lower_map),
-		load_tile_map("placement1.png", AssetId_lower_map),
-		load_tile_map("placement2.png", AssetId_lower_map),
-		load_tile_map("placement3.png", AssetId_lower_map),
-
-		load_tile_map("placement_space0.png", AssetId_upper_map),
-
-		load_tile_map("tutorial.png", AssetId_tutorial_map),
-	};
-
-	packer.header.asset_count += ARRAY_COUNT(tile_maps);
-
-	std::FILE * file_ptr = std::fopen("asset.pak", "wb");
+void write_out_asset_pack(AssetPacker * packer, char * file_name) {
+	std::FILE * file_ptr = std::fopen(file_name, "wb");
 	ASSERT(file_ptr != 0);
 
-	std::fwrite(&packer.header, sizeof(AssetPackHeader), 1, file_ptr);
+	AssetPackHeader header = {};
+	header.asset_count = packer->asset_count;
+	std::fwrite(&header, sizeof(AssetPackHeader), 1, file_ptr);
 
-	for(u32 i = 0; i < packer.atlas_count; i++) {
-		TextureAtlas * atlas = packer.atlases + i;
+	for(u32 i = 0; i < packer->atlas_count; i++) {
+		TextureAtlas * atlas = packer->atlases + i;
 		Texture * tex = &atlas->tex;
 
 		AssetInfo info = {};
@@ -728,13 +617,13 @@ int main() {
 		std::fwrite(tex->ptr, tex->size, 1, file_ptr);
 	}
 
-	for(u32 i = 0; i < packer.atlas_count; i++) {
-		TextureAtlas * atlas = packer.atlases + i;
+	for(u32 i = 0; i < packer->atlas_count; i++) {
+		TextureAtlas * atlas = packer->atlases + i;
 		std::fwrite(atlas->sprites, sizeof(AssetInfo), atlas->sprite_count, file_ptr);
 	}
 
-	for(u32 i = 0; i < ARRAY_COUNT(reg_tex_array); i++) {
-		Texture * tex = reg_tex_array + i;
+	for(u32 i = 0; i < packer->texture_count; i++) {
+		Texture * tex = packer->textures + i;
 
 		AssetInfo info = {};
 		info.id = tex->id;
@@ -762,8 +651,8 @@ int main() {
 	}
 #endif
 
-	for(u32 i = 0; i < ARRAY_COUNT(tile_maps); i++) {
-		TileMapAsset * map_asset = tile_maps + i;
+	for(u32 i = 0; i < packer->tile_map_count; i++) {
+		TileMapAsset * map_asset = packer->tile_maps + i;
 
 		AssetInfo info = {};
 		info.id = map_asset->id;
@@ -774,8 +663,8 @@ int main() {
 		std::fwrite(map_asset->map.tiles, sizeof(Tiles), map_asset->map.width, file_ptr);
 	}
 
-	for(u32 i = 0; i < ARRAY_COUNT(fonts); i++) {
-		FontAsset * font_asset = fonts + i;
+	for(u32 i = 0; i < packer->font_count; i++) {
+		FontAsset * font_asset = packer->fonts + i;
 		Font * font = &font_asset->font;
 
 		AssetInfo info = {};
@@ -792,6 +681,183 @@ int main() {
 	}
 
 	std::fclose(file_ptr);
+	ZERO_STRUCT(packer);
+}
+
+int main() {
+	AssetPacker * packer = ALLOC_STRUCT(AssetPacker);
+	ZERO_STRUCT(packer);
+
+	{
+		push_tile_map(packer, "tile_map0.png", AssetId_tile_map),
+		push_tile_map(packer, "tile_map1.png", AssetId_tile_map),
+
+		push_tile_map(packer, "placement0.png", AssetId_lower_map),
+		push_tile_map(packer, "placement1.png", AssetId_lower_map),
+		push_tile_map(packer, "placement2.png", AssetId_lower_map),
+		push_tile_map(packer, "placement3.png", AssetId_lower_map),
+
+		push_tile_map(packer, "placement_space0.png", AssetId_upper_map),
+
+		push_tile_map(packer, "tutorial.png", AssetId_tutorial_map),
+
+		write_out_asset_pack(packer, "map.pak");
+	}
+
+	{
+		push_texture(packer, "white.png", AssetId_white);
+
+		push_texture(packer, "menu_background.png", AssetId_menu_background);
+		push_texture(packer, "menu_about.png", AssetId_menu_background);
+
+		push_texture(packer, "intro_background.png", AssetId_intro_background);
+
+		push_texture(packer, "city_background.png", AssetId_background);
+		push_texture(packer, "highlands_background.png", AssetId_background);
+		push_texture(packer, "ocean_background_.png", AssetId_background);
+
+		push_texture(packer, "city_layer0.png", AssetId_scene_city);
+		push_texture(packer, "city_layer1.png", AssetId_scene_city);
+		push_texture(packer, "city_layer2.png", AssetId_scene_city);
+		push_texture(packer, "city_layer3.png", AssetId_scene_city);
+
+		push_texture(packer, "city_alt_layer.png", AssetId_scene_city_alt);
+
+		push_texture(packer, "highlands_layer0.png", AssetId_scene_highlands);
+		push_texture(packer, "highlands_layer1.png", AssetId_scene_highlands);
+		push_texture(packer, "highlands_layer2.png", AssetId_scene_highlands);
+		push_texture(packer, "highlands_layer3.png", AssetId_scene_highlands);
+
+		push_texture(packer, "ocean_layer0.png", AssetId_scene_ocean);
+		push_texture(packer, "ocean_layer1.png", AssetId_scene_ocean);
+		push_texture(packer, "empty_layer.png", AssetId_scene_ocean);
+		push_texture(packer, "empty_layer.png", AssetId_scene_ocean);
+
+		push_texture(packer, "space_layer0.png", AssetId_scene_space);
+		push_texture(packer, "space_layer1.png", AssetId_scene_space);
+		push_texture(packer, "space_layer2.png", AssetId_scene_space);
+		push_texture(packer, "empty_layer.png", AssetId_scene_space);
+
+		push_texture(packer, "clouds.png", AssetId_clouds);
+
+		write_out_asset_pack(packer, "texture.pak");
+	}
+
+#if 0
+	{
+		push_audio_clip(packer, "wav/pickup0.wav", AssetId_pickup),
+		push_audio_clip(packer, "wav/pickup1.wav", AssetId_pickup),
+		push_audio_clip(packer, "wav/pickup2.wav", AssetId_pickup),
+		push_audio_clip(packer, "wav/bang0.wav", AssetId_bang),
+		push_audio_clip(packer, "wav/bang1.wav", AssetId_bang),
+		push_audio_clip(packer, "wav/baa0.wav", AssetId_baa),
+		push_audio_clip(packer, "wav/baa1.wav", AssetId_baa),
+		push_audio_clip(packer, "wav/baa2.wav", AssetId_baa),
+		push_audio_clip(packer, "wav/baa3.wav", AssetId_baa),
+		push_audio_clip(packer, "wav/baa4.wav", AssetId_baa),
+		push_audio_clip(packer, "wav/baa5.wav", AssetId_baa),
+		push_audio_clip(packer, "wav/baa6.wav", AssetId_baa),
+		push_audio_clip(packer, "wav/baa7.wav", AssetId_baa),
+		push_audio_clip(packer, "wav/baa8.wav", AssetId_baa),
+		push_audio_clip(packer, "wav/baa9.wav", AssetId_baa),
+		push_audio_clip(packer, "wav/baa10.wav", AssetId_baa),
+		push_audio_clip(packer, "wav/baa11.wav", AssetId_baa),
+		push_audio_clip(packer, "wav/baa12.wav", AssetId_baa),
+		push_audio_clip(packer, "wav/baa13.wav", AssetId_baa),
+		push_audio_clip(packer, "wav/baa14.wav", AssetId_baa),
+		push_audio_clip(packer, "wav/baa15.wav", AssetId_baa),
+		push_audio_clip(packer, "wav/special.wav", AssetId_special),
+
+		push_audio_clip(packer, "wav/click_yes.wav", AssetId_click_yes),
+		push_audio_clip(packer, "wav/click_no.wav", AssetId_click_no),
+
+		push_audio_clip(packer, "wav/rocket_sfx.wav", AssetId_rocket_sfx),
+
+		push_audio_clip(packer, "wav/menu_music.wav", AssetId_menu_music),
+		push_audio_clip(packer, "wav/game_music.wav", AssetId_game_music),
+		push_audio_clip(packer, "wav/space_music.wav", AssetId_space_music),
+
+		write_out_asset_pack(packer, "audio.pak");		
+	}
+#endif
+
+	{
+		push_font(packer, "pragmata_pro.ttf", AssetId_pragmata_pro, 20.0f),
+		push_font(packer, "supersrc.ttf", AssetId_supersrc, 30.0f),
+
+		begin_packed_texture(packer);
+
+		push_sprite(packer, "dolly_up.png", AssetId_dolly_up);
+		push_sprite(packer, "dolly_down.png", AssetId_dolly_down);
+
+		push_sprite(packer, "dolly_space_idle.png", AssetId_dolly_space_idle);
+		push_sprite(packer, "dolly_space_up.png", AssetId_dolly_space_up);
+		push_sprite(packer, "dolly_space_down.png", AssetId_dolly_space_down);
+
+		push_sprite(packer, "rocket.png", AssetId_rocket);
+		push_sprite(packer, "rocket_large0.png", AssetId_rocket_large);
+		push_sprite(packer, "rocket_large1.png", AssetId_rocket_large);
+		push_sprite(packer, "rocket_large2.png", AssetId_rocket_large);
+		push_sprite(packer, "speed_up.png", AssetId_goggles);
+		push_sprite(packer, "shield.png", AssetId_shield);
+		push_sprite(packer, "clone.png", AssetId_clone);
+		push_sprite(packer, "clone_space.png", AssetId_clone_space);
+		push_sprite(packer, "clock.png", AssetId_clock);
+
+	#define X(NAME) push_sprite(packer, "collect_" #NAME ".png", AssetId_collect_##NAME);
+		ASSET_ID_COLLECT_X
+	#undef X
+
+	#define X(NAME) push_sprite(packer, "menu_collect_" #NAME ".png", AssetId_menu_collect_##NAME);
+		ASSET_ID_COLLECT_X
+	#undef X
+
+		push_sprite(packer, "concord0.png", AssetId_concord);
+		push_sprite(packer, "concord1.png", AssetId_concord);
+
+		end_packed_texture(packer);
+
+		begin_packed_texture(packer);
+
+		push_sprite(packer, "btn_play0.png", AssetId_btn_play);
+		push_sprite(packer, "btn_play1.png", AssetId_btn_play);
+		push_sprite(packer, "btn_about0.png", AssetId_btn_about);
+		push_sprite(packer, "btn_about1.png", AssetId_btn_about);
+		push_sprite(packer, "btn_back0.png", AssetId_btn_back);
+		push_sprite(packer, "btn_back1.png", AssetId_btn_back);
+		push_sprite(packer, "btn_baa0.png", AssetId_btn_baa);
+		push_sprite(packer, "btn_baa1.png", AssetId_btn_baa);
+		push_sprite(packer, "btn_replay0.png", AssetId_btn_replay);
+		push_sprite(packer, "btn_replay1.png", AssetId_btn_replay);
+		push_sprite(packer, "btn_up0.png", AssetId_btn_up);
+		push_sprite(packer, "btn_up1.png", AssetId_btn_up);
+		push_sprite(packer, "btn_down0.png", AssetId_btn_down);
+		push_sprite(packer, "btn_down1.png", AssetId_btn_down);
+		push_sprite(packer, "btn_skip0.png", AssetId_btn_skip);
+		push_sprite(packer, "btn_skip1.png", AssetId_btn_skip);
+
+		push_sprite(packer, "label_clock0_.png", AssetId_label_clock);
+		push_sprite(packer, "label_clock1_.png", AssetId_label_clock);
+
+		push_sprite(packer, "intro0.png", AssetId_intro);
+		push_sprite(packer, "intro1.png", AssetId_intro);
+		push_sprite(packer, "intro2.png", AssetId_intro);
+		push_sprite(packer, "intro3.png", AssetId_intro);
+
+		push_sprite(packer, "sun.png", AssetId_sun);
+
+		end_packed_texture(packer);
+
+		push_sprite_sheet(packer, "dolly_fall.png", AssetId_dolly_fall, 64, 64, 4);
+		push_sprite_sheet(packer, "dolly_idle.png", AssetId_dolly_idle, 64, 64, 4);
+		push_sprite_sheet(packer, "atom_smasher_small.png", AssetId_atom_smasher_small, 64, 128, 7);
+		push_sprite_sheet(packer, "atom_smasher_medium.png", AssetId_atom_smasher_medium, 64, 256, 11);
+		push_sprite_sheet(packer, "atom_smasher_large.png", AssetId_atom_smasher_large, 64, 512, 11);
+
+		push_sprite_sheet(packer, "glow.png", AssetId_glow, 128, 128, 16);
+
+		write_out_asset_pack(packer, "atlas.pak");
+	}
 
 	return 0;
 }

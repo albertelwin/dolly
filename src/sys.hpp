@@ -20,7 +20,8 @@
 
 #if defined(WIN32)
 #define __PRINT_ASSERT(x) MessageBoxA(0, x, "ASSERT", MB_OK | MB_ICONERROR); std::printf("ASSERT: %s\n", x)
-#define __FORCE_EXIT() std::exit(EXIT_FAILURE)
+// #define __FORCE_EXIT() std::exit(EXIT_FAILURE)
+#define __FORCE_EXIT() *((int *)(0)) = 0;
 #elif defined(__EMSCRIPTEN__)
 #define __PRINT_ASSERT(x) std::printf("ASSERT: %s\n", x)
 #define __FORCE_EXIT() emscripten_force_exit(EXIT_FAILURE)
@@ -30,7 +31,6 @@
 	if(!(x)) { \
 		__PRINT_ASSERT("" #x " : " __FILE__ " : " TOKEN_STRINGIFY(__LINE__)); \
 		__FORCE_EXIT(); \
-		/* *((int *)(0)) = 0; */ \
 	}
 
 #define ASSERT(x) __ASSERT(x)
@@ -151,6 +151,7 @@ inline void zero_memory_arena(MemoryArena * arena) {
 	}
 }
 
+#define ZERO_STRUCT(x) zero_memory(x, sizeof(*x))
 inline void zero_memory(void * ptr, size_t size) {
 	u8 * ptr_u8 = (u8 *)ptr;
 	for(size_t i = 0; i < size; i++) {

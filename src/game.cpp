@@ -860,7 +860,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			game_state->meta_states[i] = allocate_meta_state(game_state, (MetaStateType)i);
 		}
 
-		change_meta_state(game_state, MetaStateType_main);
+		change_meta_state(game_state, MetaStateType_menu);
 
 		game_state->auto_save_time = 5.0f;
 		game_state->save.code = SAVE_FILE_CODE;
@@ -1938,7 +1938,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		char temp_buf[128];
 		Str temp_str = str_fixed_size(temp_buf, ARRAY_COUNT(temp_buf));
-		str_print(&temp_str, "decompression time: %fms\n", debug_decompression_time);
+		str_print(&temp_str, "asset load time: %fms\n", assets->debug_load_time);
 		str_print(&temp_str, "dt: %fms\n", game_input->delta_time);
 		str_print(&temp_str, "supported: %s | sources playing: %u | sources to free: %u\n", game_state->audio_state.supported ? "true" : "false", game_state->audio_state.debug_sources_playing, game_state->audio_state.debug_sources_to_free);
 		str_print(&temp_str, "\n");

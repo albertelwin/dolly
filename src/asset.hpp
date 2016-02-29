@@ -4,6 +4,11 @@
 
 #include <asset_format.hpp>
 
+struct AssetPackZipFile {
+	char * file_name;
+	char * archive_name;
+};
+
 #if DEV_ENABLED
 static char const * debug_global_asset_file_names[] = {
 	"/dev/placement0.png",
@@ -67,8 +72,10 @@ struct AssetState {
 	MemoryArena * arena;
 
 	u32 asset_count;
-	Asset * assets;
+	Asset assets[2048];
 	AssetGroup asset_groups[AssetId_count];
+
+	f32 debug_load_time;
 };
 
 #endif

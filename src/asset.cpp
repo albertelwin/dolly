@@ -10,6 +10,7 @@
 #define MINIZ_NO_TIME
 #include <miniz.c>
 
+#define STB_VORBIS_NO_PUSHDATA_API
 #include <stb_vorbis.c>
 
 AssetRef asset_ref(AssetId id, u32 index = 0) {
@@ -51,6 +52,8 @@ u32 get_asset_count(AssetState * assets, AssetId id) {
 }
 
 Asset * push_asset(AssetState * assets, AssetId id, AssetType type) {
+	ASSERT(assets->asset_count < ARRAY_COUNT(assets->assets));
+
 	u32 index = assets->asset_count++;
 
 	AssetGroup * group = assets->asset_groups + id;
@@ -70,166 +73,171 @@ Asset * push_asset(AssetState * assets, AssetId id, AssetType type) {
 	return asset;
 }
 
-static f32 debug_decompression_time = 0.0f;
-
 void load_assets(AssetState * assets, MemoryArena * arena) {
 	DEBUG_TIME_BLOCK();
 
+	f64 begin_timestamp = emscripten_get_now();
+
 	assets->arena = arena;
 
-	AssetFile audio_asset_files[] = {
-		{ (char *)"audio/pickup0.ogg", AssetId_pickup },
-		{ (char *)"audio/pickup1.ogg", AssetId_pickup },
-		{ (char *)"audio/pickup2.ogg", AssetId_pickup },
-		{ (char *)"audio/bang0.ogg", AssetId_bang },
-		{ (char *)"audio/bang1.ogg", AssetId_bang },
-		{ (char *)"audio/baa0.ogg", AssetId_baa },
-		{ (char *)"audio/baa1.ogg", AssetId_baa },
-		{ (char *)"audio/baa2.ogg", AssetId_baa },
-		{ (char *)"audio/baa3.ogg", AssetId_baa },
-		{ (char *)"audio/baa4.ogg", AssetId_baa },
-		{ (char *)"audio/baa5.ogg", AssetId_baa },
-		{ (char *)"audio/baa6.ogg", AssetId_baa },
-		{ (char *)"audio/baa7.ogg", AssetId_baa },
-		{ (char *)"audio/baa8.ogg", AssetId_baa },
-		{ (char *)"audio/baa9.ogg", AssetId_baa },
-		{ (char *)"audio/baa10.ogg", AssetId_baa },
-		{ (char *)"audio/baa11.ogg", AssetId_baa },
-		{ (char *)"audio/baa12.ogg", AssetId_baa },
-		{ (char *)"audio/baa13.ogg", AssetId_baa },
-		{ (char *)"audio/baa14.ogg", AssetId_baa },
-		{ (char *)"audio/baa15.ogg", AssetId_baa },
-		{ (char *)"audio/special.ogg", AssetId_special },
+	{
+		f64 begin_load_timestamp = emscripten_get_now();
 
-		{ (char *)"audio/click_yes.ogg", AssetId_click_yes },
-		{ (char *)"audio/click_no.ogg", AssetId_click_no },
+		AssetFile audio_asset_files[] = {
+			{ (char *)"audio/pickup0.ogg", AssetId_pickup },
+			{ (char *)"audio/pickup1.ogg", AssetId_pickup },
+			{ (char *)"audio/pickup2.ogg", AssetId_pickup },
+			{ (char *)"audio/bang0.ogg", AssetId_bang },
+			{ (char *)"audio/bang1.ogg", AssetId_bang },
+			{ (char *)"audio/baa0.ogg", AssetId_baa },
+			{ (char *)"audio/baa1.ogg", AssetId_baa },
+			{ (char *)"audio/baa2.ogg", AssetId_baa },
+			{ (char *)"audio/baa3.ogg", AssetId_baa },
+			{ (char *)"audio/baa4.ogg", AssetId_baa },
+			{ (char *)"audio/baa5.ogg", AssetId_baa },
+			{ (char *)"audio/baa6.ogg", AssetId_baa },
+			{ (char *)"audio/baa7.ogg", AssetId_baa },
+			{ (char *)"audio/baa8.ogg", AssetId_baa },
+			{ (char *)"audio/baa9.ogg", AssetId_baa },
+			{ (char *)"audio/baa10.ogg", AssetId_baa },
+			{ (char *)"audio/baa11.ogg", AssetId_baa },
+			{ (char *)"audio/baa12.ogg", AssetId_baa },
+			{ (char *)"audio/baa13.ogg", AssetId_baa },
+			{ (char *)"audio/baa14.ogg", AssetId_baa },
+			{ (char *)"audio/baa15.ogg", AssetId_baa },
+			{ (char *)"audio/special.ogg", AssetId_special },
 
-		{ (char *)"audio/rocket_sfx.ogg", AssetId_rocket_sfx },
+			{ (char *)"audio/click_yes.ogg", AssetId_click_yes },
+			{ (char *)"audio/click_no.ogg", AssetId_click_no },
 
-		{ (char *)"audio/menu_music.ogg", AssetId_menu_music },
-		{ (char *)"audio/game_music.ogg", AssetId_game_music },
-		{ (char *)"audio/space_music.ogg", AssetId_space_music },
+			{ (char *)"audio/rocket_sfx.ogg", AssetId_rocket_sfx },
+
+			{ (char *)"audio/menu_music.ogg", AssetId_menu_music },
+			{ (char *)"audio/game_music.ogg", AssetId_game_music },
+			{ (char *)"audio/space_music.ogg", AssetId_space_music },
+		};
+
+		for(u32 i = 0; i < ARRAY_COUNT(audio_asset_files); i++) {
+			AssetFile * asset_file = audio_asset_files + i;
+
+			i32 channels, sample_rate;
+			i16 * samples;
+			i32 sample_count = stb_vorbis_decode_filename(asset_file->name, &channels, &sample_rate, &samples);
+			ASSERT(channels == AUDIO_CHANNELS);
+
+			Asset * asset = push_asset(assets, asset_file->id, AssetType_audio_clip);
+			//TODO: Need to add the padding sample to the front of the source audio clip!!
+			asset->audio_clip.samples = (u32)(sample_count - AUDIO_PADDING_SAMPLES);
+			asset->audio_clip.sample_data = samples;
+		}
+
+		std::printf("LOG: %s -> %f\n", "pak/audio.zip", (f32)(emscripten_get_now() - begin_load_timestamp));
+	}
+
+	AssetPackZipFile pack_files[] = {
+		{ (char *)"pak/map.zip", (char *)"map.pak" },
+		{ (char *)"pak/texture.zip", (char *)"texture.pak" },
+		{ (char *)"pak/atlas.zip", (char *)"atlas.pak" },
 	};
 
-	debug_decompression_time = emscripten_get_now();
+	for(u32 i = 0; i < ARRAY_COUNT(pack_files); i++) {
+		AssetPackZipFile * pack_file = pack_files + i;
 
-	MemoryPtr file_buf;
-	file_buf.ptr = (u8 *)mz_zip_extract_archive_file_to_heap("asset.zip", "asset.pak", &file_buf.size, 0);
-	u8 * file_ptr = file_buf.ptr;
+		f64 begin_load_timestamp = emscripten_get_now();
 
-	debug_decompression_time = emscripten_get_now() - debug_decompression_time;
-	std::printf("LOG: %f -> %uKB\n", (f32)debug_decompression_time, file_buf.size / 1024);
+		MemoryPtr file_buf;
+		file_buf.ptr = (u8 *)mz_zip_extract_archive_file_to_heap(pack_file->file_name, pack_file->archive_name, &file_buf.size, 0);
+		u8 * file_ptr = file_buf.ptr;
 
-	AssetPackHeader * pack = (AssetPackHeader *)file_ptr;
-	file_ptr += sizeof(AssetPackHeader);
+		AssetPackHeader * pack = (AssetPackHeader *)file_ptr;
+		file_ptr += sizeof(AssetPackHeader);
+	 
+		for(u32 i = 0; i < pack->asset_count; i++) {
+			AssetInfo * asset_info = (AssetInfo *)file_ptr;
+			file_ptr += sizeof(AssetInfo);
 
-	u32 total_asset_count = pack->asset_count;
+			switch(asset_info->type) {
+				case AssetType_texture: {
+					TextureInfo * info = &asset_info->texture;
 
-#if DEV_ENABLED
-	total_asset_count += ARRAY_COUNT(debug_global_asset_file_names);
-#endif
+					i32 filter = GL_LINEAR;
+					if(info->sampling == TextureSampling_point) {
+						filter = GL_NEAREST;
+					}
+					else {
+						ASSERT(info->sampling == TextureSampling_bilinear);
+					}
 
-	total_asset_count += ARRAY_COUNT(audio_asset_files);
+					gl::Texture gl_tex = gl::create_texture(file_ptr, info->width, info->height, GL_RGBA, filter, GL_CLAMP_TO_EDGE);
 
-	assets->assets = PUSH_ARRAY(assets->arena, Asset, total_asset_count);
+					Asset * asset = push_asset(assets, asset_info->id, AssetType_texture);
+					asset->texture.dim = math::vec2(info->width, info->height);
+					asset->texture.offset = math::vec2(0.0f);
+					asset->texture.gl_id = gl_tex.id;
 
-	for(u32 i = 0; i < ARRAY_COUNT(audio_asset_files); i++) {
-		AssetFile * asset_file = audio_asset_files + i;
+					file_ptr += info->width * info->height * TEXTURE_CHANNELS;
 
-		i32 channels, sample_rate;
-		i16 * samples;
-		i32 sample_count = stb_vorbis_decode_filename(asset_file->name, &channels, &sample_rate, &samples);
-		ASSERT(channels == AUDIO_CHANNELS);
-
-		Asset * asset = push_asset(assets, asset_file->id, AssetType_audio_clip);
-		//TODO: Need to add the padding sample to the front of the source audio clip!!
-		asset->audio_clip.samples = (u32)(sample_count - AUDIO_PADDING_SAMPLES);
-		asset->audio_clip.sample_data = samples;
-	}
- 
-	for(u32 i = 0; i < pack->asset_count; i++) {
-		AssetInfo * asset_info = (AssetInfo *)file_ptr;
-		file_ptr += sizeof(AssetInfo);
-
-		switch(asset_info->type) {
-			case AssetType_texture: {
-				TextureInfo * info = &asset_info->texture;
-
-				i32 filter = GL_LINEAR;
-				if(info->sampling == TextureSampling_point) {
-					filter = GL_NEAREST;
-				}
-				else {
-					ASSERT(info->sampling == TextureSampling_bilinear);
+					break;
 				}
 
-				gl::Texture gl_tex = gl::create_texture(file_ptr, info->width, info->height, GL_RGBA, filter, GL_CLAMP_TO_EDGE);
+				case AssetType_sprite: {
+					SpriteInfo * info = &asset_info->sprite;
 
-				Asset * asset = push_asset(assets, asset_info->id, AssetType_texture);
-				asset->texture.dim = math::vec2(info->width, info->height);
-				asset->texture.offset = math::vec2(0.0f);
-				asset->texture.gl_id = gl_tex.id;
+					Asset * asset = push_asset(assets, asset_info->id, AssetType_sprite);
+					asset->sprite.dim = math::vec2(info->width, info->height);
+					asset->sprite.offset = info->offset;
+					asset->sprite.tex_coords[0] = info->tex_coords[0];
+					asset->sprite.tex_coords[1] = info->tex_coords[1];
+					asset->sprite.atlas_index = info->atlas_index;
 
-				file_ptr += info->width * info->height * TEXTURE_CHANNELS;
+					break;
+				}
 
-				break;
+				case AssetType_audio_clip: {
+					AudioClipInfo * info = (AudioClipInfo *)&asset_info->audio_clip;
+
+					Asset * asset = push_asset(assets, asset_info->id, AssetType_audio_clip);
+					asset->audio_clip.samples = info->samples;
+					asset->audio_clip.sample_data = (i16 *)file_ptr;
+
+					file_ptr += info->size;
+
+					break;
+				}
+
+				case AssetType_tile_map: {
+					TileMapInfo * info = &asset_info->tile_map;
+
+					Asset * asset = push_asset(assets, asset_info->id, AssetType_tile_map);
+					asset->tile_map.width = info->width;
+					asset->tile_map.tiles = (Tiles *)file_ptr;
+
+					file_ptr += info->width * sizeof(Tiles);
+
+					break;
+				}
+
+				case AssetType_font: {
+					FontInfo * info = &asset_info->font;
+
+					Asset * asset = push_asset(assets, asset_info->id, AssetType_font);
+					asset->font.glyphs = (FontGlyph *)file_ptr;
+					asset->font.glyph_id = info->glyph_id;
+					asset->font.ascent = info->ascent;
+					asset->font.descent = info->descent;
+					asset->font.whitespace_advance = info->whitespace_advance;
+					asset->font.atlas_index = info->atlas_index;
+
+					file_ptr += sizeof(FontGlyph) * FONT_GLYPH_COUNT;
+
+					break;
+				}
+
+				INVALID_CASE();
 			}
-
-			case AssetType_sprite: {
-				SpriteInfo * info = &asset_info->sprite;
-
-				Asset * asset = push_asset(assets, asset_info->id, AssetType_sprite);
-				asset->sprite.dim = math::vec2(info->width, info->height);
-				asset->sprite.offset = info->offset;
-				asset->sprite.tex_coords[0] = info->tex_coords[0];
-				asset->sprite.tex_coords[1] = info->tex_coords[1];
-				asset->sprite.atlas_index = info->atlas_index;
-
-				break;
-			}
-
-			case AssetType_audio_clip: {
-				AudioClipInfo * info = (AudioClipInfo *)&asset_info->audio_clip;
-
-				Asset * asset = push_asset(assets, asset_info->id, AssetType_audio_clip);
-				asset->audio_clip.samples = info->samples;
-				asset->audio_clip.sample_data = (i16 *)file_ptr;
-
-				file_ptr += info->size;
-
-				break;
-			}
-
-			case AssetType_tile_map: {
-				TileMapInfo * info = &asset_info->tile_map;
-
-				Asset * asset = push_asset(assets, asset_info->id, AssetType_tile_map);
-				asset->tile_map.width = info->width;
-				asset->tile_map.tiles = (Tiles *)file_ptr;
-
-				file_ptr += info->width * sizeof(Tiles);
-
-				break;
-			}
-
-			case AssetType_font: {
-				FontInfo * info = &asset_info->font;
-
-				Asset * asset = push_asset(assets, asset_info->id, AssetType_font);
-				asset->font.glyphs = (FontGlyph *)file_ptr;
-				asset->font.glyph_id = info->glyph_id;
-				asset->font.ascent = info->ascent;
-				asset->font.descent = info->descent;
-				asset->font.whitespace_advance = info->whitespace_advance;
-				asset->font.atlas_index = info->atlas_index;
-
-				file_ptr += sizeof(FontGlyph) * FONT_GLYPH_COUNT;
-
-				break;
-			}
-
-			INVALID_CASE();
 		}
+
+		std::printf("LOG: %s -> %f\n", pack_file->file_name, (f32)(emscripten_get_now() - begin_load_timestamp));
 	}
 
 #if DEV_ENABLED
@@ -272,5 +280,6 @@ void load_assets(AssetState * assets, MemoryArena * arena) {
 	}
 #endif
  
-	// free(file_buf.ptr);
+	assets->debug_load_time = (f32)(emscripten_get_now() - begin_timestamp);
+	std::printf("LOG: asset_load_time: %f\n", assets->debug_load_time);
 }
