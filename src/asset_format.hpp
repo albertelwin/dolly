@@ -219,7 +219,6 @@ enum AssetId {
 	AssetId_space_music,
 
 	//NOTE: Tile maps
-	AssetId_tile_map,
 	AssetId_debug_tile_map,
 
 	AssetId_lower_map,

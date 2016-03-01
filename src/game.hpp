@@ -81,7 +81,9 @@ struct Concord {
 struct EntityEmitter {
 	f32 cursor;
 	u32 last_read_pos;
-	u32 map_index;
+
+	AssetId rocket_map_id;
+	u32 rocket_map_index;
 
 	math::Vec3 pos;
 
@@ -106,12 +108,19 @@ struct Scene {
 	f32 y;
 
 	AssetId tile_to_asset_table[TileId_count];
-	AssetId map_id;
 	b32 alt;
+
+	AssetId map_id;
+	u32 map_index;
+	u32 map_count;
 };
 
+//TODO: Rename this to Rocket
 struct RocketSequence {
 	Entity * rocket;
+
+	AssetId return_map_id;
+	u32 return_map_index;
 
 	b32 playing;
 	f32 time_;
@@ -309,7 +318,6 @@ struct MainMetaState {
 	f32 time_remaining;
 	f32 start_time;
 	f32 max_time;
-	f32 countdown_time;
 	f32 clock_pickup_time;
 
 	f32 clock_label_scale;
@@ -324,6 +332,7 @@ struct MainMetaState {
 	u32 replay_transition_id;
 };
 
+//TODO: Make this a header instead!!
 struct MetaState {
 	MemoryArena arena;
 	AssetState * assets;

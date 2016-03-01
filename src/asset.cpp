@@ -205,6 +205,7 @@ b32 process_next_asset_file(AssetState * assets) {
 
 	AssetFile * asset_file = asset_files + assets->last_loaded_file_index++;
 
+	//TODO: Pull this out!!
 	if(asset_file->type == AssetFileType_pak) {
 		MemoryPtr file_buf;
 		//TODO: Can we just get the first archive??

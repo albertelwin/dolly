@@ -173,14 +173,26 @@ void pop_player_clones(Player * player, u32 count) {
 	}
 }
 
-void change_scene(MainMetaState * main_state, SceneId scene_id) {
+void advance_scene_map(MainMetaState * main_state, AssetState * assets, Scene * scene) {
+	scene->map_index++;
+	if(scene->map_index >= get_asset_count(assets, scene->map_id)) {
+		if(scene == &main_state->scenes[SceneId_lower]) {
+			scene->map_id = AssetId_lower_map;
+		}
+
+		scene->map_index = 0;
+	}
+}
+
+void change_scene(MainMetaState * main_state, AssetState * assets, SceneId scene_id) {
 	if(main_state->current_scene != scene_id) {
 		main_state->current_scene = scene_id;
+
+		advance_scene_map(main_state, assets, main_state->scenes + scene_id);
 
 		main_state->entity_emitter.pos.y = main_state->scenes[main_state->current_scene].y + main_state->height_above_ground;
 		main_state->entity_emitter.cursor = 0.0f;
 		main_state->entity_emitter.last_read_pos = 0;
-		main_state->entity_emitter.map_index = 0;
 	}
 }
 
@@ -292,7 +304,7 @@ void begin_concord_sequence(MetaState * meta_state) {
 	main_state->score_system.bonus_area++;
 }
 
-void begin_rocket_sequence(MetaState * meta_state) {
+void begin_rocket_sequence(MetaState * meta_state, AssetId return_map_id, u32 return_map_index) {
 	ASSERT(meta_state->type == MetaStateType_main);
 	MainMetaState * main_state = meta_state->main;
 
@@ -301,6 +313,9 @@ void begin_rocket_sequence(MetaState * meta_state) {
 	if(!seq->playing) {
 		seq->playing = true;
 		seq->time_ = 0.0f;
+
+		seq->return_map_id = return_map_id;
+		seq->return_map_index = return_map_index;
 
 		math::Rec2 render_bounds = get_entity_render_bounds(meta_state->assets, seq->rocket);
 		f32 height = math::rec_dim(render_bounds).y;
@@ -372,7 +387,7 @@ void play_rocket_sequence(MetaState * meta_state, f32 dt) {
 					player->e->pos.y = drop_height;
 					player->e->color.a = 1.0f;
 
-					change_scene(main_state, SceneId_upper);
+					change_scene(main_state, meta_state->assets, SceneId_upper);
 				}
 			}
 
@@ -396,7 +411,10 @@ void play_rocket_sequence(MetaState * meta_state, f32 dt) {
 			else {
 				//TODO: Calculate the ideal distance to stop gravity so that the player lands roughly at the height_above_ground
 				if(player->e->pos.y < (f32)main_state->render_group->transform.projection_height * 1.8f) {
-					change_scene(main_state, SceneId_lower);
+					Scene * lower_scene = main_state->scenes + SceneId_lower;
+					lower_scene->map_id = seq->return_map_id;
+					lower_scene->map_index = seq->return_map_index;
+					change_scene(main_state, meta_state->assets, SceneId_lower);
 
 					player->e->use_gravity = false;
 					player->allow_input = true;
@@ -786,8 +804,8 @@ void init_main_meta_state(MetaState * meta_state) {
 
 	main_state->info_display.asset = asset_ref(ASSET_FIRST_GROUP_ID(collect));
 
-	main_state->start_time = 60.0f;
-	main_state->clock_pickup_time = 10.0f;
+	main_state->start_time = 30.0f;
+	main_state->clock_pickup_time = 5.0f;
 
 	main_state->boost_letterboxing = 80.0f;
 	main_state->boost_speed = 2.5f;
@@ -810,7 +828,6 @@ void init_main_meta_state(MetaState * meta_state) {
 #endif
 
 	main_state->max_time = main_state->start_time;
-	main_state->countdown_time = 10.0f;
 	main_state->time_remaining = main_state->start_time;
 
 	main_state->clock_label_scale = 1.0f;
@@ -1323,7 +1340,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					play_rocket_sequence(meta_state, game_input->delta_time);
 				}
 
-				Scene * current_scene = main_state->scenes + main_state->current_scene;
+				// Scene * current_scene = main_state->scenes + main_state->current_scene;
 
 				math::Rec2 player_bounds = get_entity_collider_bounds(player->e);
 
@@ -1341,7 +1358,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 						destroy = true;
 					}
 
-					entity->offset.y = math::sin((game_input->total_time * 0.2f + entity->rand_id * (3.0f / 13.0f)) * math::TAU) * 10.0f;
+					// entity->offset.y = math::sin((game_input->total_time * 0.2f + entity->rand_id * (3.0f / 13.0f)) * math::TAU) * 10.0f;
 
 					if(entity->hit) {
 						entity->offset.y = 0.0f;
@@ -1397,7 +1414,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 							}
 
 							case AssetId_rocket: {
-								begin_rocket_sequence(meta_state);
+								begin_rocket_sequence(meta_state, emitter->rocket_map_id, emitter->rocket_map_index);
 
 								break;
 							}
@@ -1466,6 +1483,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				}
 
 				if(!player->dead) {
+					Scene * current_scene = main_state->scenes + main_state->current_scene;
 					math::Vec2 projection_dim = math::vec2(main_state->render_group->transform.projection_width, main_state->render_group->transform.projection_height);
 
 					AssetId map_id = current_scene->map_id;
@@ -1475,7 +1493,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					u32 map_asset_count = get_asset_count(meta_state->assets, map_id);
 					ASSERT(map_asset_count);
 
-					TileMap * map = get_tile_map_asset(meta_state->assets, map_id, emitter->map_index);
+					TileMap * map = get_tile_map_asset(meta_state->assets, map_id, current_scene->map_index);
 					ASSERT(map);
 
 					f32 tile_size_pixels = projection_dim.y / (f32)TILE_MAP_HEIGHT;
@@ -1492,18 +1510,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 						if(read_pos >= map->width) {
 							emitter->cursor -= map->width * tile_size_pixels;
 
-							emitter->map_index++;
-							if(emitter->map_index >= map_asset_count) {
-								//TODO: Should we clear the emitter here??
-								if(map_id == AssetId_tutorial_map) {
-									ASSERT(current_scene == &main_state->scenes[main_state->current_scene]);
-									map_id = current_scene->map_id = AssetId_lower_map;
-								}
+							advance_scene_map(main_state, assets, current_scene);
+							map_id = current_scene->map_id;
 
-								emitter->map_index = 0;
-							}
-
-							map = get_tile_map_asset(meta_state->assets, map_id, emitter->map_index);
+							map = get_tile_map_asset(meta_state->assets, map_id, current_scene->map_index);
 							ASSERT(map);
 
 							read_pos = 0;
@@ -1574,6 +1584,11 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 									entity->collider = math::rec_scale(get_asset_bounds(assets, entity->asset.id, entity->asset.index), collider_scale);
 
 									entity->hit = false;
+
+									if(tile_id == TileId_rocket) {
+										emitter->rocket_map_id = map_id;
+										emitter->rocket_map_index = current_scene->map_index;
+									}
 								}
 							}
 						}					
