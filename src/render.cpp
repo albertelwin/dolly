@@ -265,9 +265,8 @@ void load_render(RenderState * render_state, MemoryArena * arena, AssetState * a
 	render_state->back_buffer_width = back_buffer_width;
 	render_state->back_buffer_height = back_buffer_height;
 
-	//TODO: Adjust these to actual aspect ratio?
-	render_state->screen_width = 1280;
-	render_state->screen_height = 720;
+	render_state->screen_width = 960;
+	render_state->screen_height = 540;
 
 	Shader * basic_shader = &render_state->basic_shader;
 	u32 basic_vert = gl::compile_shader_from_source(BASIC_VERT_SRC, GL_VERTEX_SHADER);

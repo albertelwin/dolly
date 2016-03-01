@@ -262,7 +262,7 @@ int main_init() {
 	SDL_Surface * surface = SDL_SetVideoMode(window_width, window_height, 32, SDL_OPENGL);
 
 	MainLoopArgs args = {};
-	args.game_memory.size = MEGABYTES(16);
+	args.game_memory.size = MEGABYTES(12);
 	args.game_memory.ptr = ALLOC_MEMORY(u8, args.game_memory.size);
 	zero_memory(args.game_memory.ptr, args.game_memory.size);
 

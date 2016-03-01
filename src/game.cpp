@@ -82,7 +82,7 @@ Entity * push_entity(EntityArray * entities, AssetState * assets, AssetRef asset
 	change_entity_asset(entity, assets, asset);
 
 	entity->d_pos = math::vec2(0.0f);
-	entity->speed = math::vec2(500.0f);
+	entity->speed = math::vec2(375.0f);
 	entity->damp = 0.0f;
 	entity->use_gravity = false;
 
@@ -161,8 +161,8 @@ void pop_player_clones(Player * player, u32 count) {
 			entity->hit = true;
 
 			entity->d_pos = math::vec2(0.0f);
-			entity->d_pos.x = (math::rand_f32() * 2.0f - 1.0f) * 500.0f;
-			entity->d_pos.y = math::rand_f32() * 1000.0f;
+			entity->d_pos.x = (math::rand_f32() * 2.0f - 1.0f) * 375.0f;
+			entity->d_pos.y = math::rand_f32() * 750.0f;
 
 			entity->pos.xy = player->e->pos.xy - entity->offset;
 
@@ -176,9 +176,11 @@ void pop_player_clones(Player * player, u32 count) {
 void advance_scene_map(MainMetaState * main_state, AssetState * assets, Scene * scene) {
 	scene->map_index++;
 	if(scene->map_index >= get_asset_count(assets, scene->map_id)) {
+#if !DEV_ENABLED
 		if(scene == &main_state->scenes[SceneId_lower]) {
 			scene->map_id = AssetId_lower_map;
 		}
+#endif
 
 		scene->map_index = 0;
 	}
@@ -317,7 +319,7 @@ void begin_rocket_sequence(MainMetaState * main_state, AssetId return_map_id, u3
 		Entity * rocket = seq->rocket;
 		rocket->pos = math::vec3(main_state->player.e->pos.x, -(main_state->header.render_state->screen_height * 0.5f + height * 0.5f), 0.0f);
 		rocket->d_pos = math::vec2(0.0f);
-		rocket->speed = math::vec2(0.0f, 10000.0f);
+		rocket->speed = math::vec2(0.0f, 7500.0f);
 		rocket->damp = 0.065f;
 		rocket->anim_time = 0.0f;
 		rocket->color.a = 1.0f;
@@ -634,10 +636,10 @@ void init_main_meta_state(MetaStateHeader * meta_state) {
 	main_state->render_group = allocate_render_group(render_state, &meta_state->arena, screen_width, screen_height, 1024);
 	main_state->ui_render_group = allocate_render_group(render_state, &meta_state->arena, screen_width, screen_height, 512);
 	main_state->letterboxed_height = (f32)screen_height;
-	main_state->fixed_letterboxing = 80.0f;
+	main_state->fixed_letterboxing = 60.0f;
 
 	EntityArray * entities = &main_state->entities;
-	main_state->entity_gravity = math::vec2(0.0f, -6000.0f);
+	main_state->entity_gravity = math::vec2(0.0f, -4500.0f);
 
 	main_state->height_above_ground = (f32)screen_height * 0.5f;
 	main_state->max_height_above_ground = main_state->height_above_ground + (f32)screen_height * 0.5f;
@@ -705,12 +707,17 @@ void init_main_meta_state(MetaStateHeader * meta_state) {
 		}
 	}
 
+#if DEV_ENABLED
+	main_state->scenes[SceneId_lower].map_id = AssetId_debug_tile_map;
+	main_state->scenes[SceneId_upper].map_id = AssetId_debug_tile_map;
+#else
 	main_state->scenes[SceneId_lower].map_id = AssetId_tutorial_map;
 	main_state->scenes[SceneId_upper].map_id = AssetId_upper_map;
+#endif
 	main_state->current_scene = SceneId_lower;
 
 	Player * player = &main_state->player;
-	player->clone_offset = math::vec2(-5.0f, 0.0f);
+	player->clone_offset = math::vec2(-3.75f, 0.0f);
 
 	for(i32 i = ARRAY_COUNT(player->clones) - 1; i >= 0; i--) {
 		Entity * entity = push_entity(entities, assets, asset_ref(AssetId_clone));
@@ -725,7 +732,7 @@ void init_main_meta_state(MetaStateHeader * meta_state) {
 
 	player->initial_pos = math::vec3((f32)screen_width * -0.25f, main_state->height_above_ground, 0.0f);
 	player->e = push_entity(entities, assets, asset_ref(AssetId_dolly_idle), player->initial_pos);
-	player->e->speed = math::vec2(750.0f, 4000.0f);
+	player->e->speed = math::vec2(562.5f, 3000.0f);
 	player->e->damp = 0.1f;
 	player->allow_input = true;
 
@@ -749,9 +756,9 @@ void init_main_meta_state(MetaStateHeader * meta_state) {
 	concord->e = push_entity(entities, assets, asset_ref(AssetId_concord), math::vec3(screen_width * 4.0f, main_state->height_above_ground, 0.0f));
 
 	f32 cloud_y_offsets[ARRAY_COUNT(main_state->clouds)] = {
-		-220.0f,
+		-165.0f,
 		//TODO: Automatically position this based on the cloud height??
-		main_state->max_height_above_ground + (f32)screen_height * 0.5f - 140.0f,
+		main_state->max_height_above_ground + (f32)screen_height * 0.5f - 105.0f,
 	};
 
 	for(u32 i = 0; i < ARRAY_COUNT(main_state->clouds); i++) {
@@ -800,7 +807,7 @@ void init_main_meta_state(MetaStateHeader * meta_state) {
 	main_state->start_time = 30.0f;
 	main_state->clock_pickup_time = 5.0f;
 
-	main_state->boost_letterboxing = 80.0f;
+	main_state->boost_letterboxing = 60.0f;
 	main_state->boost_speed = 2.5f;
 	main_state->boost_accel = 40.0f;
 	main_state->boost_time = 4.0f;
@@ -882,8 +889,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		f32 load_progress = (f32)assets->last_loaded_file_index / (f32)assets->loaded_file_count;
 
-		f32 total_width = 700.0f;
-		math::Vec2 dim = math::vec2(total_width * load_progress, 80.0f);
+		f32 total_width = 525.0f;
+		math::Vec2 dim = math::vec2(total_width * load_progress, 60.0f);
 		push_colored_quad(render_group, math::vec3((-total_width + dim.x) * 0.5f, 0.0f, 0.0f), dim, 0.0f, math::vec4(1.0f, 1.0f, 1.0f, 1.0f));
 
 		render_and_clear_render_group(render_state, render_group);
@@ -1191,7 +1198,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 						else {
 							entity->d_pos = math::vec2(0.0f);
 							entity->pos.x = 0.0f;
-							entity->pos.y = math::sin((game_input->total_time * 0.25f + i * (3.0f / 13.0f)) * math::TAU) * 50.0f;
+							entity->pos.y = math::sin((game_input->total_time * 0.25f + i * (3.0f / 13.0f)) * math::TAU) * 37.5f;
 
 							entity->color.a += 4.0f * game_input->delta_time;
 							entity->color.a = math::min(entity->color.a, 1.0f);
@@ -1263,7 +1270,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				player->e->pos.xy += player->e->d_pos * game_input->delta_time;
 				//TODO: Really player d_pos should be driving d_speed and not the other way around!!
 				if(!player->dead) {
-					f32 offset_x = math::clamp(main_state->d_speed * 40.0f, -80.0f, 40.0f);
+					f32 offset_x = math::clamp(main_state->d_speed * 40.0f, -60.0f, 30.0f);
 					player->e->pos.x = math::lerp(player->e->pos.x, player->initial_pos.x + offset_x, game_input->delta_time * 8.0f);
 				}
 
@@ -1301,9 +1308,9 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				{
 					Concord * concord = &main_state->concord;
 
-					concord->e->pos.x += player_d_pos + game_input->delta_time * 2000.0f;
+					concord->e->pos.x += player_d_pos + game_input->delta_time * 1500.0f;
 					if(main_state->dd_speed > 1.0f) {
-						concord->e->pos.x = math::min(concord->e->pos.x, player->e->pos.x - 465.0f);
+						concord->e->pos.x = math::min(concord->e->pos.x, player->e->pos.x - 348.75f);
 						concord->e->pos.y = player->e->pos.y;
 					}
 					else {
@@ -1476,14 +1483,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					Scene * current_scene = main_state->scenes + main_state->current_scene;
 					math::Vec2 projection_dim = math::vec2(main_state->render_group->transform.projection_width, main_state->render_group->transform.projection_height);
 
-					AssetId map_id = current_scene->map_id;
-#if DEV_ENABLED
-					map_id = AssetId_debug_tile_map;
-#endif
-					u32 map_asset_count = get_asset_count(assets, map_id);
-					ASSERT(map_asset_count);
-
-					TileMap * map = get_tile_map_asset(assets, map_id, current_scene->map_index);
+					TileMap * map = get_tile_map_asset(assets, current_scene->map_id, current_scene->map_index);
 					ASSERT(map);
 
 					f32 tile_size_pixels = projection_dim.y / (f32)TILE_MAP_HEIGHT;
@@ -1501,9 +1501,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 							emitter->cursor -= map->width * tile_size_pixels;
 
 							advance_scene_map(main_state, assets, current_scene);
-							map_id = current_scene->map_id;
-
-							map = get_tile_map_asset(assets, map_id, current_scene->map_index);
+							map = get_tile_map_asset(assets, current_scene->map_id, current_scene->map_index);
 							ASSERT(map);
 
 							read_pos = 0;
@@ -1576,7 +1574,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 									entity->hit = false;
 
 									if(tile_id == TileId_rocket) {
-										emitter->rocket_map_id = map_id;
+										emitter->rocket_map_id = current_scene->map_id;
 										emitter->rocket_map_index = current_scene->map_index;
 									}
 								}
@@ -1833,7 +1831,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 				f32 fixed_letterboxing = main_state->fixed_letterboxing;
 
-				Font * font = get_font_asset(main_state->header.assets, AssetId_supersrc, 0);
+				Font * font = get_font_asset(main_state->header.assets, AssetId_arcade_n, 0);
 				//TODO: Need a convenient way to make temp strs!!
 				char temp_buf[256];
 				Str temp_str = str_fixed_size(temp_buf, ARRAY_COUNT(temp_buf));
@@ -1848,11 +1846,11 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					str_print(&temp_str, "%u", (u32)math::ceil_to_i32(main_state->time_remaining));
 
 					f32 font_scale = 1.0f * main_state->clock_label_scale;
-					FontLayout font_layout = create_font_layout(font, projection_dim, font_scale, FontLayoutAnchor_top_centre, math::vec2(3.0f, -main_state->fixed_letterboxing + 20.0f * font_scale), false);
+					FontLayout font_layout = create_font_layout(font, projection_dim, font_scale, FontLayoutAnchor_top_centre, math::vec2(2.0f, -main_state->fixed_letterboxing + 10.0f * font_scale), false);
 					push_str_to_render_group(ui_render_group, font, &font_layout, &temp_str, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
 					{
-						FontLayout font_layout = create_font_layout(font, projection_dim, 1.0f, FontLayoutAnchor_bottom_centre, math::vec2(0.0f, fixed_letterboxing - (font->ascent - font->descent) - 21.0f));
+						FontLayout font_layout = create_font_layout(font, projection_dim, 1.0f, FontLayoutAnchor_bottom_centre, math::vec2(0.0f, fixed_letterboxing - (font->ascent - font->descent) - 20.0f));
 						push_c_str_to_render_group(ui_render_group, font, &font_layout, main_state->scenes[main_state->current_scene].name);
 					}
 
@@ -1869,7 +1867,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 							"Dolly found the McQueen ankle boots!!",
 						};
 
-						FontLayout font_layout = create_font_layout(font, projection_dim, info_display->scale, FontLayoutAnchor_top_centre, math::vec2(0.0f, -170.0f), false);
+						FontLayout font_layout = create_font_layout(font, projection_dim, info_display->scale, FontLayoutAnchor_top_centre, math::vec2(0.0f, -132.0f), false);
 						push_c_str_to_render_group(ui_render_group, font, &font_layout, info_strs[info_index], math::vec4(1.0f, 1.0f, 1.0f, info_display->alpha));
 					}
 

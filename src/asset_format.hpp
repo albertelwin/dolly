@@ -228,7 +228,7 @@ enum AssetId {
 
 	//NOTE: Fonts
 	ADD_FONT_ASSET_ID(pragmata_pro),
-	ADD_FONT_ASSET_ID(supersrc),
+	ADD_FONT_ASSET_ID(arcade_n),
 
 	AssetId_count,
 };

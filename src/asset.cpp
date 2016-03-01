@@ -302,7 +302,7 @@ b32 process_next_asset_file(AssetState * assets) {
 
 	f32 asset_load_time = (f32)(emscripten_get_now() - begin_load_timestamp);
 	assets->debug_load_time += asset_load_time;
-	std::printf("LOG: %s -> %f\n", asset_file.file_name, asset_load_time);
+	// std::printf("LOG: %s -> %f\n", asset_file.file_name, asset_load_time);
 
 	if(assets->last_loaded_file_index >= ARRAY_COUNT(asset_files)) {
 		loaded = true;
