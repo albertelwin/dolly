@@ -196,7 +196,7 @@ void change_scene(MainMetaState * main_state, AssetState * assets, SceneId scene
 	}
 }
 
-void change_scene_asset_type(MainMetaState * main_state, SceneId scene_id, AssetState * assets, AssetId asset_id) {
+void change_scene_asset_type(MainMetaState * main_state, SceneId scene_id, AssetId asset_id) {
 	Scene * scene = main_state->scenes + scene_id;
 
 	scene->tile_to_asset_table[TileId_bad_small] = AssetId_atom_smasher_small;
@@ -249,14 +249,14 @@ void change_scene_asset_type(MainMetaState * main_state, SceneId scene_id, Asset
 	for(u32 i = 0; i < ARRAY_COUNT(scene->layers); i++) {
 		Entity * entity = scene->layers[i];
 		if(entity) {
-			change_entity_asset(entity, assets, asset_ref(scene->asset_id, i));
+			change_entity_asset(entity, main_state->header.assets, asset_ref(scene->asset_id, i));
 		}
 	}
 
 	if(scene->asset_id == AssetId_scene_city) {
 		if(scene->alt) {
 			scene->name = (char *)"EDINBURGH";
-			change_entity_asset(scene->layers[0], assets, asset_ref(AssetId_scene_city_alt, 0));
+			change_entity_asset(scene->layers[0], main_state->header.assets, asset_ref(AssetId_scene_city_alt, 0));
 		}
 
 		scene->alt = !scene->alt;
@@ -279,35 +279,29 @@ void change_scene_asset_type(MainMetaState * main_state, SceneId scene_id, Asset
 	}
 }
 
-void switch_lower_scene_asset_type(MainMetaState * main_state, AssetState * assets) {
+void switch_lower_scene_asset_type(MainMetaState * main_state) {
 	u32 id = main_state->scenes[SceneId_lower].asset_id + 1;
 	if(id > ASSET_LAST_GROUP_ID(lower_scene)) {
 		id = ASSET_FIRST_GROUP_ID(lower_scene);
 	}
 
-	change_scene_asset_type(main_state, SceneId_lower, assets, (AssetId)id);
+	change_scene_asset_type(main_state, SceneId_lower, (AssetId)id);
 }
 
-void begin_concord_sequence(MetaState * meta_state) {
-	ASSERT(meta_state->type == MetaStateType_main);
-	MainMetaState * main_state = meta_state->main;
-
+void begin_concord_sequence(MainMetaState * main_state) {
 	Player * player = &main_state->player;
 	Concord * concord = &main_state->concord;
 	concord->playing = true;
 
 	change_player_speed(main_state, player, main_state->boost_accel, main_state->boost_time);
 
-	f32 width = math::rec_dim(get_entity_render_bounds(meta_state->assets, concord->e)).x;
+	f32 width = math::rec_dim(get_entity_render_bounds(main_state->header.assets, concord->e)).x;
 	concord->e->pos.x = -(f32)main_state->render_group->transform.projection_width * 0.5f - width * 0.5f;
 
 	main_state->score_system.bonus_area++;
 }
 
-void begin_rocket_sequence(MetaState * meta_state, AssetId return_map_id, u32 return_map_index) {
-	ASSERT(meta_state->type == MetaStateType_main);
-	MainMetaState * main_state = meta_state->main;
-
+void begin_rocket_sequence(MainMetaState * main_state, AssetId return_map_id, u32 return_map_index) {
 	RocketSequence * seq = &main_state->rocket_seq;
 
 	if(!seq->playing) {
@@ -317,24 +311,24 @@ void begin_rocket_sequence(MetaState * meta_state, AssetId return_map_id, u32 re
 		seq->return_map_id = return_map_id;
 		seq->return_map_index = return_map_index;
 
-		math::Rec2 render_bounds = get_entity_render_bounds(meta_state->assets, seq->rocket);
+		math::Rec2 render_bounds = get_entity_render_bounds(main_state->header.assets, seq->rocket);
 		f32 height = math::rec_dim(render_bounds).y;
 
 		Entity * rocket = seq->rocket;
-		rocket->pos = math::vec3(main_state->player.e->pos.x, -(meta_state->render_state->screen_height * 0.5f + height * 0.5f), 0.0f);
+		rocket->pos = math::vec3(main_state->player.e->pos.x, -(main_state->header.render_state->screen_height * 0.5f + height * 0.5f), 0.0f);
 		rocket->d_pos = math::vec2(0.0f);
 		rocket->speed = math::vec2(0.0f, 10000.0f);
 		rocket->damp = 0.065f;
 		rocket->anim_time = 0.0f;
 		rocket->color.a = 1.0f;
 
-		fire_audio_clip(meta_state->audio_state, AssetId_rocket_sfx);
+		fire_audio_clip(main_state->header.audio_state, AssetId_rocket_sfx);
 
 		Player * player = &main_state->player;
 		player->invincibility_time = F32_MAX;
 
 		fade_out_audio_clip(&main_state->music, 1.0f);
-		main_state->music = play_audio_clip(meta_state->audio_state, AssetId_space_music, true);
+		main_state->music = play_audio_clip(main_state->header.audio_state, AssetId_space_music, true);
 		change_volume(main_state->music, math::vec2(0.0f), 0.0f);
 		change_volume(main_state->music, math::vec2(1.0f), 1.0f);
 
@@ -342,19 +336,16 @@ void begin_rocket_sequence(MetaState * meta_state, AssetId return_map_id, u32 re
 	}
 }
 
-void play_rocket_sequence(MetaState * meta_state, f32 dt) {
-	ASSERT(meta_state->type == MetaStateType_main);
-	MainMetaState * main_state = meta_state->main;
-
+void play_rocket_sequence(MainMetaState * main_state, f32 dt) {
 	RocketSequence * seq = &main_state->rocket_seq;
 
 	if(seq->playing) {
-		RenderState * render_state = meta_state->render_state;
+		RenderState * render_state = main_state->header.render_state;
 		Player * player = &main_state->player;
 		Entity * rocket = seq->rocket;
 
 		rocket->anim_time += dt * ANIMATION_FRAMES_PER_SEC;
-		rocket->asset.index = (u32)rocket->anim_time % get_asset_count(meta_state->assets, rocket->asset.id);
+		rocket->asset.index = (u32)rocket->anim_time % get_asset_count(main_state->header.assets, rocket->asset.id);
 
 		rocket->d_pos += rocket->speed * dt;
 		rocket->d_pos *= (1.0f - rocket->damp);
@@ -387,7 +378,7 @@ void play_rocket_sequence(MetaState * meta_state, f32 dt) {
 					player->e->pos.y = drop_height;
 					player->e->color.a = 1.0f;
 
-					change_scene(main_state, meta_state->assets, SceneId_upper);
+					change_scene(main_state, main_state->header.assets, SceneId_upper);
 				}
 			}
 
@@ -395,7 +386,7 @@ void play_rocket_sequence(MetaState * meta_state, f32 dt) {
 			if(seq->time_ < seq_max_time) {
 				if(new_time > seq_max_time) {
 					fade_out_audio_clip(&main_state->music, 1.0f);
-					main_state->music = play_audio_clip(meta_state->audio_state, AssetId_game_music, true);
+					main_state->music = play_audio_clip(main_state->header.audio_state, AssetId_game_music, true);
 					change_volume(main_state->music, math::vec2(0.0f), 0.0f);
 					change_volume(main_state->music, math::vec2(1.0f), 1.0f);
 					
@@ -403,9 +394,9 @@ void play_rocket_sequence(MetaState * meta_state, f32 dt) {
 					main_state->accel_time = 0.0f;
 					player->invincibility_time = F32_MAX;
 					player->e->use_gravity = true;
-					change_entity_asset(player->e, meta_state->assets, asset_ref(AssetId_dolly_fall));
+					change_entity_asset(player->e, main_state->header.assets, asset_ref(AssetId_dolly_fall));
 
-					switch_lower_scene_asset_type(main_state, meta_state->assets);
+					switch_lower_scene_asset_type(main_state);
 				}
 			}
 			else {
@@ -414,12 +405,12 @@ void play_rocket_sequence(MetaState * meta_state, f32 dt) {
 					Scene * lower_scene = main_state->scenes + SceneId_lower;
 					lower_scene->map_id = seq->return_map_id;
 					lower_scene->map_index = seq->return_map_index;
-					change_scene(main_state, meta_state->assets, SceneId_lower);
+					change_scene(main_state, main_state->header.assets, SceneId_lower);
 
 					player->e->use_gravity = false;
 					player->allow_input = true;
 					player->invincibility_time = 1.0f;
-					change_entity_asset(player->e, meta_state->assets, asset_ref(AssetId_dolly_idle));
+					change_entity_asset(player->e, main_state->header.assets, asset_ref(AssetId_dolly_idle));
 
 					seq->playing = false;
 					rocket->color.a = 0.0f;
@@ -431,16 +422,16 @@ void play_rocket_sequence(MetaState * meta_state, f32 dt) {
 	}
 }
 
-b32 move_entity(MetaState * meta_state, RenderTransform * transform, Entity * entity, f32 d_pos) {
+b32 move_entity(MainMetaState * main_state, RenderTransform * transform, Entity * entity, f32 d_pos) {
 	b32 off_screen = false;
 
 	entity->pos.x -= d_pos;
 
-	math::Rec2 bounds = get_entity_render_bounds(meta_state->assets, entity);
+	math::Rec2 bounds = get_entity_render_bounds(main_state->header.assets, entity);
 	math::Vec2 screen_pos = project_pos(transform, entity->pos + math::vec3(math::rec_pos(bounds), 0.0f));
 	f32 width = math::rec_dim(bounds).x;
 
-	if(screen_pos.x < -(meta_state->render_state->screen_width * 0.5f + width * 0.5f)) {
+	if(screen_pos.x < -(main_state->header.render_state->screen_width * 0.5f + width * 0.5f)) {
 		off_screen = true;
 
 		if(entity->scrollable) {
@@ -488,7 +479,7 @@ void show_score(ScoreSystem * score_system) {
 	}
 }
 
-UiElement * process_ui_layer(MetaState * meta_state, UiLayer * ui_layer, RenderGroup * render_group, GameInput * game_input) {
+UiElement * process_ui_layer(MetaStateHeader * meta_state, UiLayer * ui_layer, RenderGroup * render_group, GameInput * game_input) {
 	//TODO: Name this better??
 	UiElement * interact_elem = 0;
 
@@ -539,31 +530,26 @@ void push_ui_layer_to_render_group(UiLayer * ui_layer, RenderGroup * render_grou
 	}
 }
 
-MetaState * allocate_meta_state(GameState * game_state, MetaStateType type) {
+MetaStateHeader * allocate_meta_state(GameState * game_state, MetaStateType type) {
 	MemoryArena * arena = &game_state->memory_arena;
 
-	MetaState * meta_state = PUSH_STRUCT(arena, MetaState);
-	meta_state->assets = &game_state->assets;
-	meta_state->audio_state = &game_state->audio_state;
-	meta_state->render_state = &game_state->render_state;
-
+	MetaStateHeader * meta_state = 0;
 	size_t arena_size = KILOBYTES(64);
-
-	meta_state->type = type;
 	switch(type) {
 		case MetaStateType_menu: {
-			meta_state->menu = PUSH_STRUCT(arena, MenuMetaState);
+			meta_state = (MetaStateHeader *)PUSH_STRUCT(arena, MenuMetaState);
 			break;
 		}
 
 		case MetaStateType_intro: {
-			meta_state->intro = PUSH_STRUCT(arena, IntroMetaState);
+			meta_state = (MetaStateHeader *)PUSH_STRUCT(arena, IntroMetaState);
 			break;
 		}
 
 		case MetaStateType_main: {
-			meta_state->main = PUSH_STRUCT(arena, MainMetaState);
+			meta_state = (MetaStateHeader *)PUSH_STRUCT(arena, MainMetaState);
 			arena_size = MEGABYTES(2);
+
 			break;
 		}
 
@@ -571,23 +557,32 @@ MetaState * allocate_meta_state(GameState * game_state, MetaStateType type) {
 	}
 
 	meta_state->arena = allocate_sub_arena(arena, arena_size);
+	meta_state->assets = &game_state->assets;
+	meta_state->audio_state = &game_state->audio_state;
+	meta_state->render_state = &game_state->render_state;
+	meta_state->type = type;
+
+	return meta_state;
+}
+
+MetaStateHeader * get_meta_state(GameState * game_state, MetaStateType type) {
+	MetaStateHeader * meta_state = game_state->meta_states[type];
+	ASSERT(meta_state->type == type);
 	
 	return meta_state;
 }
 
-MetaState * get_meta_state(GameState * game_state, MetaStateType type) {
-	MetaState * meta_state = game_state->meta_states[type];
-	ASSERT(meta_state->type == type);
-
-	return meta_state;
+#define ZERO_META_STATE(header, type) zero_meta_state((header), sizeof(type))
+void zero_meta_state(MetaStateHeader * header, size_t size) {
+	zero_memory(header + 1, size - sizeof(MetaStateHeader));
+	zero_memory_arena(&header->arena);
 }
 
-void init_menu_meta_state(MetaState * meta_state) {
+void init_menu_meta_state(MetaStateHeader * meta_state) {
 	ASSERT(meta_state->type == MetaStateType_menu);
-	MenuMetaState * menu_state = meta_state->menu;
+	MenuMetaState * menu_state = (MenuMetaState *)meta_state;
 
-	zero_memory_arena(&meta_state->arena);
-	zero_memory(menu_state, sizeof(MenuMetaState));
+	ZERO_META_STATE(meta_state, MenuMetaState);
 
 	menu_state->music = play_audio_clip(meta_state->audio_state, AssetId_menu_music, true, math::vec2(0.0f));
 	change_volume(menu_state->music, math::vec2(1.0f), 1.0f);
@@ -602,12 +597,11 @@ void init_menu_meta_state(MetaState * meta_state) {
 	push_ui_elem(menu_state->pages + MenuPageId_about, MenuButtonId_baa, AssetId_btn_baa, AssetId_baa);
 }
 
-void init_intro_meta_state(MetaState * meta_state) {
+void init_intro_meta_state(MetaStateHeader * meta_state) {
 	ASSERT(meta_state->type == MetaStateType_intro);
-	IntroMetaState * intro_state = meta_state->intro;
+	IntroMetaState * intro_state = (IntroMetaState *)meta_state;
 
-	zero_memory_arena(&meta_state->arena);
-	zero_memory(intro_state, sizeof(IntroMetaState));
+	ZERO_META_STATE(meta_state, IntroMetaState);
 
 	RenderState * render_state = meta_state->render_state;
 	intro_state->render_group = allocate_render_group(render_state, &meta_state->arena, render_state->screen_width, render_state->screen_height);
@@ -620,14 +614,13 @@ void init_intro_meta_state(MetaState * meta_state) {
 	push_ui_elem(&intro_state->ui_layer, 0, AssetId_btn_skip, AssetId_click_yes);
 }
 
-void init_main_meta_state(MetaState * meta_state) {
+void init_main_meta_state(MetaStateHeader * meta_state) {
 	ASSERT(meta_state->type == MetaStateType_main);
-	MainMetaState * main_state = meta_state->main;
+	MainMetaState * main_state = (MainMetaState *)meta_state;
 
 	ASSERT(!main_state->music);
 
-	zero_memory_arena(&meta_state->arena);
-	zero_memory(main_state, sizeof(MainMetaState));
+	ZERO_META_STATE(meta_state, MainMetaState);
 
 	AssetState * assets = meta_state->assets;
 
@@ -676,8 +669,8 @@ void init_main_meta_state(MetaState * meta_state) {
 		main_state->background[i] = entity;
 	}
 
-	change_scene_asset_type(main_state, SceneId_lower, meta_state->assets, AssetId_scene_city);
-	change_scene_asset_type(main_state, SceneId_upper, meta_state->assets, AssetId_scene_space);
+	change_scene_asset_type(main_state, SceneId_lower, AssetId_scene_city);
+	change_scene_asset_type(main_state, SceneId_upper, AssetId_scene_space);
 
 	main_state->background[0]->color.a = 0.0f;
 	main_state->background[1]->color.a = 1.0f;
@@ -838,7 +831,7 @@ void change_meta_state(GameState * game_state, MetaStateType type) {
 	game_state->meta_state = type;
 
 	//TODO: We should probably defer the init to the end of frame!!
-	MetaState * meta_state = get_meta_state(game_state, type);
+	MetaStateHeader * meta_state = get_meta_state(game_state, type);
 	switch(type) {
 		case MetaStateType_menu: {
 			init_menu_meta_state(meta_state);
@@ -885,10 +878,12 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		RenderGroup * render_group = game_state->loading_render_group;
 
+		push_textured_quad(render_group, asset_ref(AssetId_load_background));
+
 		f32 load_progress = (f32)assets->last_loaded_file_index / (f32)assets->loaded_file_count;
 
-		f32 total_width = render_group->transform.projection_width * 0.75f;
-		math::Vec2 dim = math::vec2(total_width * load_progress, 24.0f);
+		f32 total_width = 700.0f;
+		math::Vec2 dim = math::vec2(total_width * load_progress, 80.0f);
 		push_colored_quad(render_group, math::vec3((-total_width + dim.x) * 0.5f, 0.0f, 0.0f), dim, 0.0f, math::vec4(1.0f, 1.0f, 1.0f, 1.0f));
 
 		render_and_clear_render_group(render_state, render_group);
@@ -977,11 +972,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		switch(game_state->meta_state) {
 			case MetaStateType_menu: {
-				MetaState * meta_state = get_meta_state(game_state, MetaStateType_menu);
-				MenuMetaState * menu_state = meta_state->menu;
+				MenuMetaState * menu_state = (MenuMetaState *)get_meta_state(game_state, MetaStateType_menu);
 
 				UiLayer * current_page = menu_state->pages + menu_state->current_page;
-				UiElement * interact_elem = process_ui_layer(meta_state, current_page, menu_state->render_group, game_input);
+				UiElement * interact_elem = process_ui_layer(&menu_state->header, current_page, menu_state->render_group, game_input);
 				if(!game_state->transitioning) {
 					if(interact_elem) {
 						u32 interact_id = interact_elem->id;
@@ -1029,10 +1023,9 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			}
 
 			case MetaStateType_intro: {
-				MetaState * meta_state = get_meta_state(game_state, MetaStateType_intro);
-				IntroMetaState * intro_state = meta_state->intro;
+				IntroMetaState * intro_state = (IntroMetaState *)get_meta_state(game_state, MetaStateType_intro);
 
-				UiElement * interact_elem = process_ui_layer(meta_state, &intro_state->ui_layer, intro_state->render_group, game_input);
+				UiElement * interact_elem = process_ui_layer(&intro_state->header, &intro_state->ui_layer, intro_state->render_group, game_input);
 				if(!game_state->transitioning) {
 					if(interact_elem) {
 						intro_state->transition_id = begin_transition(game_state);
@@ -1074,8 +1067,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			}
 
 			case MetaStateType_main: {
-				MetaState * meta_state = get_meta_state(game_state, MetaStateType_main);
-				MainMetaState * main_state = meta_state->main;
+				MainMetaState * main_state = (MainMetaState *)get_meta_state(game_state, MetaStateType_main);
 
 				RenderTransform * render_transform = &main_state->render_group->transform;
 
@@ -1108,7 +1100,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				}
 
 				if(game_input->buttons[ButtonId_mute] & KEY_PRESSED) {
-					switch_lower_scene_asset_type(main_state, meta_state->assets);
+					switch_lower_scene_asset_type(main_state);
 				}
 
 				{
@@ -1239,24 +1231,24 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 							player_dd_pos.y += player->e->speed.y;
 
 							main_state->arrow_buttons[0].asset.index = 1;
-							change_entity_asset(player->e, meta_state->assets, asset_ref(player_up_id));
+							change_entity_asset(player->e, main_state->header.assets, asset_ref(player_up_id));
 						}
 
 						if(game_input->buttons[ButtonId_down] & KEY_DOWN || (game_input->mouse_button & KEY_DOWN && game_input->mouse_pos.y >= half_buffer_height)) {
 							player_dd_pos.y -= player->e->speed.y;
 
 							main_state->arrow_buttons[1].asset.index = 1;
-							change_entity_asset(player->e, meta_state->assets, asset_ref(player_down_id));
+							change_entity_asset(player->e, main_state->header.assets, asset_ref(player_down_id));
 						}
 
 						if(!player_dd_pos.y) {
-							change_entity_asset(player->e, meta_state->assets, asset_ref(player_idle_id));
+							change_entity_asset(player->e, main_state->header.assets, asset_ref(player_idle_id));
 						}
 					}
 				}
 				else {
 					player_dd_pos.x += player->e->speed.x * 10.0f;
-					change_entity_asset(player->e, meta_state->assets, asset_ref(player_idle_id));
+					change_entity_asset(player->e, main_state->header.assets, asset_ref(player_idle_id));
 				}
 
 				player->e->d_pos += player_dd_pos * game_input->delta_time;
@@ -1337,10 +1329,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				render_transform->offset = (math::rand_vec2() * 2.0f - 1.0f) * math::max(main_state->d_speed, 0.0f);
 
 				if(main_state->rocket_seq.playing) {
-					play_rocket_sequence(meta_state, game_input->delta_time);
+					play_rocket_sequence(main_state, game_input->delta_time);
 				}
-
-				// Scene * current_scene = main_state->scenes + main_state->current_scene;
 
 				math::Rec2 player_bounds = get_entity_collider_bounds(player->e);
 
@@ -1348,13 +1338,13 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 				emitter->glow->anim_time += game_input->delta_time * ANIMATION_FRAMES_PER_SEC;
 				emitter->glow->asset.index = (u32)emitter->glow->anim_time % get_asset_count(assets, emitter->glow->asset.id);
-				move_entity(meta_state, render_transform, emitter->glow, player_d_pos);
+				move_entity(main_state, render_transform, emitter->glow, player_d_pos);
 
 				for(u32 i = 0; i < emitter->entity_count; i++) {
 					Entity * entity = emitter->entity_array[i];
 					b32 destroy = false;
 
-					if(move_entity(meta_state, render_transform, entity, player_d_pos)) {
+					if(move_entity(main_state, render_transform, entity, player_d_pos)) {
 						destroy = true;
 					}
 
@@ -1414,7 +1404,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 							}
 
 							case AssetId_rocket: {
-								begin_rocket_sequence(meta_state, emitter->rocket_map_id, emitter->rocket_map_index);
+								begin_rocket_sequence(main_state, emitter->rocket_map_id, emitter->rocket_map_index);
 
 								break;
 							}
@@ -1429,7 +1419,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 							}
 
 							case AssetId_goggles: {
-								begin_concord_sequence(meta_state);
+								begin_concord_sequence(main_state);
 
 								break;
 							}
@@ -1462,7 +1452,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 						//TODO: Should there be a helper function for this??
 						AudioClip * clip = get_audio_clip_asset(assets, clip_id, math::rand_i32() % get_asset_count(assets, clip_id));
 						f32 pitch = math::lerp(0.9f, 1.1f, math::rand_f32());
-						fire_audio_clip(meta_state->audio_state, clip, math::vec2(1.0f), pitch);
+						fire_audio_clip(audio_state, clip, math::vec2(1.0f), pitch);
 
 						//TODO: Allocate these separately (or bring closer when we have sorting) for more efficient batching!!
 						change_entity_asset(entity, assets, asset_ref(AssetId_shield));
@@ -1490,10 +1480,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 #if DEV_ENABLED
 					map_id = AssetId_debug_tile_map;
 #endif
-					u32 map_asset_count = get_asset_count(meta_state->assets, map_id);
+					u32 map_asset_count = get_asset_count(assets, map_id);
 					ASSERT(map_asset_count);
 
-					TileMap * map = get_tile_map_asset(meta_state->assets, map_id, current_scene->map_index);
+					TileMap * map = get_tile_map_asset(assets, map_id, current_scene->map_index);
 					ASSERT(map);
 
 					f32 tile_size_pixels = projection_dim.y / (f32)TILE_MAP_HEIGHT;
@@ -1513,7 +1503,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 							advance_scene_map(main_state, assets, current_scene);
 							map_id = current_scene->map_id;
 
-							map = get_tile_map_asset(meta_state->assets, map_id, current_scene->map_index);
+							map = get_tile_map_asset(assets, map_id, current_scene->map_index);
 							ASSERT(map);
 
 							read_pos = 0;
@@ -1607,13 +1597,13 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				}
 
 				for(u32 i = 0; i < ARRAY_COUNT(main_state->background); i++) {
-					move_entity(meta_state, render_transform, main_state->background[i], 0.0f);
+					move_entity(main_state, render_transform, main_state->background[i], 0.0f);
 				}
 
-				move_entity(meta_state, render_transform, main_state->sun, 0.0f);
+				move_entity(main_state, render_transform, main_state->sun, 0.0f);
 
 				for(u32 i = 0; i < ARRAY_COUNT(main_state->clouds); i++) {
-					move_entity(meta_state, render_transform, main_state->clouds[i], player_d_pos * 1.5f);
+					move_entity(main_state, render_transform, main_state->clouds[i], player_d_pos * 1.5f);
 				}
 
 				for(u32 i = 0; i < SceneId_count; i++) {
@@ -1630,12 +1620,12 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 #endif
 
 						//TODO: Could we actually just use the emitter cursor to position these??
-						move_entity(meta_state, render_transform, scene->layers[layer_index], d_pos);
+						move_entity(main_state, render_transform, scene->layers[layer_index], d_pos);
 					}
 				}
 
 				if(score_system->show) {
-					UiElement * interact_elem = process_ui_layer(meta_state, &score_system->ui, main_state->ui_render_group, game_input);
+					UiElement * interact_elem = process_ui_layer(&main_state->header, &score_system->ui, main_state->ui_render_group, game_input);
 
 					if(interact_elem) {
 						if(!game_state->transitioning) {
@@ -1749,8 +1739,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 		switch(game_state->meta_state) {
 			case MetaStateType_menu: {
-				MetaState * meta_state = get_meta_state(game_state, MetaStateType_menu);
-				MenuMetaState * menu_state = meta_state->menu;
+				MenuMetaState * menu_state = (MenuMetaState *)get_meta_state(game_state, MetaStateType_menu);
 
 				RenderGroup * render_group = menu_state->render_group;
 
@@ -1772,14 +1761,13 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 				push_ui_layer_to_render_group(menu_state->pages + menu_state->current_page, render_group);
 
-				render_and_clear_render_group(meta_state->render_state, render_group);
+				render_and_clear_render_group(menu_state->header.render_state, render_group);
 
 				break;
 			}
 
 			case MetaStateType_intro: {
-				MetaState * meta_state = get_meta_state(game_state, MetaStateType_intro);
-				IntroMetaState * intro_state = meta_state->intro;
+				IntroMetaState * intro_state = (IntroMetaState *)get_meta_state(game_state, MetaStateType_intro);
 
 				RenderGroup * render_group = intro_state->render_group;
 
@@ -1792,14 +1780,13 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 				push_ui_layer_to_render_group(&intro_state->ui_layer, render_group);
 
-				render_and_clear_render_group(meta_state->render_state, render_group);
+				render_and_clear_render_group(intro_state->header.render_state, render_group);
 
 				break;
 			}
 
 			case MetaStateType_main: {
-				MetaState * meta_state = get_meta_state(game_state, MetaStateType_main);
-				MainMetaState * main_state = meta_state->main;
+				MainMetaState * main_state = (MainMetaState *)get_meta_state(game_state, MetaStateType_main);
 
 				EntityArray * entities = &main_state->entities;
 				for(u32 i = 0; i < entities->count; i++) {
@@ -1807,7 +1794,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					push_textured_quad(main_state->render_group, entity->asset, entity->pos + math::vec3(entity->offset, 0.0f), entity->scale, entity->angle, entity->color, entity->scrollable);
 				}
 
-				render_and_clear_render_group(meta_state->render_state, main_state->render_group);
+				render_and_clear_render_group(main_state->header.render_state, main_state->render_group);
 
 				if(game_state->debug_show_overlay) {
 					RenderBatch * render_batch = render_state->render_batch;
@@ -1846,7 +1833,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 				f32 fixed_letterboxing = main_state->fixed_letterboxing;
 
-				Font * font = get_font_asset(meta_state->assets, AssetId_supersrc, 0);
+				Font * font = get_font_asset(main_state->header.assets, AssetId_supersrc, 0);
 				//TODO: Need a convenient way to make temp strs!!
 				char temp_buf[256];
 				Str temp_str = str_fixed_size(temp_buf, ARRAY_COUNT(temp_buf));
@@ -1965,7 +1952,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					push_ui_layer_to_render_group(&score_system->ui, ui_render_group);
 				}
 
-				render_and_clear_render_group(meta_state->render_state, ui_render_group);
+				render_and_clear_render_group(main_state->header.render_state, ui_render_group);
 
 				break;
 			}

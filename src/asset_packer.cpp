@@ -738,6 +738,13 @@ int main() {
 	ZERO_STRUCT(packer);
 
 	{
+		push_texture(packer, "white.png", AssetId_white);
+		push_texture(packer, "load_background.png", AssetId_load_background);
+
+		write_out_asset_pack(packer, "preload.pak");
+	}
+
+	{
 		push_tile_map(packer, "placement0.png", AssetId_lower_map),
 		push_tile_map(packer, "placement1.png", AssetId_lower_map),
 		push_tile_map(packer, "placement2.png", AssetId_lower_map),
@@ -753,8 +760,6 @@ int main() {
 	}
 
 	{
-		// push_texture(packer, "white.png", AssetId_white);
-
 		push_texture(packer, "menu_background.png", AssetId_menu_background);
 		push_texture(packer, "about_background.png", AssetId_about_background);
 

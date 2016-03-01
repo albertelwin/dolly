@@ -122,6 +122,7 @@ enum AssetId {
 	//NOTE: Textures
 	AssetId_white,
 
+	AssetId_load_background,
 	AssetId_menu_background,
 	AssetId_about_background,
 

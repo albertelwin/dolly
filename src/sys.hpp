@@ -167,15 +167,16 @@ inline void copy_memory(void * dst, void * src, size_t size) {
 	}
 }
 
-#define PUSH_STRUCT(arena, type) (type *)push_memory_(arena, sizeof(type))
-#define PUSH_ARRAY(arena, type, length) (type *)push_memory_(arena, sizeof(type) * (length))
-#define PUSH_MEMORY(arena, type, size) (type *)push_memory_(arena, size)
+#define PUSH_STRUCT(arena, type) (type *)push_memory_(arena, sizeof(type));
+#define PUSH_ARRAY(arena, type, length) (type *)push_memory_(arena, sizeof(type) * (length));
+#define PUSH_MEMORY(arena, type, size) (type *)push_memory_(arena, size);
 inline void * push_memory_(MemoryArena * arena, size_t size) {
 	size_t aligned_size = ALIGN16(size);
 	ASSERT((arena->used + aligned_size) <= arena->size);
 	
 	void * ptr = arena->base_address + arena->used;
 	arena->used += aligned_size;
+
 	return ptr;
 }
 

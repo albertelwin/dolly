@@ -249,7 +249,18 @@ enum MetaStateType {
 	MetaStateType_null = MetaStateType_count,
 };
 
+struct MetaStateHeader {
+	MemoryArena arena;
+	AssetState * assets;
+	AudioState * audio_state;
+	RenderState * render_state;
+
+	MetaStateType type;
+};
+
 struct MenuMetaState {
+	MetaStateHeader header;
+
 	AudioSource * music;
 
 	RenderGroup * render_group;
@@ -263,6 +274,8 @@ struct MenuMetaState {
 };
 
 struct IntroMetaState {
+	MetaStateHeader header;
+
 	RenderGroup * render_group;
 
 	UiLayer ui_layer;
@@ -274,6 +287,8 @@ struct IntroMetaState {
 };
 
 struct MainMetaState {
+	MetaStateHeader header;
+
 	AudioSource * music;
 
 	RenderGroup * render_group;
@@ -332,21 +347,6 @@ struct MainMetaState {
 	u32 replay_transition_id;
 };
 
-//TODO: Make this a header instead!!
-struct MetaState {
-	MemoryArena arena;
-	AssetState * assets;
-	AudioState * audio_state;
-	RenderState * render_state;
-
-	MetaStateType type;
-	union {
-		MenuMetaState * menu;
-		IntroMetaState * intro;
-		MainMetaState * main;
-	};
-};
-
 struct GameMemory {
 	size_t size;
 	u8 * ptr;
@@ -385,7 +385,7 @@ struct GameState {
 	RenderGroup * loading_render_group;
 
 	MetaStateType meta_state;
-	MetaState * meta_states[MetaStateType_count];
+	MetaStateHeader * meta_states[MetaStateType_count];
 
 	u32 transition_id;
 	b32 transitioning;
