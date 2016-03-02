@@ -57,6 +57,10 @@ math::Rec2 get_entity_collider_bounds(Entity * entity) {
 void change_entity_asset(Entity * entity, AssetState * assets, AssetRef asset) {
 #if DEBUG_ENABLED
 	Asset * asset_ = get_asset(assets, asset.id, asset.index);
+	if(!asset_) {
+		std::printf("LOG: %u, %u\n", asset.id, asset.index);
+	}
+
 	ASSERT(asset_);
 	ASSERT(asset_->type == AssetType_texture || asset_->type == AssetType_sprite);
 #endif
@@ -445,13 +449,28 @@ b32 move_entity(MainMetaState * main_state, RenderTransform * transform, Entity 
 	return off_screen;
 }
 
-void change_info_display(InfoDisplay * display, AssetId asset_id) {
-	display->asset.id = asset_id;
-	display->asset.index = 0;
+void change_info_display(InfoDisplay * display) {
 	display->time_ = 0.0f;
 	display->alpha = 1.0f;
 	display->scale = 2.0f;
 }
+
+void display_collect_info(InfoDisplay * display, AssetId asset_id) {
+	display->asset.id = asset_id;
+	display->asset.index = 0;
+	display->is_collect = true;
+	display->total_time = 3.0f;
+
+	change_info_display(display);
+}
+
+void display_clock_info(InfoDisplay * display) {
+	display->is_collect = false;
+	display->total_time = 1.0f;
+
+	change_info_display(display);
+}
+
 
 UiElement * push_ui_elem(UiLayer * ui_layer, u32 id, AssetId asset_id, AssetId clip_id) {
 	ASSERT(ui_layer->elem_count < ARRAY_COUNT(ui_layer->elems));
@@ -803,6 +822,7 @@ void init_main_meta_state(MetaStateHeader * meta_state) {
 	main_state->arrow_buttons[1].asset = asset_ref(AssetId_btn_down);
 
 	main_state->info_display.asset = asset_ref(ASSET_FIRST_GROUP_ID(collect));
+	main_state->info_display.total_time = 3.0f;
 
 	main_state->start_time = 30.0f;
 	main_state->clock_pickup_time = 5.0f;
@@ -904,7 +924,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				game_state->meta_states[i] = allocate_meta_state(game_state, (MetaStateType)i);
 			}
 
-			change_meta_state(game_state, MetaStateType_menu);
+			change_meta_state(game_state, MetaStateType_main);
 
 			game_state->auto_save_time = 5.0f;
 			game_state->save.code = SAVE_FILE_CODE;
@@ -1114,7 +1134,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					InfoDisplay * info_display = &main_state->info_display;
 					info_display->time_ += game_input->delta_time;
 					info_display->scale = math::lerp(info_display->scale, 1.0f, game_input->delta_time * 12.0f);
-					if(info_display->time_ > 3.0f) {
+					if(info_display->time_ > info_display->total_time) {
 						info_display->alpha -= game_input->delta_time * 12.0f;
 					}
 				}
@@ -1238,18 +1258,27 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 							player_dd_pos.y += player->e->speed.y;
 
 							main_state->arrow_buttons[0].asset.index = 1;
-							change_entity_asset(player->e, main_state->header.assets, asset_ref(player_up_id));
 						}
 
 						if(game_input->buttons[ButtonId_down] & KEY_DOWN || (game_input->mouse_button & KEY_DOWN && game_input->mouse_pos.y >= half_buffer_height)) {
 							player_dd_pos.y -= player->e->speed.y;
 
 							main_state->arrow_buttons[1].asset.index = 1;
-							change_entity_asset(player->e, main_state->header.assets, asset_ref(player_down_id));
 						}
 
-						if(!player_dd_pos.y) {
-							change_entity_asset(player->e, main_state->header.assets, asset_ref(player_idle_id));
+						if(main_state->dd_speed < 0.0f) {
+							change_entity_asset(player->e, main_state->header.assets, asset_ref(AssetId_dolly_hit));
+						}
+						else {
+							if(player_dd_pos.y > 0.0f) {
+								change_entity_asset(player->e, main_state->header.assets, asset_ref(player_up_id));
+							}
+							else if(player_dd_pos.y < 0.0f) {
+								change_entity_asset(player->e, main_state->header.assets, asset_ref(player_down_id));
+							}
+							else {
+								change_entity_asset(player->e, main_state->header.assets, asset_ref(player_idle_id));
+							}
 						}
 					}
 				}
@@ -1357,7 +1386,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 					// entity->offset.y = math::sin((game_input->total_time * 0.2f + entity->rand_id * (3.0f / 13.0f)) * math::TAU) * 10.0f;
 
-					if(entity->hit) {
+					if(entity->hit && !ASSET_IN_GROUP(atom_smasher, entity->asset.id)) {
 						entity->offset.y = 0.0f;
 
 						f32 anim_speed = 4.0f;
@@ -1420,6 +1449,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 								main_state->time_remaining += main_state->clock_pickup_time;
 								main_state->time_remaining = math::min(main_state->time_remaining, main_state->max_time);
 
+								display_clock_info(&main_state->info_display);
+
 								main_state->clock_label_scale = 2.0f;
 
 								break;
@@ -1440,7 +1471,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 							change_player_speed(main_state, player, -main_state->boost_accel, main_state->slow_down_time);
 						}
 
-						if(entity->asset.id >= ASSET_FIRST_GROUP_ID(collect) && entity->asset.id <= ASSET_LAST_GROUP_ID(collect)) {
+						if(ASSET_IN_GROUP(collect, entity->asset.id)) {
 							u32 collect_index = ASSET_ID_TO_GROUP_INDEX(collect, entity->asset.id);
 							ASSERT(collect_index < ARRAY_COUNT(game_state->save.collect_unlock_states));
 
@@ -1449,7 +1480,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 							score_system->items++;
 
-							change_info_display(&main_state->info_display, entity->asset.id);
+							display_collect_info(&main_state->info_display, entity->asset.id);
 
 							clip_id = AssetId_special;
 
@@ -1462,10 +1493,12 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 						fire_audio_clip(audio_state, clip, math::vec2(1.0f), pitch);
 
 						//TODO: Allocate these separately (or bring closer when we have sorting) for more efficient batching!!
-						change_entity_asset(entity, assets, asset_ref(AssetId_shield));
-						entity->anim_time = 0.0f;
-						entity->scale = math::vec2(0.5f);
-						entity->color = math::vec4(1.0f);
+						if(!ASSET_IN_GROUP(atom_smasher, entity->asset.id)) {
+							change_entity_asset(entity, assets, asset_ref(AssetId_shield));
+							entity->anim_time = 0.0f;
+							entity->scale = math::vec2(0.5f);
+							entity->color = math::vec4(1.0f);							
+						}
 					}
 
 					if(destroy) {
@@ -1846,7 +1879,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					str_print(&temp_str, "%u", (u32)math::ceil_to_i32(main_state->time_remaining));
 
 					f32 font_scale = 1.0f * main_state->clock_label_scale;
-					FontLayout font_layout = create_font_layout(font, projection_dim, font_scale, FontLayoutAnchor_top_centre, math::vec2(2.0f, -main_state->fixed_letterboxing + 10.0f * font_scale), false);
+					FontLayout font_layout = create_font_layout(font, projection_dim, font_scale, FontLayoutAnchor_top_centre, math::vec2(1.0f, -main_state->fixed_letterboxing + 9.0f * font_scale), false);
 					push_str_to_render_group(ui_render_group, font, &font_layout, &temp_str, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
 					{
@@ -1856,19 +1889,32 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 					{
 						InfoDisplay * info_display = &main_state->info_display;
-						u32 info_index = ASSET_ID_TO_GROUP_INDEX(collect, info_display->asset.id);
 
-						char const * info_strs[] = {
-							"Dolly found the WW Stool!!",
-							"Dolly found the Hamilton-Rothschild tazza!!",
-							"Dolly found the Mini Cooper!!",
-							"Dolly found the mobile phone!!",
-							"Dolly found the Coral Cement necklace!!",
-							"Dolly found the McQueen ankle boots!!",
-						};
+						str_clear(&temp_str);
+						if(info_display->is_collect) {
+							char const * info_strs[] = {
+								"Dolly found the arm!!",
+								"Dolly found the bicycle!!",
+								"Dolly found the WW Stool!!",
+								"Dolly found the computer!!",
+								"Dolly found the Hamilton-Rothschild tazza!!",
+								"Dolly found the guitar!!",
+								"Dolly found the lion!!",
+								"Dolly found the Mini Cooper!!",
+								"Dolly found the mobile phone!!",
+								"Dolly found the Coral Cement necklace!!",
+								"Dolly found the McQueen ankle boots!!",
+							};
+
+							u32 collect_index = ASSET_ID_TO_GROUP_INDEX(collect, info_display->asset.id);
+							str_print(&temp_str, info_strs[collect_index]);
+						}
+						else {
+							str_print(&temp_str, "+%u seconds!!", (u32)main_state->clock_pickup_time);
+						}
 
 						FontLayout font_layout = create_font_layout(font, projection_dim, info_display->scale, FontLayoutAnchor_top_centre, math::vec2(0.0f, -132.0f), false);
-						push_c_str_to_render_group(ui_render_group, font, &font_layout, info_strs[info_index], math::vec4(1.0f, 1.0f, 1.0f, info_display->alpha));
+						push_str_to_render_group(ui_render_group, font, &font_layout, &temp_str, math::vec4(1.0f, 1.0f, 1.0f, info_display->alpha));
 					}
 
 					//TODO: Bake the offset into the texture!!
@@ -1949,6 +1995,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 					push_ui_layer_to_render_group(&score_system->ui, ui_render_group);
 				}
+
+				// push_textured_quad(ui_render_group, asset_ref(AssetId_atlas, 2), math::vec3(0.0f), math::vec2(0.25f));
 
 				render_and_clear_render_group(main_state->header.render_state, ui_render_group);
 

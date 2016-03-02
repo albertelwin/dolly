@@ -82,7 +82,7 @@ struct TextureAtlas {
 
 	//TODO: These can just be part of the texture struct and we'll alloc them!!
 	u32 sprite_count;
-	AssetInfo sprites[128];
+	AssetInfo sprites[256];
 };
 
 struct TileMapAsset {
@@ -101,8 +101,6 @@ struct AssetFile {
 };
 
 struct AssetPacker {
-	u32 asset_count;
-
 	u32 atlas_count;
 	TextureAtlas atlases[32];
 
@@ -117,9 +115,6 @@ struct AssetPacker {
 
 	u32 tile_map_count;
 	TileMapAsset tile_maps[256];
-
-	u32 working_sprite_count;
-	AssetFile working_sprites[256];
 };
 
 u8 * load_image_from_file(char const * file_name, i32 * width, i32 * height, i32 * channels) {
@@ -382,127 +377,23 @@ AudioClip load_audio_clip(char const * file_name, AssetId id) {
 	return clip;
 }
 
-void push_packed_texture(AssetPacker * packer, AssetFile * files, u32 file_count) {
-	ASSERT(packer->atlas_count < ARRAY_COUNT(packer->atlases));
+void push_sprite(TextureAtlas * atlas, AssetId asset_id, u32 atlas_index, Blit * blit, math::Vec2 sprite_dim) {
+	ASSERT(atlas->sprite_count < ARRAY_COUNT(atlas->sprites));
+	AssetInfo * info = atlas->sprites + atlas->sprite_count++;
+	info->id = asset_id;
+	info->type = AssetType_sprite;
 
-	u32 atlas_index = packer->atlas_count++;
-	TextureAtlas * atlas = packer->atlases + atlas_index;
-	atlas->tex = allocate_texture(1536, 1536, AssetId_atlas);
+	math::Vec2 r_atlas_dim = math::vec2(1.0f / (f32)atlas->tex.width, 1.0f / (f32)atlas->tex.height);
+	math::Rec2 blit_rec = math::rec2_min_dim(math::vec2(blit->min_x, blit->min_y), math::vec2(blit->width, blit->height));
 
-	f32 r_tex_size = 1.0f / (f32)atlas->tex.width;
-
-	for(u32 i = 0; i < file_count; i++) {
-		AssetFile * file = files + i;
-
-		Texture tex = load_texture(file->name, AssetId_null);
-		math::Vec2 tex_dim = math::vec2(tex.width, tex.height);
-
-		Blit blit = blit_texture(&atlas->tex, &tex);
-		math::Rec2 blit_rec = math::rec2_min_dim(math::vec2(blit.min_x, blit.min_y), math::vec2(blit.width, blit.height));
-
-		ASSERT(atlas->sprite_count < ARRAY_COUNT(atlas->sprites));
-		AssetInfo * info = atlas->sprites + atlas->sprite_count++;
-		info->id = file->id;
-		info->type = AssetType_sprite;
-
-		SpriteInfo * sprite = &info->sprite;
-		sprite->atlas_index = atlas_index;
-		sprite->width = blit.width;
-		sprite->height = blit.height;
-		sprite->offset = math::rec_pos(blit_rec) - tex_dim * 0.5f;
-		sprite->tex_coords[0] = math::vec2(blit.u, blit.v) * r_tex_size;
-		sprite->tex_coords[1] = math::vec2(blit.u + blit.width, blit.v + blit.height) * r_tex_size;
-	}
-
-	packer->asset_count++;
-	packer->asset_count += atlas->sprite_count;
+	SpriteInfo * sprite = &info->sprite;
+	sprite->atlas_index = atlas_index;
+	sprite->width = blit->width;
+	sprite->height = blit->height;
+	sprite->offset = math::rec_pos(blit_rec) - sprite_dim * 0.5f;
+	sprite->tex_coords[0] = math::vec2(blit->u, blit->v) * r_atlas_dim;
+	sprite->tex_coords[1] = math::vec2(blit->u + blit->width, blit->v + blit->height) * r_atlas_dim;
 }
-
-void push_sprite_sheet(AssetPacker * packer, char const * file_name, AssetId sprite_id, u32 sprite_width, u32 sprite_height, u32 sprite_count) {
-	ASSERT(packer->atlas_count < ARRAY_COUNT(packer->atlases));
-
-	u32 atlas_index = packer->atlas_count++;
-	TextureAtlas * atlas = packer->atlases + atlas_index;
-	atlas->tex = load_texture(file_name, AssetId_atlas);
-
-	u32 tex_width = atlas->tex.width;
-	u32 tex_height = atlas->tex.height;
-
-	math::Vec2 r_tex_dim = math::vec2(1.0f / (f32)tex_width, 1.0f / (f32)tex_height);
-
-	math::Vec2 sprite_dim = math::vec2(sprite_width, sprite_height);
-	u32 sprites_in_row = tex_width / sprite_width;
-	u32 sprites_in_col = tex_height / sprite_height;
-
-	for(u32 y = 0; y < sprites_in_col; y++) {
-		for(u32 x = 0; x < sprites_in_row; x++) {
-			u32 u = x * sprite_width;
-			u32 v = y * sprite_height;
-
-			ASSERT(atlas->sprite_count < ARRAY_COUNT(atlas->sprites));
-			AssetInfo * info = atlas->sprites + atlas->sprite_count++;
-			info->id = sprite_id;
-			info->type = AssetType_sprite;
-
-			SpriteInfo * sprite = &info->sprite;
-			sprite->atlas_index = atlas_index;
-			sprite->width = sprite_width;
-			sprite->height = sprite_height;
-			sprite->offset = math::vec2(0.0f, 0.0f);
-			sprite->tex_coords[0] = math::vec2(u, tex_height - (v + sprite_height)) * r_tex_dim;
-			sprite->tex_coords[1] = math::vec2(u + sprite_width, tex_height - v) * r_tex_dim;
-		}
-	}
-
-	atlas->sprite_count = sprite_count;
-
-	packer->asset_count++;
-	packer->asset_count += atlas->sprite_count;
-}
-
-#if 0
-void pack_sprite_sheet(AssetPacker * packer, char const * file_name, AssetId sprite_id, u32 sprite_width, u32 sprite_height, u32 sprite_count) {
-	ASSERT(packer->atlas_count < ARRAY_COUNT(packer->atlases));
-
-	u32 atlas_index = packer->atlas_count++;
-	TextureAtlas * atlas = packer->atlases + atlas_index;
-	atlas->tex = load_texture(file_name, AssetId_atlas);
-
-	u32 tex_width = atlas->tex.width;
-	u32 tex_height = atlas->tex.height;
-
-	math::Vec2 r_tex_dim = math::vec2(1.0f / (f32)tex_width, 1.0f / (f32)tex_height);
-
-	math::Vec2 sprite_dim = math::vec2(sprite_width, sprite_height);
-	u32 sprites_in_row = tex_width / sprite_width;
-	u32 sprites_in_col = tex_height / sprite_height;
-
-	for(u32 y = 0; y < sprites_in_col; y++) {
-		for(u32 x = 0; x < sprites_in_row; x++) {
-			u32 u = x * sprite_width;
-			u32 v = y * sprite_height;
-
-			ASSERT(atlas->sprite_count < ARRAY_COUNT(atlas->sprites));
-			AssetInfo * info = atlas->sprites + atlas->sprite_count++;
-			info->id = sprite_id;
-			info->type = AssetType_sprite;
-
-			SpriteInfo * sprite = &info->sprite;
-			sprite->atlas_index = atlas_index;
-			sprite->width = sprite_width;
-			sprite->height = sprite_height;
-			sprite->offset = math::vec2(0.0f, 0.0f);
-			sprite->tex_coords[0] = math::vec2(u, tex_height - (v + sprite_height)) * r_tex_dim;
-			sprite->tex_coords[1] = math::vec2(u + sprite_width, tex_height - v) * r_tex_dim;
-		}
-	}
-
-	atlas->sprite_count = sprite_count;
-
-	packer->asset_count++;
-	packer->asset_count += atlas->sprite_count;
-}
-#endif
 
 void push_font(AssetPacker * packer, char const * file_name, AssetId font_id, f32 pixel_height) {
 	ASSERT(packer->atlas_count < ARRAY_COUNT(packer->atlases));
@@ -591,8 +482,6 @@ void push_font(AssetPacker * packer, char const * file_name, AssetId font_id, f3
 		FREE_MEMORY(tex.ptr);
 	}
 
-	packer->asset_count += atlas->sprite_count + 2;
-
 	FREE_MEMORY(ttf_file.ptr);
 }
 
@@ -601,8 +490,6 @@ void push_texture(AssetPacker * packer, char * file_name, AssetId asset_id, Text
 
 	Texture * texture = packer->textures + packer->texture_count++;
 	*texture = load_texture(file_name, asset_id, sampling);
-
-	packer->asset_count++;
 }
 
 void push_audio_clip(AssetPacker * packer, char * file_name, AssetId asset_id) {
@@ -610,8 +497,6 @@ void push_audio_clip(AssetPacker * packer, char * file_name, AssetId asset_id) {
 
 	AudioClip * audio_clip = packer->audio_clips + packer->audio_clip_count++;
 	*audio_clip = load_audio_clip(file_name, asset_id);
-
-	packer->asset_count++;
 }
 
 void push_tile_map(AssetPacker * packer, char * file_name, AssetId asset_id) {
@@ -619,27 +504,69 @@ void push_tile_map(AssetPacker * packer, char * file_name, AssetId asset_id) {
 
 	TileMapAsset * tile_map = packer->tile_maps + packer->tile_map_count++;
 	*tile_map = load_tile_map(file_name, asset_id);
-
-	packer->asset_count++;
 }
 
 void begin_packed_texture(AssetPacker * packer) {
-	ASSERT(!packer->working_sprite_count);
-}
+	ASSERT(packer->atlas_count < ARRAY_COUNT(packer->atlases));
 
-void end_packed_texture(AssetPacker * packer) {
-	ASSERT(packer->working_sprite_count);
-
-	push_packed_texture(packer, packer->working_sprites, packer->working_sprite_count);
-	packer->working_sprite_count = 0;
+	u32 atlas_index = packer->atlas_count++;
+	TextureAtlas * atlas = packer->atlases + atlas_index;
+	atlas->tex = allocate_texture(1536, 1536, AssetId_atlas);
 }
 
 void pack_sprite(AssetPacker * packer, char * file_name, AssetId asset_id) {
-	ASSERT(packer->working_sprite_count < ARRAY_COUNT(packer->working_sprites));
+	ASSERT(packer->atlas_count);
 
-	AssetFile * asset_file = packer->working_sprites + packer->working_sprite_count++;
-	asset_file->name = file_name;
-	asset_file->id = asset_id;
+	u32 atlas_index = packer->atlas_count - 1;
+	TextureAtlas * atlas = packer->atlases + atlas_index;
+
+	Texture blit_tex = load_texture(file_name, AssetId_null);
+	Blit blit = blit_texture(&atlas->tex, &blit_tex);
+
+	push_sprite(atlas, asset_id, atlas_index, &blit, math::vec2(blit_tex.width, blit_tex.height));
+}
+
+void pack_sprite_sheet(AssetPacker * packer, char const * file_name, AssetId sprite_id, u32 sprite_width, u32 sprite_height, u32 sprite_count) {
+	ASSERT(packer->atlas_count);
+
+	u32 atlas_index = packer->atlas_count - 1;
+	TextureAtlas * atlas = packer->atlases + atlas_index;
+
+	Texture source_tex = load_texture(file_name, AssetId_null);
+
+	math::Vec2 sprite_dim = math::vec2(sprite_width, sprite_height);
+	u32 sprites_in_row = source_tex.width / sprite_width;
+	u32 sprites_in_col = source_tex.height / sprite_height;
+
+	Texture blit_tex = {};
+	blit_tex.width = (u32)sprite_width;
+	blit_tex.height = (u32)sprite_height;
+	blit_tex.sampling = TextureSampling_bilinear;
+	blit_tex.size = blit_tex.width * blit_tex.height * TEXTURE_CHANNELS;
+	blit_tex.ptr = ALLOC_ARRAY(u8, blit_tex.size);
+
+	for(u32 y = 0; y < sprites_in_col; y++) {
+		for(u32 x = 0; x < sprites_in_row; x++) {
+			u32 u = x * sprite_width;
+			u32 v = (sprites_in_col - (y + 1)) * sprite_height;
+
+			for(u32 yy = 0, ii = 0; yy < sprite_height; yy++) {
+				for(u32 xx = 0; xx < sprite_width; xx++, ii += 4) {
+					u32 kk = ((v + yy) * source_tex.width + (u + xx)) * 4;
+
+					blit_tex.ptr[ii + 0] = source_tex.ptr[kk + 0];
+					blit_tex.ptr[ii + 1] = source_tex.ptr[kk + 1];
+					blit_tex.ptr[ii + 2] = source_tex.ptr[kk + 2];
+					blit_tex.ptr[ii + 3] = source_tex.ptr[kk + 3];
+				}
+			}
+
+			Blit blit = blit_texture(&atlas->tex, &blit_tex);
+			push_sprite(atlas, sprite_id, atlas_index, &blit, math::vec2(blit_tex.width, blit_tex.height));
+		}
+	}
+
+	FREE_MEMORY(blit_tex.ptr);
 }
 
 void write_out_asset_pack(AssetPacker * packer, char * file_name) {
@@ -647,7 +574,14 @@ void write_out_asset_pack(AssetPacker * packer, char * file_name) {
 	ASSERT(file_ptr != 0);
 
 	AssetPackHeader header = {};
-	header.asset_count = packer->asset_count;
+	header.asset_count += packer->atlas_count;
+	for(u32 i = 0; i < packer->atlas_count; i++) {
+		header.asset_count += packer->atlases[i].sprite_count;
+	}
+	header.asset_count += packer->texture_count;
+	header.asset_count += packer->audio_clip_count;
+	header.asset_count += packer->tile_map_count;
+	header.asset_count += packer->font_count;
 	std::fwrite(&header, sizeof(AssetPackHeader), 1, file_ptr);
 
 	for(u32 i = 0; i < packer->atlas_count; i++) {
@@ -839,22 +773,35 @@ int main() {
 
 		begin_packed_texture(packer);
 
-		pack_sprite(packer, "dolly_up.png", AssetId_dolly_up);
-		pack_sprite(packer, "dolly_down.png", AssetId_dolly_down);
+		pack_sprite(packer, "rocket_large0.png", AssetId_rocket_large);
+		pack_sprite(packer, "rocket_large1.png", AssetId_rocket_large);
+		pack_sprite(packer, "rocket_large2.png", AssetId_rocket_large);
+
+		pack_sprite_sheet(packer, "atom_smasher_large.png", AssetId_atom_smasher_large, 48, 384, 11);
+		pack_sprite_sheet(packer, "atom_smasher_medium.png", AssetId_atom_smasher_medium, 48, 192, 11);
+
+		pack_sprite(packer, "rocket.png", AssetId_rocket);
+
+		pack_sprite_sheet(packer, "atom_smasher_small.png", AssetId_atom_smasher_small, 48, 96, 24);
+		
+		pack_sprite_sheet(packer, "glow.png", AssetId_glow, 96, 96, 16);
+
+		pack_sprite_sheet(packer, "dolly_idle.png", AssetId_dolly_idle, 48, 48, 4);
+		pack_sprite_sheet(packer, "dolly_up.png", AssetId_dolly_up, 48, 48, 4);
+		pack_sprite_sheet(packer, "dolly_down.png", AssetId_dolly_down, 48, 48, 4);
+		pack_sprite_sheet(packer, "dolly_hit.png", AssetId_dolly_hit, 48, 48, 4);
+		pack_sprite_sheet(packer, "dolly_fall.png", AssetId_dolly_fall, 48, 48, 4);
 
 		pack_sprite(packer, "dolly_space_idle.png", AssetId_dolly_space_idle);
 		pack_sprite(packer, "dolly_space_up.png", AssetId_dolly_space_up);
 		pack_sprite(packer, "dolly_space_down.png", AssetId_dolly_space_down);
 
-		pack_sprite(packer, "rocket.png", AssetId_rocket);
-		pack_sprite(packer, "rocket_large0.png", AssetId_rocket_large);
-		pack_sprite(packer, "rocket_large1.png", AssetId_rocket_large);
-		pack_sprite(packer, "rocket_large2.png", AssetId_rocket_large);
+		pack_sprite_sheet(packer, "clock.png", AssetId_clock, 48, 48, 4);
+
 		pack_sprite(packer, "speed_up.png", AssetId_goggles);
 		pack_sprite(packer, "shield.png", AssetId_shield);
 		pack_sprite(packer, "clone.png", AssetId_clone);
 		pack_sprite(packer, "clone_space.png", AssetId_clone_space);
-		pack_sprite(packer, "clock.png", AssetId_clock);
 
 	#define X(NAME) pack_sprite(packer, "collect_" #NAME ".png", AssetId_collect_##NAME);
 		ASSET_ID_COLLECT_X
@@ -865,8 +812,6 @@ int main() {
 	#undef X
 
 		pack_sprite(packer, "concord.png", AssetId_concord);
-
-		end_packed_texture(packer);
 
 		begin_packed_texture(packer);
 
@@ -899,21 +844,6 @@ int main() {
 		pack_sprite(packer, "about_title.png", AssetId_about_title);
 
 		pack_sprite(packer, "sun.png", AssetId_sun);
-
-		end_packed_texture(packer);
-
-#if 0
-		begin_packed_texture(packer);
-		pack_sprite_sheet(packer, "glow.png", AssetId_glow, 96, 96, 16);
-		end_packed_texture(packer);
-#endif
-
-		push_sprite_sheet(packer, "dolly_fall.png", AssetId_dolly_fall, 48, 48, 4);
-		push_sprite_sheet(packer, "dolly_idle.png", AssetId_dolly_idle, 48, 48, 4);
-		push_sprite_sheet(packer, "atom_smasher_small.png", AssetId_atom_smasher_small, 48, 96, 7);
-		push_sprite_sheet(packer, "atom_smasher_medium.png", AssetId_atom_smasher_medium, 48, 192, 11);
-		push_sprite_sheet(packer, "atom_smasher_large.png", AssetId_atom_smasher_large, 48, 384, 11);
-		push_sprite_sheet(packer, "glow.png", AssetId_glow, 96, 96, 16);
 
 		write_out_asset_pack(packer, "atlas.pak");
 	}

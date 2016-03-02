@@ -146,6 +146,7 @@ enum AssetId {
 	AssetId_dolly_idle,
 	AssetId_dolly_up,
 	AssetId_dolly_down,
+	AssetId_dolly_hit,
 	AssetId_dolly_fall,
 
 	AssetId_dolly_space_idle,
@@ -162,15 +163,22 @@ enum AssetId {
 	AssetId_shield,
 	AssetId_glow,
 
+	BEGIN_ASSET_GROUP(atom_smasher),
 	AssetId_atom_smasher_small,
 	AssetId_atom_smasher_medium,
 	AssetId_atom_smasher_large,
+	END_ASSET_GROUP(atom_smasher),
 	
 	AssetId_sun,
 
 #define ASSET_ID_COLLECT_X	\
+	X(arm)					\
+	X(bicycle)				\
 	X(chair)				\
+	X(computer)				\
 	X(cup)					\
+	X(guitar)				\
+	X(lion)					\
 	X(mini)					\
 	X(mobile)				\
 	X(necklace) 			\
@@ -236,6 +244,8 @@ enum AssetId {
 #define ASSET_FIRST_GROUP_ID(name) ((AssetId)(AssetId_one_before_first_##name + 1))
 #define ASSET_LAST_GROUP_ID(name) ((AssetId)(AssetId_one_past_last_##name - 1))
 #define ASSET_GROUP_COUNT(name) (AssetId_one_past_last_##name - (AssetId_one_before_first_##name + 1))
+
+#define ASSET_IN_GROUP(name, id) ((id) >= ASSET_FIRST_GROUP_ID(name) && (id) <= ASSET_LAST_GROUP_ID(name))
 
 #define ASSET_ID_TO_GROUP_INDEX(name, id) (id - (AssetId_one_before_first_##name + 1))
 #define ASSET_GROUP_INDEX_TO_ID(name, index) ((AssetId)(AssetId_one_before_first_##name + 1 + index))

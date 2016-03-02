@@ -207,8 +207,11 @@ struct InfoDisplay {
 	AssetRef asset;
 
 	f32 time_;
+	f32 total_time;
 	f32 alpha;
 	f32 scale;
+
+	b32 is_collect;
 };
 
 enum ButtonId {
@@ -228,7 +231,7 @@ enum ButtonId {
 
 #define SAVE_FILE_CODE 0x594C4C44 //"DLLY"
 //TODO: Can we inc this automatically somehow??
-#define SAVE_FILE_VERSION 6
+#define SAVE_FILE_VERSION 7
 #pragma pack(push, 1)
 struct SaveFileHeader {
 	u32 code;
