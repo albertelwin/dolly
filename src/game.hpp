@@ -200,6 +200,11 @@ enum TransitionType {
 };
 
 struct IntroFrame {
+	AssetRef asset;
+
+	math::Vec3 pos;
+
+	f32 time_;
 	f32 alpha;
 };
 
@@ -283,7 +288,7 @@ struct IntroMetaState {
 
 	UiLayer ui_layer;
 
-	IntroFrame frames[4];
+	IntroFrame frames[ASSET_GROUP_COUNT(intro)];
 	f32 anim_time;
 
 	u32 transition_id;
@@ -337,6 +342,8 @@ struct MainMetaState {
 	f32 start_time;
 	f32 max_time;
 	f32 clock_pickup_time;
+
+	u32 clones_lost_on_hit;
 
 	f32 clock_label_scale;
 	f32 clock_label_index;
@@ -400,8 +407,6 @@ struct GameState {
 	SaveFileHeader save;
 	f32 auto_save_time;
 	f32 time_until_next_save;
-
-	Str * str;
 
 	RenderGroup * debug_render_group;
 	Str * debug_str;

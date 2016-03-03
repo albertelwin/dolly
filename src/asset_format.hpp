@@ -168,6 +168,13 @@ enum AssetId {
 	AssetId_atom_smasher_medium,
 	AssetId_atom_smasher_large,
 	END_ASSET_GROUP(atom_smasher),
+
+	BEGIN_ASSET_GROUP(intro),
+	AssetId_intro0,
+	AssetId_intro1,
+	AssetId_intro2,
+	AssetId_intro3,
+	END_ASSET_GROUP(intro),
 	
 	AssetId_sun,
 
@@ -210,8 +217,6 @@ enum AssetId {
 
 	AssetId_label_clock,
 
-	AssetId_intro,
-
 	//NOTE: Audio
 	AssetId_pickup,
 	AssetId_bang,
@@ -228,7 +233,8 @@ enum AssetId {
 	AssetId_space_music,
 
 	//NOTE: Tile maps
-	AssetId_debug_tile_map,
+	AssetId_debug_lower_map,
+	AssetId_debug_upper_map,
 
 	AssetId_lower_map,
 	AssetId_upper_map,
@@ -236,7 +242,7 @@ enum AssetId {
 
 	//NOTE: Fonts
 	ADD_FONT_ASSET_ID(pragmata_pro),
-	ADD_FONT_ASSET_ID(arcade_n),
+	ADD_FONT_ASSET_ID(munro),
 
 	AssetId_count,
 };

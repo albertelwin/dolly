@@ -329,8 +329,8 @@ void wget_callback(char const * str) {
 }
 
 int main() {
-	for(u32 i = 0; i < ARRAY_COUNT(debug_global_asset_file_names); i++) {
-		char const * file_name = debug_global_asset_file_names[i];
+	for(u32 i = 0; i < ARRAY_COUNT(global_dev_asset_files); i++) {
+		char const * file_name = global_dev_asset_files[i].file_name;
 		emscripten_async_wget(file_name, file_name, wget_callback, wget_callback);
 		debug_global_file_loaded_counter++;
 	}

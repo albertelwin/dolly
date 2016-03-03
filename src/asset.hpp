@@ -6,7 +6,7 @@
 
 enum AssetFileType {
 	AssetFileType_pak,
-	AssetFileType_ogg,
+	AssetFileType_one,
 };
 struct AssetFile {
 	char * file_name;
@@ -18,18 +18,45 @@ struct AssetFile {
 	};
 };
 
+inline AssetFile asset_file_one(char * file_name, AssetId asset_id) {
+	AssetFile asset_file = {};
+	asset_file.file_name = file_name;
+	asset_file.type = AssetFileType_one;
+	asset_file.asset_id = asset_id;
+	return asset_file;
+}
+
+inline AssetFile asset_file_pak(char * file_name, char * archive_name) {
+	AssetFile asset_file = {};
+	asset_file.file_name = file_name;
+	asset_file.type = AssetFileType_pak;
+	asset_file.archive_name = archive_name;
+	return asset_file;
+}
+
 #if DEV_ENABLED
-static char const * debug_global_asset_file_names[] = {
-	"/dev/placement0.png",
-	"/dev/placement1.png",
-	"/dev/placement2.png",
-	"/dev/placement3.png",
-	"/dev/placement4.png",
-	"/dev/placement5.png",
-	"/dev/placement6.png",
-	"/dev/placement7.png",
-	"/dev/placement8.png",
-	"/dev/placement9.png",
+static AssetFile global_dev_asset_files[] = {
+	asset_file_one((char *)"/dev/placement0.png", AssetId_debug_lower_map),
+	asset_file_one((char *)"/dev/placement1.png", AssetId_debug_lower_map),
+	asset_file_one((char *)"/dev/placement2.png", AssetId_debug_lower_map),
+	asset_file_one((char *)"/dev/placement3.png", AssetId_debug_lower_map),
+	asset_file_one((char *)"/dev/placement4.png", AssetId_debug_lower_map),
+	asset_file_one((char *)"/dev/placement5.png", AssetId_debug_lower_map),
+	asset_file_one((char *)"/dev/placement6.png", AssetId_debug_lower_map),
+	asset_file_one((char *)"/dev/placement7.png", AssetId_debug_lower_map),
+	asset_file_one((char *)"/dev/placement8.png", AssetId_debug_lower_map),
+	asset_file_one((char *)"/dev/placement9.png", AssetId_debug_lower_map),
+
+	asset_file_one((char *)"/dev/placement_space0.png", AssetId_debug_upper_map),
+	asset_file_one((char *)"/dev/placement_space1.png", AssetId_debug_upper_map),
+	asset_file_one((char *)"/dev/placement_space2.png", AssetId_debug_upper_map),
+	asset_file_one((char *)"/dev/placement_space3.png", AssetId_debug_upper_map),
+	asset_file_one((char *)"/dev/placement_space4.png", AssetId_debug_upper_map),
+	asset_file_one((char *)"/dev/placement_space5.png", AssetId_debug_upper_map),
+	asset_file_one((char *)"/dev/placement_space6.png", AssetId_debug_upper_map),
+	asset_file_one((char *)"/dev/placement_space7.png", AssetId_debug_upper_map),
+	asset_file_one((char *)"/dev/placement_space8.png", AssetId_debug_upper_map),
+	asset_file_one((char *)"/dev/placement_space9.png", AssetId_debug_upper_map),
 };
 #endif
 
@@ -88,6 +115,7 @@ struct AssetState {
 	AssetGroup asset_groups[AssetId_count];
 
 	f32 debug_load_time;
+	u32 debug_total_size;
 };
 
 #endif

@@ -13,22 +13,6 @@
 #define STB_VORBIS_NO_PUSHDATA_API
 #include <stb_vorbis.c>
 
-AssetFile asset_file_ogg(char * file_name, AssetId asset_id) {
-	AssetFile asset_file = {};
-	asset_file.file_name = file_name;
-	asset_file.type = AssetFileType_ogg;
-	asset_file.asset_id = asset_id;
-	return asset_file;
-}
-
-AssetFile asset_file_pak(char * file_name, char * archive_name) {
-	AssetFile asset_file = {};
-	asset_file.file_name = file_name;
-	asset_file.type = AssetFileType_pak;
-	asset_file.archive_name = archive_name;
-	return asset_file;
-}
-
 AssetRef asset_ref(AssetId id, u32 index = 0) {
 	AssetRef ref;
 	ref.id = id;
@@ -96,6 +80,8 @@ void process_asset_file(AssetState * assets, AssetFile asset_file) {
 		//TODO: Can we just get the first archive??
 		file_buf.ptr = (u8 *)mz_zip_extract_archive_file_to_heap(asset_file.file_name, asset_file.archive_name, &file_buf.size, 0);
 		u8 * file_ptr = file_buf.ptr;
+
+		assets->debug_total_size += file_buf.size;
 
 		AssetPackHeader * pack = (AssetPackHeader *)file_ptr;
 		file_ptr += sizeof(AssetPackHeader);
@@ -186,7 +172,7 @@ void process_asset_file(AssetState * assets, AssetFile asset_file) {
 		}
 	}
 	else {
-		ASSERT(asset_file.type == AssetFileType_ogg);
+		ASSERT(asset_file.type == AssetFileType_one);
 
 		i32 channels, sample_rate;
 		i16 * samples;
@@ -198,6 +184,8 @@ void process_asset_file(AssetState * assets, AssetFile asset_file) {
 		//TODO: Need to add the padding sample to the front of the source audio clip!!
 		asset->audio_clip.samples = (u32)(sample_count - AUDIO_PADDING_SAMPLES);
 		asset->audio_clip.sample_data = samples;
+
+		assets->debug_total_size += (u32)sample_count * channels * sizeof(i16);
 	}
 }
 
@@ -209,17 +197,18 @@ void load_assets(AssetState * assets, MemoryArena * arena) {
 	process_asset_file(assets, asset_file_pak((char *)"pak/preload.zip", (char *)"preload.pak"));
 
 #if DEV_ENABLED
-	for(u32 i = 0; i < ARRAY_COUNT(debug_global_asset_file_names); i++) {
-		char const * file_name = debug_global_asset_file_names[i];
+	for(u32 i = 0; i < ARRAY_COUNT(global_dev_asset_files); i++) {
+		AssetFile asset_file = global_dev_asset_files[i];
+		ASSERT(asset_file.type == AssetFileType_one);
 
 		i32 width, height, channels;
 		stbi_set_flip_vertically_on_load(true);
-		u8 * img_data = stbi_load(file_name, &width, &height, &channels, 0);
+		u8 * img_data = stbi_load(asset_file.file_name, &width, &height, &channels, 0);
 		if(img_data) {
 			ASSERT(channels == 3 || channels == 4);
 			ASSERT(height = TILE_MAP_HEIGHT);
 
-			Asset * asset = push_asset(assets, AssetId_debug_tile_map, AssetType_tile_map);
+			Asset * asset = push_asset(assets, asset_file.asset_id, AssetType_tile_map);
 			asset->tile_map.width = (u32)width;
 			asset->tile_map.tiles = ALLOC_ARRAY(Tiles, (u32)width);
 
@@ -255,37 +244,37 @@ b32 process_next_asset_file(AssetState * assets) {
 	b32 loaded = false;
 
 	AssetFile asset_files[] = {
-		asset_file_ogg((char *)"audio/pickup0.ogg", AssetId_pickup),
-		asset_file_ogg((char *)"audio/pickup1.ogg", AssetId_pickup),
-		asset_file_ogg((char *)"audio/pickup2.ogg", AssetId_pickup),
-		asset_file_ogg((char *)"audio/bang0.ogg", AssetId_bang),
-		asset_file_ogg((char *)"audio/bang1.ogg", AssetId_bang),
-		asset_file_ogg((char *)"audio/baa0.ogg", AssetId_baa),
-		asset_file_ogg((char *)"audio/baa1.ogg", AssetId_baa),
-		asset_file_ogg((char *)"audio/baa2.ogg", AssetId_baa),
-		asset_file_ogg((char *)"audio/baa3.ogg", AssetId_baa),
-		asset_file_ogg((char *)"audio/baa4.ogg", AssetId_baa),
-		asset_file_ogg((char *)"audio/baa5.ogg", AssetId_baa),
-		asset_file_ogg((char *)"audio/baa6.ogg", AssetId_baa),
-		asset_file_ogg((char *)"audio/baa7.ogg", AssetId_baa),
-		asset_file_ogg((char *)"audio/baa8.ogg", AssetId_baa),
-		asset_file_ogg((char *)"audio/baa9.ogg", AssetId_baa),
-		asset_file_ogg((char *)"audio/baa10.ogg", AssetId_baa),
-		asset_file_ogg((char *)"audio/baa11.ogg", AssetId_baa),
-		asset_file_ogg((char *)"audio/baa12.ogg", AssetId_baa),
-		asset_file_ogg((char *)"audio/baa13.ogg", AssetId_baa),
-		asset_file_ogg((char *)"audio/baa14.ogg", AssetId_baa),
-		asset_file_ogg((char *)"audio/baa15.ogg", AssetId_baa),
-		asset_file_ogg((char *)"audio/special.ogg", AssetId_special),
+		asset_file_one((char *)"audio/pickup0.ogg", AssetId_pickup),
+		asset_file_one((char *)"audio/pickup1.ogg", AssetId_pickup),
+		asset_file_one((char *)"audio/pickup2.ogg", AssetId_pickup),
+		asset_file_one((char *)"audio/bang0.ogg", AssetId_bang),
+		asset_file_one((char *)"audio/bang1.ogg", AssetId_bang),
+		asset_file_one((char *)"audio/baa0.ogg", AssetId_baa),
+		asset_file_one((char *)"audio/baa1.ogg", AssetId_baa),
+		asset_file_one((char *)"audio/baa2.ogg", AssetId_baa),
+		asset_file_one((char *)"audio/baa3.ogg", AssetId_baa),
+		asset_file_one((char *)"audio/baa4.ogg", AssetId_baa),
+		asset_file_one((char *)"audio/baa5.ogg", AssetId_baa),
+		asset_file_one((char *)"audio/baa6.ogg", AssetId_baa),
+		asset_file_one((char *)"audio/baa7.ogg", AssetId_baa),
+		asset_file_one((char *)"audio/baa8.ogg", AssetId_baa),
+		asset_file_one((char *)"audio/baa9.ogg", AssetId_baa),
+		asset_file_one((char *)"audio/baa10.ogg", AssetId_baa),
+		asset_file_one((char *)"audio/baa11.ogg", AssetId_baa),
+		asset_file_one((char *)"audio/baa12.ogg", AssetId_baa),
+		asset_file_one((char *)"audio/baa13.ogg", AssetId_baa),
+		asset_file_one((char *)"audio/baa14.ogg", AssetId_baa),
+		asset_file_one((char *)"audio/baa15.ogg", AssetId_baa),
+		asset_file_one((char *)"audio/special.ogg", AssetId_special),
 
-		asset_file_ogg((char *)"audio/click_yes.ogg", AssetId_click_yes),
-		asset_file_ogg((char *)"audio/click_no.ogg", AssetId_click_no),
+		asset_file_one((char *)"audio/click_yes.ogg", AssetId_click_yes),
+		asset_file_one((char *)"audio/click_no.ogg", AssetId_click_no),
 
-		asset_file_ogg((char *)"audio/rocket_sfx.ogg", AssetId_rocket_sfx),
+		asset_file_one((char *)"audio/rocket_sfx.ogg", AssetId_rocket_sfx),
 
-		asset_file_ogg((char *)"audio/menu_music.ogg", AssetId_menu_music),
-		asset_file_ogg((char *)"audio/game_music.ogg", AssetId_game_music),
-		asset_file_ogg((char *)"audio/space_music.ogg", AssetId_space_music),
+		asset_file_one((char *)"audio/menu_music.ogg", AssetId_menu_music),
+		asset_file_one((char *)"audio/game_music.ogg", AssetId_game_music),
+		asset_file_one((char *)"audio/space_music.ogg", AssetId_space_music),
 
 		asset_file_pak((char *)"pak/map.zip", (char *)"map.pak"),
 		asset_file_pak((char *)"pak/texture.zip", (char *)"texture.pak"),

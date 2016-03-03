@@ -506,12 +506,12 @@ void push_tile_map(AssetPacker * packer, char * file_name, AssetId asset_id) {
 	*tile_map = load_tile_map(file_name, asset_id);
 }
 
-void begin_packed_texture(AssetPacker * packer) {
+void begin_packed_texture(AssetPacker * packer, TextureSampling sampling = TextureSampling_bilinear) {
 	ASSERT(packer->atlas_count < ARRAY_COUNT(packer->atlases));
 
 	u32 atlas_index = packer->atlas_count++;
 	TextureAtlas * atlas = packer->atlases + atlas_index;
-	atlas->tex = allocate_texture(1536, 1536, AssetId_atlas);
+	atlas->tex = allocate_texture(1536, 1536, AssetId_atlas, sampling);
 }
 
 void pack_sprite(AssetPacker * packer, char * file_name, AssetId asset_id) {
@@ -769,7 +769,7 @@ int main() {
 	//TODO: Spread atlases across multiple files??
 	{
 		push_font(packer, "pragmata_pro.ttf", AssetId_pragmata_pro, 16.0f),
-		push_font(packer, "arcade_n.ttf", AssetId_arcade_n, 16.0f),
+		push_font(packer, "munro.ttf", AssetId_munro, 30.0f),
 
 		begin_packed_texture(packer);
 
@@ -778,10 +778,11 @@ int main() {
 		pack_sprite(packer, "rocket_large2.png", AssetId_rocket_large);
 
 		pack_sprite_sheet(packer, "atom_smasher_large.png", AssetId_atom_smasher_large, 48, 384, 11);
-		pack_sprite_sheet(packer, "atom_smasher_medium.png", AssetId_atom_smasher_medium, 48, 192, 11);
 
+		pack_sprite(packer, "sun.png", AssetId_sun);
 		pack_sprite(packer, "rocket.png", AssetId_rocket);
 
+		pack_sprite_sheet(packer, "atom_smasher_medium.png", AssetId_atom_smasher_medium, 48, 192, 11);
 		pack_sprite_sheet(packer, "atom_smasher_small.png", AssetId_atom_smasher_small, 48, 96, 24);
 		
 		pack_sprite_sheet(packer, "glow.png", AssetId_glow, 96, 96, 16);
@@ -797,6 +798,8 @@ int main() {
 		pack_sprite(packer, "dolly_space_down.png", AssetId_dolly_space_down);
 
 		pack_sprite_sheet(packer, "clock.png", AssetId_clock, 48, 48, 4);
+		pack_sprite(packer, "label_clock0.png", AssetId_label_clock);
+		pack_sprite(packer, "label_clock1.png", AssetId_label_clock);
 
 		pack_sprite(packer, "speed_up.png", AssetId_goggles);
 		pack_sprite(packer, "shield.png", AssetId_shield);
@@ -813,7 +816,10 @@ int main() {
 
 		pack_sprite(packer, "concord.png", AssetId_concord);
 
-		begin_packed_texture(packer);
+		begin_packed_texture(packer, TextureSampling_point);
+
+		pack_sprite(packer, "about_body.png", AssetId_about_body);
+		pack_sprite(packer, "about_title.png", AssetId_about_title);
 
 		pack_sprite(packer, "btn_play0.png", AssetId_btn_play);
 		pack_sprite(packer, "btn_play1.png", AssetId_btn_play);
@@ -832,18 +838,10 @@ int main() {
 		pack_sprite(packer, "btn_skip0.png", AssetId_btn_skip);
 		pack_sprite(packer, "btn_skip1.png", AssetId_btn_skip);
 
-		pack_sprite(packer, "label_clock0.png", AssetId_label_clock);
-		pack_sprite(packer, "label_clock1.png", AssetId_label_clock);
-
-		pack_sprite(packer, "intro0.png", AssetId_intro);
-		pack_sprite(packer, "intro1.png", AssetId_intro);
-		pack_sprite(packer, "intro2.png", AssetId_intro);
-		pack_sprite(packer, "intro3.png", AssetId_intro);
-
-		pack_sprite(packer, "about_body.png", AssetId_about_body);
-		pack_sprite(packer, "about_title.png", AssetId_about_title);
-
-		pack_sprite(packer, "sun.png", AssetId_sun);
+		pack_sprite_sheet(packer, "intro0.png", AssetId_intro0, 75, 75, 30);
+		pack_sprite_sheet(packer, "intro1.png", AssetId_intro1, 75, 75, 30);
+		pack_sprite_sheet(packer, "intro2.png", AssetId_intro2, 75, 75, 30);
+		pack_sprite_sheet(packer, "intro3.png", AssetId_intro3, 75, 75, 30);
 
 		write_out_asset_pack(packer, "atlas.pak");
 	}

@@ -136,8 +136,7 @@ void kill_player(MainMetaState * main_state, Player * player) {
 }
 
 math::Vec4 get_rand_clone_color() {
-	// return math::vec4(math::lerp(math::rand_vec3(), math::vec3(1.0f), 0.75f), 1.0f);
-	return math::vec4(math::lerp(math::vec3(math::rand_f32()), math::vec3(1.0f), 0.75f), 1.0f);
+	return math::vec4(math::lerp(math::rand_vec3(), math::vec3(1.0f), 0.75f), 1.0f);
 }
 
 void push_player_clone(Player * player) {
@@ -208,7 +207,7 @@ void change_scene_asset_type(MainMetaState * main_state, SceneId scene_id, Asset
 	scene->tile_to_asset_table[TileId_bad_small] = AssetId_atom_smasher_small;
 	scene->tile_to_asset_table[TileId_bad_medium] = AssetId_atom_smasher_medium;
 	scene->tile_to_asset_table[TileId_bad_large] = AssetId_atom_smasher_large;
-	scene->tile_to_asset_table[TileId_time] = AssetId_clock;
+	scene->tile_to_asset_table[TileId_time] = AssetId_clone;
 	scene->tile_to_asset_table[TileId_clone] = AssetId_clone;
 	scene->tile_to_asset_table[TileId_collect] = ASSET_FIRST_GROUP_ID(collect);
 	scene->tile_to_asset_table[TileId_concord] = AssetId_goggles;
@@ -627,9 +626,17 @@ void init_intro_meta_state(MetaStateHeader * meta_state) {
 	RenderState * render_state = meta_state->render_state;
 	intro_state->render_group = allocate_render_group(render_state, &meta_state->arena, render_state->screen_width, render_state->screen_height);
 
+	math::Vec3 frame_positions[ARRAY_COUNT(intro_state->frames)] = {
+		math::vec3(-315.0f, 0.0f, 0.0f),
+		math::vec3(0.0f),
+		math::vec3(315.0f, 0.0f, 0.0f),
+		math::vec3(0.0f),
+	};
+
 	for(u32 i = 0; i < ARRAY_COUNT(intro_state->frames); i++) {
 		IntroFrame * frame = intro_state->frames + i;
-		frame->alpha = 0.0f;
+		frame->asset.id = ASSET_GROUP_INDEX_TO_ID(intro, i);
+		frame->pos = frame_positions[i];
 	}
 
 	push_ui_elem(&intro_state->ui_layer, 0, AssetId_btn_skip, AssetId_click_yes);
@@ -727,8 +734,8 @@ void init_main_meta_state(MetaStateHeader * meta_state) {
 	}
 
 #if DEV_ENABLED
-	main_state->scenes[SceneId_lower].map_id = AssetId_debug_tile_map;
-	main_state->scenes[SceneId_upper].map_id = AssetId_debug_tile_map;
+	main_state->scenes[SceneId_lower].map_id = AssetId_debug_lower_map;
+	main_state->scenes[SceneId_upper].map_id = AssetId_debug_upper_map;
 #else
 	main_state->scenes[SceneId_lower].map_id = AssetId_tutorial_map;
 	main_state->scenes[SceneId_upper].map_id = AssetId_upper_map;
@@ -832,7 +839,9 @@ void init_main_meta_state(MetaStateHeader * meta_state) {
 	main_state->boost_accel = 40.0f;
 	main_state->boost_time = 4.0f;
 	main_state->slow_down_speed = 0.25f;
-	main_state->slow_down_time = 1.0f;
+	main_state->slow_down_time = 0.5f;
+
+	main_state->clones_lost_on_hit = 10;
 
 	//TODO: Make this platform independent!!
 #if __EMSCRIPTEN__ && DEV_ENABLED
@@ -845,6 +854,8 @@ void init_main_meta_state(MetaStateHeader * meta_state) {
 	main_state->boost_time = (f32)EM_ASM_DOUBLE_V({ return Prefs.boost_time });
 	main_state->slow_down_speed = (f32)EM_ASM_DOUBLE_V({ return Prefs.slow_down_speed });
 	main_state->slow_down_time = (f32)EM_ASM_DOUBLE_V({ return Prefs.slow_down_time; });
+
+	main_state->clones_lost_on_hit = EM_ASM_INT_V({ return Prefs.clones_lost_on_hit; });
 #endif
 
 	main_state->max_time = main_state->start_time;
@@ -978,21 +989,6 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 		AudioState * audio_state = &game_state->audio_state;
 		RenderState * render_state = &game_state->render_state;
 
-		str_clear(game_state->str);
-		// str_print(game_state->str, "PLAYS: %u | HIGH_SCORE: %u | LONGEST_RUN: %.2f\n\n", game_state->save.plays, game_state->save.high_score, game_state->save.longest_run);
-
-#if 0
-		for(u32 i = 0; i < ARRAY_COUNT(game_state->save.collect_unlock_states); i++){
-			b32 unlocked = game_state->save.collect_unlock_states[i];
-
-			char * unlocked_str = (char *)"UNLOCKED";
-			char * locked_str = (char *)"LOCKED";
-
-			str_print(game_state->str, "[%u]: %s\n", i, unlocked ? unlocked_str : locked_str);
-		}
-		str_print(game_state->str, "\n");
-#endif
-
 		if(game_input->buttons[ButtonId_debug] & KEY_PRESSED) {
 			game_state->debug_show_overlay = !game_state->debug_show_overlay;
 		}
@@ -1051,6 +1047,12 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 			case MetaStateType_intro: {
 				IntroMetaState * intro_state = (IntroMetaState *)get_meta_state(game_state, MetaStateType_intro);
+
+				for(u32 i = 0; i < ARRAY_COUNT(intro_state->frames); i++) {
+					IntroFrame * frame = intro_state->frames + i;
+					frame->time_ += game_input->delta_time * ANIMATION_FRAMES_PER_SEC;
+					frame->asset.index = (u32)frame->time_ % get_asset_count(assets, frame->asset.id);
+				}
 
 				UiElement * interact_elem = process_ui_layer(&intro_state->header, &intro_state->ui_layer, intro_state->render_group, game_input);
 				if(!game_state->transitioning) {
@@ -1145,6 +1147,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				if(!player->dead) {
 					f32 dt = game_input->delta_time;
 
+#if 0
 					if(!time_frozen) {
 						f32 new_time_remaining = main_state->time_remaining - dt;
 						if(new_time_remaining < 0.0f) {
@@ -1156,6 +1159,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 						main_state->time_remaining = new_time_remaining;
 					}
+#endif
 
 					score_system->distance += dt;
 				}
@@ -1170,6 +1174,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 				main_state->accel_time -= game_input->delta_time;
 				if(main_state->accel_time <= 0.0f) {
+					if(main_state->dd_speed < 0.0f) {
+						kill_player(main_state, player);
+					}
+
 					main_state->dd_speed = 0.0f;
 					main_state->accel_time = 0.0f;
 				}
@@ -1430,7 +1438,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 							case AssetId_atom_smasher_medium:
 							case AssetId_atom_smasher_large: {
 								if(!player->invincibility_time) {	
-									pop_player_clones(player, 50);
+									pop_player_clones(player, main_state->clones_lost_on_hit);
 									is_slow_down = true;
 								}
 
@@ -1806,7 +1814,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 				for(u32 i = 0; i < ARRAY_COUNT(intro_state->frames); i++) {
 					IntroFrame * frame = intro_state->frames + i;
-					push_textured_quad(render_group, asset_ref(AssetId_intro, i), math::vec3(0.0f), math::vec2(1.0f), 0.0f, math::vec4(1.0f, 1.0f, 1.0f, frame->alpha));
+					push_textured_quad(render_group, frame->asset, frame->pos, math::vec2(4.0f), 0.0f, math::vec4(1.0f, 1.0f, 1.0f, frame->alpha));
 				}
 
 				push_ui_layer_to_render_group(&intro_state->ui_layer, render_group);
@@ -1864,7 +1872,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 				f32 fixed_letterboxing = main_state->fixed_letterboxing;
 
-				Font * font = get_font_asset(main_state->header.assets, AssetId_arcade_n, 0);
+				Font * font = get_font_asset(main_state->header.assets, AssetId_munro, 0);
 				//TODO: Need a convenient way to make temp strs!!
 				char temp_buf[256];
 				Str temp_str = str_fixed_size(temp_buf, ARRAY_COUNT(temp_buf));
@@ -1872,6 +1880,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 				ScoreSystem * score_system = &main_state->score_system;
 
 				if(!score_system->show) {
+#if 0
 					math::Vec3 label_pos = math::vec3(0.0f, projection_dim.y * 0.5f - main_state->fixed_letterboxing, 0.0f);
 					push_textured_quad(ui_render_group, asset_ref(AssetId_label_clock, main_state->clock_label_index), label_pos, math::vec2(main_state->clock_label_scale));
 
@@ -1879,11 +1888,12 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					str_print(&temp_str, "%u", (u32)math::ceil_to_i32(main_state->time_remaining));
 
 					f32 font_scale = 1.0f * main_state->clock_label_scale;
-					FontLayout font_layout = create_font_layout(font, projection_dim, font_scale, FontLayoutAnchor_top_centre, math::vec2(1.0f, -main_state->fixed_letterboxing + 9.0f * font_scale), false);
+					FontLayout font_layout = create_font_layout(font, projection_dim, font_scale, FontLayoutAnchor_top_centre, math::vec2(1.0f, -main_state->fixed_letterboxing + 20.0f * font_scale), false);
 					push_str_to_render_group(ui_render_group, font, &font_layout, &temp_str, math::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+#endif
 
 					{
-						FontLayout font_layout = create_font_layout(font, projection_dim, 1.0f, FontLayoutAnchor_bottom_centre, math::vec2(0.0f, fixed_letterboxing - (font->ascent - font->descent) - 20.0f));
+						FontLayout font_layout = create_font_layout(font, projection_dim, 1.0f, FontLayoutAnchor_bottom_centre, math::vec2(0.0f, fixed_letterboxing * 0.5f - 9.0f));
 						push_c_str_to_render_group(ui_render_group, font, &font_layout, main_state->scenes[main_state->current_scene].name);
 					}
 
@@ -1909,9 +1919,11 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 							u32 collect_index = ASSET_ID_TO_GROUP_INDEX(collect, info_display->asset.id);
 							str_print(&temp_str, info_strs[collect_index]);
 						}
+#if 0
 						else {
 							str_print(&temp_str, "+%u seconds!!", (u32)main_state->clock_pickup_time);
 						}
+#endif
 
 						FontLayout font_layout = create_font_layout(font, projection_dim, info_display->scale, FontLayoutAnchor_top_centre, math::vec2(0.0f, -132.0f), false);
 						push_str_to_render_group(ui_render_group, font, &font_layout, &temp_str, math::vec4(1.0f, 1.0f, 1.0f, info_display->alpha));
@@ -1996,7 +2008,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					push_ui_layer_to_render_group(&score_system->ui, ui_render_group);
 				}
 
-				// push_textured_quad(ui_render_group, asset_ref(AssetId_atlas, 2), math::vec3(0.0f), math::vec2(0.25f));
+				// push_textured_quad(ui_render_group, asset_ref(AssetId_atlas, 3), math::vec3(0.0f), math::vec2(0.25f));
 
 				render_and_clear_render_group(main_state->header.render_state, ui_render_group);
 
@@ -2012,11 +2024,10 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 			Font * debug_font = get_font_asset(assets, AssetId_pragmata_pro, 0);
 			FontLayout debug_font_layout = create_font_layout(debug_font, math::vec2(render_state->back_buffer_width, render_state->back_buffer_height), 1.0f, FontLayoutAnchor_top_left, math::vec2(debug_font->whitespace_advance, 0.0f));
-			push_str_to_render_group(debug_render_group, debug_font, &debug_font_layout, game_state->str);
 
-			char temp_buf[128];
+			char temp_buf[256];
 			Str temp_str = str_fixed_size(temp_buf, ARRAY_COUNT(temp_buf));
-			str_print(&temp_str, "asset load time: %fms\n", assets->debug_load_time);
+			str_print(&temp_str, "asset load time: %fms | asset total size: %ukb\n", assets->debug_load_time, assets->debug_total_size / 1024);
 			str_print(&temp_str, "dt: %fms\n", game_input->delta_time);
 			str_print(&temp_str, "supported: %s | sources playing: %u | sources to free: %u\n", game_state->audio_state.supported ? "true" : "false", game_state->audio_state.debug_sources_playing, game_state->audio_state.debug_sources_to_free);
 			str_print(&temp_str, "\n");
