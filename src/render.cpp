@@ -120,22 +120,22 @@ void push_quad_to_batch(RenderBatch * batch, math::Vec2 pos0, math::Vec2 pos1, m
 	color.rgb *= color.a;
 
 	v[batch->e++] =  pos0.x; v[batch->e++] =  pos0.y; v[batch->e++] =   uv0.x; v[batch->e++] =   uv0.y;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
+	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;
 
 	v[batch->e++] =  pos1.x; v[batch->e++] =  pos1.y; v[batch->e++] =   uv1.x; v[batch->e++] =   uv1.y;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
+	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;
 
 	v[batch->e++] =  pos0.x; v[batch->e++] =  pos1.y; v[batch->e++] =   uv0.x; v[batch->e++] =   uv1.y;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
+	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;
 
 	v[batch->e++] =  pos0.x; v[batch->e++] =  pos0.y; v[batch->e++] =   uv0.x; v[batch->e++] =   uv0.y;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
+	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;
 
 	v[batch->e++] =  pos1.x; v[batch->e++] =  pos0.y; v[batch->e++] =   uv1.x; v[batch->e++] =   uv0.y;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;	
+	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;	
 
 	v[batch->e++] =  pos1.x; v[batch->e++] =  pos1.y; v[batch->e++] =   uv1.x; v[batch->e++] =   uv1.y;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
+	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;
 }
 
 void push_rotated_quad_to_batch(RenderBatch * batch, math::Vec2 pos0, math::Vec2 pos1, math::Vec2 pos2, math::Vec2 pos3, math::Vec2 uv0, math::Vec2 uv1, math::Vec4 color) {
@@ -146,22 +146,22 @@ void push_rotated_quad_to_batch(RenderBatch * batch, math::Vec2 pos0, math::Vec2
 	color.rgb *= color.a;
 	
 	v[batch->e++] =  pos0.x; v[batch->e++] =  pos0.y; v[batch->e++] =   uv0.x; v[batch->e++] =   uv0.y;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
+	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;
 
 	v[batch->e++] =  pos1.x; v[batch->e++] =  pos1.y; v[batch->e++] =   uv1.x; v[batch->e++] =   uv1.y;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
+	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;
 
 	v[batch->e++] =  pos2.x; v[batch->e++] =  pos2.y; v[batch->e++] =   uv0.x; v[batch->e++] =   uv1.y;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
+	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;
 
 	v[batch->e++] =  pos0.x; v[batch->e++] =  pos0.y; v[batch->e++] =   uv0.x; v[batch->e++] =   uv0.y;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
+	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;
 
 	v[batch->e++] =  pos3.x; v[batch->e++] =  pos3.y; v[batch->e++] =   uv1.x; v[batch->e++] =   uv0.y;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;	
+	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;	
 
 	v[batch->e++] =  pos1.x; v[batch->e++] =  pos1.y; v[batch->e++] =   uv1.x; v[batch->e++] =   uv1.y;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
+	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;
 }
 
 void push_quad_lines_to_batch(RenderBatch * batch, math::Rec2 * rec, math::Vec4 color) {
@@ -175,24 +175,24 @@ void push_quad_lines_to_batch(RenderBatch * batch, math::Rec2 * rec, math::Vec4 
 	math::Vec2 pos1 = rec->max;
 
 	v[batch->e++] =  pos0.x; v[batch->e++] =  pos0.y; v[batch->e++] =    0.0f; v[batch->e++] =    0.0f;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
+	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;
 	v[batch->e++] =  pos1.x; v[batch->e++] =  pos0.y; v[batch->e++] =    0.0f; v[batch->e++] =    0.0f;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
+	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;
 
 	v[batch->e++] =  pos1.x; v[batch->e++] =  pos0.y; v[batch->e++] =    0.0f; v[batch->e++] =    0.0f;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
+	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;
 	v[batch->e++] =  pos1.x; v[batch->e++] =  pos1.y; v[batch->e++] =    0.0f; v[batch->e++] =    0.0f;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
+	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;
 
 	v[batch->e++] =  pos1.x; v[batch->e++] =  pos1.y; v[batch->e++] =    0.0f; v[batch->e++] =    0.0f;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
+	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;
 	v[batch->e++] =  pos0.x; v[batch->e++] =  pos1.y; v[batch->e++] =    0.0f; v[batch->e++] =    0.0f;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;	
+	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;	
 
 	v[batch->e++] =  pos0.x; v[batch->e++] =  pos1.y; v[batch->e++] =    0.0f; v[batch->e++] =    0.0f;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;
+	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;
 	v[batch->e++] =  pos0.x; v[batch->e++] =  pos0.y; v[batch->e++] =    0.0f; v[batch->e++] =    0.0f;
-	v[batch->e++] = color.r; v[batch->e++] = color.b; v[batch->e++] = color.g; v[batch->e++] = color.a;	
+	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;	
 }
 
 void push_sprite_to_batch(RenderBatch * batch, Texture * sprite, math::Vec2 pos, math::Vec2 dim, f32 angle, math::Vec4 color) {
@@ -463,30 +463,64 @@ void push_textured_quad(RenderGroup * render_group, AssetRef ref, math::Vec3 pos
 
 	Asset * asset = get_asset(render_group->assets, ref.id, ref.index);
 	ASSERT(asset->type == AssetType_texture || asset->type == AssetType_sprite);
-	RenderElement * elem = push_render_elem(render_group, asset, pos + math::vec3(asset->texture.offset, 0.0f), asset->texture.dim * scale, angle, color, scrollable);
+	RenderElement * elem = push_render_elem(render_group, asset, pos + math::vec3(asset->texture.offset * scale, 0.0f), asset->texture.dim * scale, angle, color, scrollable);
 }
 
-f32 get_str_width_to_new_line(AssetState * assets, Font * font, f32 scale, char * str, u32 len) {
-	f32 width = 0.0f;
+f32 get_str_width(AssetState * assets, Font * font, f32 scale, char * str, u32 len, b32 to_new_line = false) {
+	f32 line_width = 0.0f;
+	f32 max_width = 0.0f;
 
 	for(u32 i = 0; i < len; i++) {
 		char char_ = str[i];
 		if(char_ != '\n') {
 			if(char_ != ' ') {
 				u32 glyph_index = get_font_glyph_index(char_);
-				width += font->glyphs[glyph_index].advance;
+				line_width += font->glyphs[glyph_index].advance;
 			}
 			else {
-				width += font->whitespace_advance;
+				line_width += font->whitespace_advance;
 			}
 		}
 		else {
-			break;
+			if(max_width < line_width) {
+				max_width = line_width;
+				line_width = 0.0f;
+			}
+
+			if(to_new_line) {
+				break;
+			}
 		}
 	}
 
-	return width * scale;
+	if(max_width < line_width) {
+		max_width = line_width;
+	}
+
+	return max_width * scale;
 }
+
+// f32 get_str_width_to_new_line(AssetState * assets, Font * font, f32 scale, char * str, u32 len) {
+// 	f32 width = 0.0f;
+
+// 	for(u32 i = 0; i < len; i++) {
+// 		char char_ = str[i];
+// 		if(char_ != '\n') {
+// 			if(char_ != ' ') {
+// 				u32 glyph_index = get_font_glyph_index(char_);
+// 				width += font->glyphs[glyph_index].advance;
+// 			}
+// 			else {
+// 				width += font->whitespace_advance;
+// 			}
+// 		}
+// 		else {
+// 			break;
+// 		}
+// 	}
+
+// 	return width * scale;
+// }
 
 void push_str_to_render_group(RenderGroup * render_group, Font * font, FontLayout * layout, Str * str, math::Vec4 color = math::vec4(1.0f)) {
 	DEBUG_TIME_BLOCK();
@@ -502,7 +536,7 @@ void push_str_to_render_group(RenderGroup * render_group, Font * font, FontLayou
 		char char_ = str->ptr[i];
 
 		if(new_line) {
-			f32 width = get_str_width_to_new_line(render_group->assets, font, layout->scale, str->ptr + i, str->len - i);
+			f32 width = get_str_width(render_group->assets, font, layout->scale, str->ptr + i, str->len - i, true);
 
 			if(layout->anchor == FontLayoutAnchor_top_centre || layout->anchor == FontLayoutAnchor_bottom_centre) {
 				offset.x = -width * 0.5f;

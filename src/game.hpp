@@ -61,18 +61,20 @@ struct EntityArray {
 struct Player {
 	Entity * e;
 
-	Entity * shield;
-
 	math::Vec3 initial_pos;
 
 	b32 dead;
 	b32 allow_input;
 	f32 invincibility_time;
-	b32 has_shield;
 
 	Entity * clones[100];
 	math::Vec2 clone_offset;
 	u32 active_clone_count;
+
+	Entity * shield_clones[12];
+	f32 shield_radius;
+	f32 shield_alpha;
+	b32 has_shield;
 };
 
 struct Concord {
@@ -202,13 +204,14 @@ enum TransitionType {
 	TransitionType_null = TransitionType_count,
 };
 
+enum IntroFrameFlags {
+	IntroFrameFlags_play_once = 0x1,
+};
 struct IntroFrame {
 	AssetRef asset;
+	char * str;
 
-	math::Vec3 pos;
-
-	f32 time_;
-	f32 alpha;
+	u32 flags;
 };
 
 struct InfoDisplay {
@@ -218,8 +221,6 @@ struct InfoDisplay {
 	f32 total_time;
 	f32 alpha;
 	f32 scale;
-
-	b32 is_collect;
 };
 
 enum ButtonId {
@@ -292,9 +293,11 @@ struct IntroMetaState {
 	UiLayer ui_layer;
 
 	IntroFrame frames[ASSET_GROUP_COUNT(intro)];
-	f32 anim_time;
+	u32 current_frame_index;
+	f32 time_;
 
-	u32 transition_id;
+	u32 next_frame_transition_id;
+	u32 end_transition_id;
 };
 
 struct MainMetaState {
@@ -340,16 +343,8 @@ struct MainMetaState {
 	f32 boost_time;
 	f32 slow_down_speed;
 	f32 slow_down_time;
-	
-	f32 time_remaining;
-	f32 start_time;
-	f32 max_time;
-	f32 clock_pickup_time;
 
 	u32 clones_lost_on_hit;
-
-	f32 clock_label_scale;
-	f32 clock_label_index;
 	
 	UiElement arrow_buttons[2];
 	InfoDisplay info_display;

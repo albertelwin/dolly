@@ -17,7 +17,7 @@ IF %COMPILE_AND_RUN_ASSET_PACKER%==1 (
 	cd ../bin
 )
 
-set COMMON_COMPILER_FLAGS=-s TOTAL_MEMORY=134217728 -std=c++11 -Werror -Wall -Wno-missing-braces -Wno-unused-variable -Wno-unused-function -DDEBUG_ENABLED=1 -DDEV_ENABLED=1
+set COMMON_COMPILER_FLAGS=-s TOTAL_MEMORY=134217728 -std=c++11 -Werror -Wall -Wno-missing-braces -Wno-unused-variable -Wno-unused-function -DDEBUG_ENABLED=1 -DDEV_ENABLED=0
 
 rem set COMPILER_FLAGS=%COMMON_COMPILER_FLAGS% -s SAFE_HEAP=0
 set COMPILER_FLAGS=%COMMON_COMPILER_FLAGS% -s GL_UNSAFE_OPTS=1 -O3

@@ -47,6 +47,7 @@ struct RenderTransform {
 	math::Vec2 pos;
 	math::Vec2 offset;
 
+	//TODO: Rename this to width/height or use dim vec!!
 	u32 projection_width;
 	u32 projection_height;
 };

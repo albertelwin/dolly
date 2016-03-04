@@ -159,7 +159,6 @@ enum AssetId {
 
 	AssetId_clone,
 	AssetId_clone_space,
-	AssetId_clock,
 	AssetId_rocket,
 	AssetId_rocket_large,
 	AssetId_goggles,
@@ -219,8 +218,6 @@ enum AssetId {
 	AssetId_btn_up,
 	AssetId_btn_down,
 	AssetId_btn_skip,
-
-	AssetId_label_clock,
 
 	//NOTE: Audio
 	AssetId_pickup,

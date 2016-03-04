@@ -526,7 +526,7 @@ void pack_sprite(AssetPacker * packer, char * file_name, AssetId asset_id) {
 	push_sprite(atlas, asset_id, atlas_index, &blit, math::vec2(blit_tex.width, blit_tex.height));
 }
 
-void pack_sprite_sheet(AssetPacker * packer, char const * file_name, AssetId sprite_id, u32 sprite_width, u32 sprite_height, u32 sprite_count) {
+void pack_sprite_sheet(AssetPacker * packer, char const * file_name, AssetId sprite_id, u32 sprite_width, u32 sprite_height, u32 max_sprites_to_pack = U32_MAX) {
 	ASSERT(packer->atlas_count);
 
 	u32 atlas_index = packer->atlas_count - 1;
@@ -538,6 +538,11 @@ void pack_sprite_sheet(AssetPacker * packer, char const * file_name, AssetId spr
 	u32 sprites_in_row = source_tex.width / sprite_width;
 	u32 sprites_in_col = source_tex.height / sprite_height;
 
+	u32 sprites_to_pack = sprites_in_row * sprites_in_col;
+	if(sprites_to_pack > max_sprites_to_pack) {
+		sprites_to_pack = max_sprites_to_pack;
+	}
+
 	Texture blit_tex = {};
 	blit_tex.width = (u32)sprite_width;
 	blit_tex.height = (u32)sprite_height;
@@ -545,6 +550,29 @@ void pack_sprite_sheet(AssetPacker * packer, char const * file_name, AssetId spr
 	blit_tex.size = blit_tex.width * blit_tex.height * TEXTURE_CHANNELS;
 	blit_tex.ptr = ALLOC_ARRAY(u8, blit_tex.size);
 
+	for(u32 i = 0; i < sprites_to_pack; i++) {
+		u32 y = i / sprites_in_row;
+		u32 x = i % sprites_in_row;
+
+		u32 u = x * sprite_width;
+		u32 v = (sprites_in_col - (y + 1)) * sprite_height;
+
+		for(u32 yy = 0, ii = 0; yy < sprite_height; yy++) {
+			for(u32 xx = 0; xx < sprite_width; xx++, ii += 4) {
+				u32 kk = ((v + yy) * source_tex.width + (u + xx)) * 4;
+
+				blit_tex.ptr[ii + 0] = source_tex.ptr[kk + 0];
+				blit_tex.ptr[ii + 1] = source_tex.ptr[kk + 1];
+				blit_tex.ptr[ii + 2] = source_tex.ptr[kk + 2];
+				blit_tex.ptr[ii + 3] = source_tex.ptr[kk + 3];
+			}
+		}
+
+		Blit blit = blit_texture(&atlas->tex, &blit_tex);
+		push_sprite(atlas, sprite_id, atlas_index, &blit, math::vec2(blit_tex.width, blit_tex.height));
+	}
+
+#if 0
 	for(u32 y = 0; y < sprites_in_col; y++) {
 		for(u32 x = 0; x < sprites_in_row; x++) {
 			u32 u = x * sprite_width;
@@ -565,6 +593,7 @@ void pack_sprite_sheet(AssetPacker * packer, char const * file_name, AssetId spr
 			push_sprite(atlas, sprite_id, atlas_index, &blit, math::vec2(blit_tex.width, blit_tex.height));
 		}
 	}
+#endif
 
 	FREE_MEMORY(blit_tex.ptr);
 }
@@ -682,9 +711,6 @@ int main() {
 		push_tile_map(packer, "placement0.png", AssetId_lower_map),
 		push_tile_map(packer, "placement1.png", AssetId_lower_map),
 		push_tile_map(packer, "placement2.png", AssetId_lower_map),
-		push_tile_map(packer, "placement3.png", AssetId_lower_map),
-		push_tile_map(packer, "placement4.png", AssetId_lower_map),
-		push_tile_map(packer, "placement5.png", AssetId_lower_map),
 
 		push_tile_map(packer, "placement_space0.png", AssetId_upper_map),
 
@@ -780,29 +806,27 @@ int main() {
 		pack_sprite(packer, "sun.png", AssetId_sun);
 		pack_sprite(packer, "rocket.png", AssetId_rocket);
 
-		pack_sprite_sheet(packer, "atom_smasher_4fer.png", AssetId_atom_smasher_4fer, 64, 256, 1);
-		pack_sprite_sheet(packer, "atom_smasher_3fer.png", AssetId_atom_smasher_3fer, 64, 192, 36);
-		pack_sprite_sheet(packer, "atom_smasher_2fer.png", AssetId_atom_smasher_2fer, 64, 128, 24);
 
-		pack_sprite_sheet(packer, "glow.png", AssetId_glow, 96, 96, 16);
+		pack_sprite_sheet(packer, "atom_smasher_4fer.png", AssetId_atom_smasher_4fer, 96, 384, 9);
+		pack_sprite_sheet(packer, "atom_smasher_3fer.png", AssetId_atom_smasher_3fer, 48, 144, 9);
 
-		pack_sprite_sheet(packer, "atom_smasher_1fer.png", AssetId_atom_smasher_1fer, 64, 64, 19);
+		pack_sprite_sheet(packer, "glow.png", AssetId_glow, 96, 96);
 
-		pack_sprite_sheet(packer, "dolly_idle.png", AssetId_dolly_idle, 48, 48, 4);
-		pack_sprite_sheet(packer, "dolly_up.png", AssetId_dolly_up, 48, 48, 4);
-		pack_sprite_sheet(packer, "dolly_down.png", AssetId_dolly_down, 48, 48, 4);
-		pack_sprite_sheet(packer, "dolly_hit.png", AssetId_dolly_hit, 48, 48, 4);
-		pack_sprite_sheet(packer, "dolly_fall.png", AssetId_dolly_fall, 48, 48, 4);
+		pack_sprite_sheet(packer, "atom_smasher_2fer.png", AssetId_atom_smasher_2fer, 48, 96);
+		pack_sprite_sheet(packer, "atom_smasher_1fer.png", AssetId_atom_smasher_1fer, 48, 48);
+
+		pack_sprite_sheet(packer, "dolly_idle.png", AssetId_dolly_idle, 48, 48);
+		pack_sprite_sheet(packer, "dolly_up.png", AssetId_dolly_up, 48, 48);
+		pack_sprite_sheet(packer, "dolly_down.png", AssetId_dolly_down, 48, 48);
+		pack_sprite_sheet(packer, "dolly_hit.png", AssetId_dolly_hit, 48, 48);
+		pack_sprite_sheet(packer, "dolly_fall.png", AssetId_dolly_fall, 48, 48);
 
 		pack_sprite(packer, "dolly_space_idle.png", AssetId_dolly_space_idle);
 		pack_sprite(packer, "dolly_space_up.png", AssetId_dolly_space_up);
 		pack_sprite(packer, "dolly_space_down.png", AssetId_dolly_space_down);
 
-		pack_sprite_sheet(packer, "clock.png", AssetId_clock, 48, 48, 4);
-		pack_sprite(packer, "label_clock0.png", AssetId_label_clock);
-		pack_sprite(packer, "label_clock1.png", AssetId_label_clock);
+		pack_sprite_sheet(packer, "speed_up.png", AssetId_goggles, 48, 48);
 
-		pack_sprite(packer, "speed_up.png", AssetId_goggles);
 		pack_sprite(packer, "shield.png", AssetId_shield);
 		pack_sprite(packer, "clone.png", AssetId_clone);
 		pack_sprite(packer, "clone_space.png", AssetId_clone_space);
@@ -839,10 +863,10 @@ int main() {
 		pack_sprite(packer, "btn_skip0.png", AssetId_btn_skip);
 		pack_sprite(packer, "btn_skip1.png", AssetId_btn_skip);
 
-		pack_sprite_sheet(packer, "intro0.png", AssetId_intro0, 75, 75, 30);
-		pack_sprite_sheet(packer, "intro1.png", AssetId_intro1, 75, 75, 30);
-		pack_sprite_sheet(packer, "intro2.png", AssetId_intro2, 75, 75, 30);
-		pack_sprite_sheet(packer, "intro3.png", AssetId_intro3, 75, 75, 30);
+		pack_sprite_sheet(packer, "intro0.png", AssetId_intro0, 75, 75);
+		pack_sprite_sheet(packer, "intro1.png", AssetId_intro1, 75, 75);
+		pack_sprite_sheet(packer, "intro2.png", AssetId_intro2, 75, 75);
+		pack_sprite_sheet(packer, "intro3.png", AssetId_intro3, 75, 75);
 
 		write_out_asset_pack(packer, "atlas.pak");
 	}
