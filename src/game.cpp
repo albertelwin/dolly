@@ -204,12 +204,14 @@ void change_scene(MainMetaState * main_state, AssetState * assets, SceneId scene
 void change_scene_asset_type(MainMetaState * main_state, SceneId scene_id, AssetId asset_id) {
 	Scene * scene = main_state->scenes + scene_id;
 
-	scene->tile_to_asset_table[TileId_bad_small] = AssetId_atom_smasher_small;
-	scene->tile_to_asset_table[TileId_bad_medium] = AssetId_atom_smasher_medium;
-	scene->tile_to_asset_table[TileId_bad_large] = AssetId_atom_smasher_large;
-	scene->tile_to_asset_table[TileId_time] = AssetId_clone;
+	scene->tile_to_asset_table[TileId_bad_1fer] = AssetId_atom_smasher_1fer;
+	scene->tile_to_asset_table[TileId_bad_2fer] = AssetId_atom_smasher_2fer;
+	scene->tile_to_asset_table[TileId_bad_3fer] = AssetId_atom_smasher_3fer;
+	scene->tile_to_asset_table[TileId_bad_4fer] = AssetId_atom_smasher_4fer;
+
 	scene->tile_to_asset_table[TileId_clone] = AssetId_clone;
 	scene->tile_to_asset_table[TileId_collect] = ASSET_FIRST_GROUP_ID(collect);
+
 	scene->tile_to_asset_table[TileId_concord] = AssetId_goggles;
 	scene->tile_to_asset_table[TileId_rocket] = AssetId_rocket;
 
@@ -760,6 +762,8 @@ void init_main_meta_state(MetaStateHeader * meta_state) {
 	player->e = push_entity(entities, assets, asset_ref(AssetId_dolly_idle), player->initial_pos);
 	player->e->speed = math::vec2(562.5f, 3000.0f);
 	player->e->damp = 0.1f;
+	player->shield = push_entity(entities, assets, asset_ref(AssetId_shield));
+	player->shield->color.a = 0.0f;
 	player->allow_input = true;
 
 	EntityEmitter * emitter = &main_state->entity_emitter;
@@ -1174,7 +1178,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 
 				main_state->accel_time -= game_input->delta_time;
 				if(main_state->accel_time <= 0.0f) {
-					if(main_state->dd_speed < 0.0f) {
+					if(main_state->dd_speed < 0.0f && player->e->hit) {
 						kill_player(main_state, player);
 					}
 
@@ -1274,7 +1278,7 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 							main_state->arrow_buttons[1].asset.index = 1;
 						}
 
-						if(main_state->dd_speed < 0.0f) {
+						if(main_state->dd_speed < 0.0f && player->e->hit) {
 							change_entity_asset(player->e, main_state->header.assets, asset_ref(AssetId_dolly_hit));
 						}
 						else {
@@ -1341,6 +1345,9 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					player->e->color = math::vec4(1.0f);
 				}
 #endif
+
+				player->shield->pos = player->e->pos;
+				player->shield->color.a = player->has_shield ? 1.0f : 0.0f;
 
 				{
 					Concord * concord = &main_state->concord;
@@ -1434,12 +1441,18 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 								break;
 							}
 
-							case AssetId_atom_smasher_small:
-							case AssetId_atom_smasher_medium:
-							case AssetId_atom_smasher_large: {
-								if(!player->invincibility_time) {	
-									pop_player_clones(player, main_state->clones_lost_on_hit);
+							case AssetId_atom_smasher_1fer:
+							case AssetId_atom_smasher_2fer:
+							case AssetId_atom_smasher_3fer:
+							case AssetId_atom_smasher_4fer: {
+								if(!player->invincibility_time) {
+									if(!player->has_shield) {
+										pop_player_clones(player, main_state->clones_lost_on_hit);
+										player->e->hit = true;
+									}
+
 									is_slow_down = true;
+									player->has_shield = false;
 								}
 
 								clip_id = AssetId_bang;
@@ -1493,6 +1506,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 							clip_id = AssetId_special;
 
 							emitter->glow->color.a = 0.0f;
+
+							player->has_shield = true;
 						}
 						
 						//TODO: Should there be a helper function for this??
@@ -1591,26 +1606,9 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 									}
 
 									change_entity_asset(entity, assets, asset_ref(asset_id));
-
-									math::Vec2 collider_scale = math::vec2(1.0f);
-									switch(tile_id) {
-										case TileId_bad_small: {
-											collider_scale = math::vec2(0.5f, 1.0f - 1.0f / 2.0f);
-											break;
-										}
-
-										case TileId_bad_medium: {
-											collider_scale = math::vec2(0.5f, 1.0f - 1.0f / 4.0f);
-											break;
-										}
-
-										case TileId_bad_large: {
-											collider_scale = math::vec2(0.5f, 1.0f - 1.0f / 12.0f);
-											break;
-										}
+									if(ASSET_IN_GROUP(atom_smasher, entity->asset.id)) {
+										entity->collider = math::rec_scale(get_asset_bounds(assets, entity->asset.id, entity->asset.index), 0.75f);
 									}
-
-									entity->collider = math::rec_scale(get_asset_bounds(assets, entity->asset.id, entity->asset.index), collider_scale);
 
 									entity->hit = false;
 

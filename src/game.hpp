@@ -61,11 +61,14 @@ struct EntityArray {
 struct Player {
 	Entity * e;
 
+	Entity * shield;
+
 	math::Vec3 initial_pos;
 
 	b32 dead;
 	b32 allow_input;
 	f32 invincibility_time;
+	b32 has_shield;
 
 	Entity * clones[100];
 	math::Vec2 clone_offset;

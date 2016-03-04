@@ -777,15 +777,16 @@ int main() {
 		pack_sprite(packer, "rocket_large1.png", AssetId_rocket_large);
 		pack_sprite(packer, "rocket_large2.png", AssetId_rocket_large);
 
-		pack_sprite_sheet(packer, "atom_smasher_large.png", AssetId_atom_smasher_large, 48, 384, 11);
-
 		pack_sprite(packer, "sun.png", AssetId_sun);
 		pack_sprite(packer, "rocket.png", AssetId_rocket);
 
-		pack_sprite_sheet(packer, "atom_smasher_medium.png", AssetId_atom_smasher_medium, 48, 192, 11);
-		pack_sprite_sheet(packer, "atom_smasher_small.png", AssetId_atom_smasher_small, 48, 96, 24);
-		
+		pack_sprite_sheet(packer, "atom_smasher_4fer.png", AssetId_atom_smasher_4fer, 64, 256, 1);
+		pack_sprite_sheet(packer, "atom_smasher_3fer.png", AssetId_atom_smasher_3fer, 64, 192, 36);
+		pack_sprite_sheet(packer, "atom_smasher_2fer.png", AssetId_atom_smasher_2fer, 64, 128, 24);
+
 		pack_sprite_sheet(packer, "glow.png", AssetId_glow, 96, 96, 16);
+
+		pack_sprite_sheet(packer, "atom_smasher_1fer.png", AssetId_atom_smasher_1fer, 64, 64, 19);
 
 		pack_sprite_sheet(packer, "dolly_idle.png", AssetId_dolly_idle, 48, 48, 4);
 		pack_sprite_sheet(packer, "dolly_up.png", AssetId_dolly_up, 48, 48, 4);

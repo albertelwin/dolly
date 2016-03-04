@@ -21,12 +21,14 @@ enum TextureSampling {
 #define TILE_MAP_HEIGHT 37
 
 enum TileId {
-	TileId_bad_small,
-	TileId_bad_medium,
-	TileId_bad_large,
-	TileId_time,
+	TileId_bad_1fer,
+	TileId_bad_2fer,
+	TileId_bad_3fer,
+	TileId_bad_4fer,
+
 	TileId_clone,
 	TileId_collect,
+
 	TileId_concord,
 	TileId_rocket,
 
@@ -58,13 +60,15 @@ inline b32 colors_are_equal(ColorRGB8 color0, ColorRGB8 color1) {
 }
 
 static TileIdColorRGB8 tile_id_color_table[] = {
-	{ TileId_bad_small, color_rgb8(255, 255, 0) },
-	{ TileId_bad_medium, color_rgb8(255, 128, 0) },
-	{ TileId_bad_large, color_rgb8(255, 0, 0) },
-	{ TileId_time, color_rgb8(0, 255, 0) },
+	{ TileId_bad_1fer, color_rgb8(255, 255, 0) },
+	{ TileId_bad_2fer, color_rgb8(255, 128, 0) },
+	{ TileId_bad_3fer, color_rgb8(255, 0, 0) },
+	{ TileId_bad_4fer, color_rgb8(255, 0, 255) },
+
 	{ TileId_clone, color_rgb8(255, 255, 255) },
 	{ TileId_collect, color_rgb8(0, 0, 255) },
-	{ TileId_concord, color_rgb8(255, 0, 255) },
+
+	{ TileId_concord, color_rgb8(0, 255, 0) },
 	{ TileId_rocket, color_rgb8(0, 255, 255) },
 };
 
@@ -164,9 +168,10 @@ enum AssetId {
 	AssetId_glow,
 
 	BEGIN_ASSET_GROUP(atom_smasher),
-	AssetId_atom_smasher_small,
-	AssetId_atom_smasher_medium,
-	AssetId_atom_smasher_large,
+	AssetId_atom_smasher_1fer,
+	AssetId_atom_smasher_2fer,
+	AssetId_atom_smasher_3fer,
+	AssetId_atom_smasher_4fer,
 	END_ASSET_GROUP(atom_smasher),
 
 	BEGIN_ASSET_GROUP(intro),
