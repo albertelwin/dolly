@@ -572,29 +572,6 @@ void pack_sprite_sheet(AssetPacker * packer, char const * file_name, AssetId spr
 		push_sprite(atlas, sprite_id, atlas_index, &blit, math::vec2(blit_tex.width, blit_tex.height));
 	}
 
-#if 0
-	for(u32 y = 0; y < sprites_in_col; y++) {
-		for(u32 x = 0; x < sprites_in_row; x++) {
-			u32 u = x * sprite_width;
-			u32 v = (sprites_in_col - (y + 1)) * sprite_height;
-
-			for(u32 yy = 0, ii = 0; yy < sprite_height; yy++) {
-				for(u32 xx = 0; xx < sprite_width; xx++, ii += 4) {
-					u32 kk = ((v + yy) * source_tex.width + (u + xx)) * 4;
-
-					blit_tex.ptr[ii + 0] = source_tex.ptr[kk + 0];
-					blit_tex.ptr[ii + 1] = source_tex.ptr[kk + 1];
-					blit_tex.ptr[ii + 2] = source_tex.ptr[kk + 2];
-					blit_tex.ptr[ii + 3] = source_tex.ptr[kk + 3];
-				}
-			}
-
-			Blit blit = blit_texture(&atlas->tex, &blit_tex);
-			push_sprite(atlas, sprite_id, atlas_index, &blit, math::vec2(blit_tex.width, blit_tex.height));
-		}
-	}
-#endif
-
 	FREE_MEMORY(blit_tex.ptr);
 }
 
@@ -702,15 +679,19 @@ int main() {
 
 	{
 		push_texture(packer, "white.png", AssetId_white);
-		push_texture(packer, "load_background.png", AssetId_load_background);
+		push_texture(packer, "load_body.png", AssetId_load_background);
 
 		write_out_asset_pack(packer, "preload.pak");
 	}
 
 	{
-		push_tile_map(packer, "placement0.png", AssetId_lower_map),
-		push_tile_map(packer, "placement1.png", AssetId_lower_map),
-		push_tile_map(packer, "placement2.png", AssetId_lower_map),
+		char tmp_buf[256];
+		Str tmp_str = str_fixed_size(tmp_buf, ARRAY_COUNT(tmp_buf));
+		for(u32 i = 0; i < 24; i++) {
+			str_clear(&tmp_str);
+			str_print(&tmp_str, "placement%u.png", i);
+			push_tile_map(packer, tmp_str.ptr, AssetId_lower_map);
+		}
 
 		push_tile_map(packer, "placement_space0.png", AssetId_upper_map),
 
@@ -721,18 +702,21 @@ int main() {
 
 	{
 		push_texture(packer, "menu_background.png", AssetId_menu_background);
-		push_texture(packer, "about_background.png", AssetId_about_background);
 
-		push_texture(packer, "city_background.png", AssetId_background);
+		push_texture(packer, "dundee_background.png", AssetId_background);
+		push_texture(packer, "edinburgh_background.png", AssetId_background);
 		push_texture(packer, "highlands_background.png", AssetId_background);
 		push_texture(packer, "ocean_background.png", AssetId_background);
 
-		push_texture(packer, "city_layer0.png", AssetId_scene_city);
-		push_texture(packer, "city_layer1.png", AssetId_scene_city);
-		push_texture(packer, "city_layer2.png", AssetId_scene_city);
-		push_texture(packer, "city_layer3.png", AssetId_scene_city);
+		push_texture(packer, "dundee_layer0.png", AssetId_scene_dundee);
+		push_texture(packer, "dundee_layer1.png", AssetId_scene_dundee);
+		push_texture(packer, "dundee_layer2.png", AssetId_scene_dundee);
+		push_texture(packer, "dundee_layer3.png", AssetId_scene_dundee);
 
-		push_texture(packer, "city_alt_layer.png", AssetId_scene_city_alt);
+		push_texture(packer, "edinburgh_layer0.png", AssetId_scene_edinburgh);
+		push_texture(packer, "edinburgh_layer1.png", AssetId_scene_edinburgh);
+		push_texture(packer, "edinburgh_layer2.png", AssetId_scene_edinburgh);
+		push_texture(packer, "edinburgh_layer3.png", AssetId_scene_edinburgh);
 
 		push_texture(packer, "highlands_layer0.png", AssetId_scene_highlands);
 		push_texture(packer, "highlands_layer1.png", AssetId_scene_highlands);
@@ -806,14 +790,12 @@ int main() {
 		pack_sprite(packer, "sun.png", AssetId_sun);
 		pack_sprite(packer, "rocket.png", AssetId_rocket);
 
-
-		pack_sprite_sheet(packer, "atom_smasher_4fer.png", AssetId_atom_smasher_4fer, 96, 384, 9);
-		pack_sprite_sheet(packer, "atom_smasher_3fer.png", AssetId_atom_smasher_3fer, 48, 144, 9);
+		pack_sprite_sheet(packer, "atom_smasher_4fer.png", AssetId_atom_smasher_4fer, 96, 240);
+		pack_sprite_sheet(packer, "atom_smasher_3fer.png", AssetId_atom_smasher_3fer, 96, 192);
+		pack_sprite_sheet(packer, "atom_smasher_2fer.png", AssetId_atom_smasher_2fer, 96, 144);
+		pack_sprite_sheet(packer, "atom_smasher_1fer.png", AssetId_atom_smasher_1fer, 96, 96);
 
 		pack_sprite_sheet(packer, "glow.png", AssetId_glow, 96, 96);
-
-		pack_sprite_sheet(packer, "atom_smasher_2fer.png", AssetId_atom_smasher_2fer, 48, 96);
-		pack_sprite_sheet(packer, "atom_smasher_1fer.png", AssetId_atom_smasher_1fer, 48, 48);
 
 		pack_sprite_sheet(packer, "dolly_idle.png", AssetId_dolly_idle, 48, 48);
 		pack_sprite_sheet(packer, "dolly_up.png", AssetId_dolly_up, 48, 48);
@@ -829,13 +811,10 @@ int main() {
 
 		pack_sprite(packer, "shield.png", AssetId_shield);
 		pack_sprite(packer, "clone.png", AssetId_clone);
-		pack_sprite(packer, "clone_space.png", AssetId_clone_space);
+		// pack_sprite(packer, "clone_space.png", AssetId_clone_space);
+		pack_sprite_sheet(packer, "clone_space_.png", AssetId_clone_space, 48, 48);
 
 	#define X(NAME) pack_sprite(packer, "collect_" #NAME ".png", AssetId_collect_##NAME);
-		ASSET_ID_COLLECT_X
-	#undef X
-
-	#define X(NAME) pack_sprite(packer, "menu_collect_" #NAME ".png", AssetId_menu_collect_##NAME);
 		ASSET_ID_COLLECT_X
 	#undef X
 
@@ -867,6 +846,10 @@ int main() {
 		pack_sprite_sheet(packer, "intro1.png", AssetId_intro1, 75, 75);
 		pack_sprite_sheet(packer, "intro2.png", AssetId_intro2, 75, 75);
 		pack_sprite_sheet(packer, "intro3.png", AssetId_intro3, 75, 75);
+		pack_sprite_sheet(packer, "intro4.png", AssetId_intro4, 75, 75, 61);
+
+		pack_sprite(packer, "intro4_background0.png", AssetId_intro4_background);
+		pack_sprite(packer, "intro4_background1.png", AssetId_intro4_background);
 
 		write_out_asset_pack(packer, "atlas.pak");
 	}

@@ -134,18 +134,27 @@ struct MemoryArena {
 	size_t used;
 
 	u8 * base_address;
+
+	u32 temp_count;
 };
 
-inline MemoryArena create_memory_arena(void * base_address, size_t size) {
+struct TemporaryMemory {
+	MemoryArena * arena;
+	size_t used_snapshot;
+};
+
+inline MemoryArena memory_arena(void * base_address, size_t size) {
 	MemoryArena arena = {};
 	arena.size = size;
 	arena.used = 0;
 	arena.base_address = (u8 *)base_address;
+	arena.temp_count = 0;
 	return arena;
 }
 
 inline void zero_memory_arena(MemoryArena * arena) {
 	arena->used = 0;
+	arena->temp_count = 0;
 	for(size_t i = 0; i < arena->size; i++) {
 		arena->base_address[i] = 0;
 	}
@@ -167,17 +176,44 @@ inline void copy_memory(void * dst, void * src, size_t size) {
 	}
 }
 
-#define PUSH_STRUCT(arena, type) (type *)push_memory_(arena, sizeof(type));
-#define PUSH_ARRAY(arena, type, length) (type *)push_memory_(arena, sizeof(type) * (length));
-#define PUSH_MEMORY(arena, type, size) (type *)push_memory_(arena, size);
-inline void * push_memory_(MemoryArena * arena, size_t size) {
+#define PUSH_STRUCT(arena, type, ...) (type *)push_memory_(arena, sizeof(type), ##__VA_ARGS__)
+#define PUSH_ARRAY(arena, type, length, ...) (type *)push_memory_(arena, sizeof(type) * (length), ##__VA_ARGS__)
+#define PUSH_MEMORY(arena, type, size, ...) (type *)push_memory_(arena, size, ##__VA_ARGS__)
+inline void * push_memory_(MemoryArena * arena, size_t size, b32 zero = true) {
 	size_t aligned_size = ALIGN16(size);
 	ASSERT((arena->used + aligned_size) <= arena->size);
 	
 	void * ptr = arena->base_address + arena->used;
+	if(zero) {
+		zero_memory(ptr, aligned_size);
+	}
+
 	arena->used += aligned_size;
 
 	return ptr;
+}
+
+inline TemporaryMemory begin_temp_memory(MemoryArena * arena) {
+	TemporaryMemory temp_memory = {};
+	temp_memory.arena = arena;
+	temp_memory.used_snapshot = arena->used;
+
+	arena->temp_count++;
+
+	return temp_memory;
+}
+
+inline void end_temp_memory(TemporaryMemory temp_memory) {
+	MemoryArena * arena = temp_memory.arena;
+	ASSERT(arena->temp_count);
+	ASSERT(arena->used >= temp_memory.used_snapshot);
+
+	arena->used = temp_memory.used_snapshot;
+	arena->temp_count--;
+}
+
+inline void check_arena(MemoryArena * arena) {
+	ASSERT(!arena->temp_count);
 }
 
 inline MemoryArena allocate_sub_arena(MemoryArena * arena, size_t size) {
@@ -197,11 +233,15 @@ inline void * push_copy_memory_(MemoryArena * arena, void * src, size_t size) {
 	return dst;
 }
 
-#define ALLOC_STRUCT(type) (type *)alloc_memory_(sizeof(type))
-#define ALLOC_ARRAY(type, length) (type *)alloc_memory_(sizeof(type) * length)
-#define ALLOC_MEMORY(type, size) (type *)alloc_memory_(size)
-inline void * alloc_memory_(size_t size) {
+#define ALLOC_STRUCT(type, ...) (type *)alloc_memory_(sizeof(type), ##__VA_ARGS__)
+#define ALLOC_ARRAY(type, length, ...) (type *)alloc_memory_(sizeof(type) * length, ##__VA_ARGS__)
+#define ALLOC_MEMORY(type, size, ...) (type *)alloc_memory_(size, ##__VA_ARGS__)
+inline void * alloc_memory_(size_t size, b32 zero = true) {
 	void * ptr = std::malloc(size);
+	if(zero) {
+		zero_memory(ptr, size);
+	}
+
 	return ptr;
 }
 

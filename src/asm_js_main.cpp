@@ -243,6 +243,13 @@ void main_loop(void * user_ptr) {
 		debug_game_tick(&args->game_memory, &args->game_input);
 #endif
 
+		if(args->game_input.hide_mouse) {
+			EM_ASM(canvas_elem.style.cursor = "none";);
+		}
+		else {
+			EM_ASM(canvas_elem.style.cursor = "";);
+		}
+
 		SDL_GL_SwapBuffers();
 	}
 }

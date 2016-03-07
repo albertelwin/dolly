@@ -128,17 +128,15 @@ enum AssetId {
 
 	AssetId_load_background,
 	AssetId_menu_background,
-	AssetId_about_background,
 
 	AssetId_background,
 
 	BEGIN_ASSET_GROUP(lower_scene),
-	AssetId_scene_city,
+	AssetId_scene_dundee,
+	AssetId_scene_edinburgh,
 	AssetId_scene_highlands,
 	AssetId_scene_ocean,
 	END_ASSET_GROUP(lower_scene),
-
-	AssetId_scene_city_alt,
 
 	AssetId_scene_space,
 
@@ -178,7 +176,10 @@ enum AssetId {
 	AssetId_intro1,
 	AssetId_intro2,
 	AssetId_intro3,
+	AssetId_intro4,
 	END_ASSET_GROUP(intro),
+
+	AssetId_intro4_background,
 	
 	AssetId_sun,
 
@@ -201,12 +202,6 @@ enum AssetId {
 #undef X
 	END_ASSET_GROUP(collect),
 
-	BEGIN_ASSET_GROUP(menu_collect),
-#define X(NAME) AssetId_menu_collect_##NAME,
-	ASSET_ID_COLLECT_X
-#undef X
-	END_ASSET_GROUP(menu_collect),
-
 	AssetId_about_title,
 	AssetId_about_body,
 
@@ -224,11 +219,18 @@ enum AssetId {
 	AssetId_bang,
 	AssetId_baa,
 	AssetId_special,
+	AssetId_shield_loop,
+
+	AssetId_move_up,
+	AssetId_move_down,
+	AssetId_falling,
 
 	AssetId_click_yes,
 	AssetId_click_no,
 
 	AssetId_rocket_sfx,
+
+	AssetId_pixelate,
 
 	AssetId_menu_music,
 	AssetId_game_music,

@@ -72,8 +72,8 @@ struct Player {
 	u32 active_clone_count;
 
 	Entity * shield_clones[12];
+	Entity * shield;
 	f32 shield_radius;
-	f32 shield_alpha;
 	b32 has_shield;
 };
 
@@ -113,11 +113,11 @@ struct Scene {
 	f32 y;
 
 	AssetId tile_to_asset_table[TileId_count];
-	b32 alt;
 
 	AssetId map_id;
-	u32 map_index;
 	u32 map_count;
+	u32 map_array[32];
+	u32 map_index;
 };
 
 //TODO: Rename this to Rocket
@@ -210,6 +210,7 @@ enum IntroFrameFlags {
 struct IntroFrame {
 	AssetRef asset;
 	char * str;
+	f32 scale;
 
 	u32 flags;
 };
@@ -294,6 +295,7 @@ struct IntroMetaState {
 
 	IntroFrame frames[ASSET_GROUP_COUNT(intro)];
 	u32 current_frame_index;
+	b32 frame_visible;
 	f32 time_;
 
 	u32 next_frame_transition_id;
@@ -304,6 +306,7 @@ struct MainMetaState {
 	MetaStateHeader header;
 
 	AudioSource * music;
+	AudioSource * shield_loop;
 
 	RenderGroup * render_group;
 	RenderGroup * ui_render_group;
@@ -373,13 +376,14 @@ struct GameInput {
 
 	math::Vec2 mouse_pos;
 	math::Vec2 last_mouse_pos;
+	b32 hide_mouse;
 	u8 mouse_button;
 
 	u8 buttons[ButtonId_count];
 };
 
 struct GameState {
-	MemoryArena memory_arena;
+	MemoryArena arena;
 
 	b32 loaded;
 	AssetState assets;

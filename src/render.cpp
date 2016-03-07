@@ -484,8 +484,9 @@ f32 get_str_width(AssetState * assets, Font * font, f32 scale, char * str, u32 l
 		else {
 			if(max_width < line_width) {
 				max_width = line_width;
-				line_width = 0.0f;
 			}
+
+			line_width = 0.0f;
 
 			if(to_new_line) {
 				break;
@@ -499,28 +500,6 @@ f32 get_str_width(AssetState * assets, Font * font, f32 scale, char * str, u32 l
 
 	return max_width * scale;
 }
-
-// f32 get_str_width_to_new_line(AssetState * assets, Font * font, f32 scale, char * str, u32 len) {
-// 	f32 width = 0.0f;
-
-// 	for(u32 i = 0; i < len; i++) {
-// 		char char_ = str[i];
-// 		if(char_ != '\n') {
-// 			if(char_ != ' ') {
-// 				u32 glyph_index = get_font_glyph_index(char_);
-// 				width += font->glyphs[glyph_index].advance;
-// 			}
-// 			else {
-// 				width += font->whitespace_advance;
-// 			}
-// 		}
-// 		else {
-// 			break;
-// 		}
-// 	}
-
-// 	return width * scale;
-// }
 
 void push_str_to_render_group(RenderGroup * render_group, Font * font, FontLayout * layout, Str * str, math::Vec4 color = math::vec4(1.0f)) {
 	DEBUG_TIME_BLOCK();
