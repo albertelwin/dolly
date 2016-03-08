@@ -2,8 +2,6 @@
 #ifndef GAME_HPP_INCLUDED
 #define GAME_HPP_INCLUDED
 
-#include <platform.hpp>
-
 #include <audio.hpp>
 #include <asset.hpp>
 #include <debug.hpp>
@@ -89,12 +87,12 @@ struct EntityEmitter {
 
 	AssetId rocket_map_id;
 	u32 rocket_map_index;
+	u32 rocket_map_count;
 
 	math::Vec3 pos;
 
 	u32 entity_count;
 	Entity * entity_array[256];
-
 	Entity * glow;
 };
 
@@ -116,7 +114,7 @@ struct Scene {
 
 	AssetId map_id;
 	u32 map_count;
-	u32 map_array[32];
+	u32 map_array[64];
 	u32 map_index;
 };
 
@@ -125,6 +123,7 @@ struct RocketSequence {
 	Entity * rocket;
 
 	AssetId return_map_id;
+	u32 return_map_count;
 	u32 return_map_index;
 
 	b32 playing;
@@ -132,45 +131,16 @@ struct RocketSequence {
 	u32 transition_id;
 };
 
-struct ScoreValue {
-	char * name;
-	u32 points_per_value;
-
-	u32 value;
-	f32 time_;
-};
-
-enum ScoreValueId {
-	ScoreValueId_clones,
-	ScoreValueId_items,
-	ScoreValueId_distance,
-	ScoreValueId_bonus_area,
-
-	ScoreValueId_count,
-};
-
 struct ScoreSystem {
 	b32 show;
 
 	UiLayer ui;
 
-	//TODO: Should these be part of the score value??
 	u32 clones;
-	u32 items;
-	f32 distance;
-	u32 bonus_area;
-	
-	u32 value_count;
-	ScoreValue values[ScoreValueId_count];
-	f32 value_delay_time;
-	f32 value_tally_time;
 
-	u32 current_total;
-	u32 target_total;
-	u32 display_total;
-	
-
+	f32 alpha;
 	f32 time_;
+	u32 item_display_count;
 };
 
 enum MenuButtonId {
@@ -217,6 +187,7 @@ struct IntroFrame {
 
 struct InfoDisplay {
 	AssetRef asset;
+	u32 found_index;
 
 	f32 time_;
 	f32 total_time;
@@ -238,20 +209,6 @@ enum ButtonId {
 
 	ButtonId_count,
 };
-
-#define SAVE_FILE_CODE 0x594C4C44 //"DLLY"
-//TODO: Can we inc this automatically somehow??
-#define SAVE_FILE_VERSION 7
-#pragma pack(push, 1)
-struct SaveFileHeader {
-	u32 code;
-	u32 version;
-
-	u32 plays;
-
-	b32 collect_unlock_states[ASSET_GROUP_COUNT(collect)];
-};
-#pragma pack(pop)
 
 enum MetaStateType {
 	MetaStateType_menu,
@@ -289,6 +246,8 @@ struct MenuMetaState {
 struct IntroMetaState {
 	MetaStateHeader header;
 
+	AudioSource * music;
+
 	RenderGroup * render_group;
 
 	UiLayer ui_layer;
@@ -298,7 +257,6 @@ struct IntroMetaState {
 	b32 frame_visible;
 	f32 time_;
 
-	u32 next_frame_transition_id;
 	u32 end_transition_id;
 };
 
@@ -334,6 +292,10 @@ struct MainMetaState {
 
 	Concord concord;
 
+	//TODO: Could actually pack this into a single u32!!
+	b32 item_found[ASSET_GROUP_COUNT(collect)];
+	b32 item_removed_from_pool[ASSET_GROUP_COUNT(collect)];
+
 	//TODO: Should this be part of the player??
 	f32 d_speed;
 	f32 dd_speed;
@@ -351,6 +313,7 @@ struct MainMetaState {
 	
 	UiElement arrow_buttons[2];
 	InfoDisplay info_display;
+	f32 label_clone_scale;
 
 	ScoreSystem score_system;
 
@@ -404,11 +367,6 @@ struct GameState {
 	TransitionType transition_type;
 	f32 transition_time;
 	b32 transition_flip;
-
-	PlatformAsyncFile * save_file;
-	SaveFileHeader save;
-	f32 auto_save_time;
-	f32 time_until_next_save;
 
 	RenderGroup * debug_render_group;
 	Str * debug_str;

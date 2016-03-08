@@ -128,6 +128,7 @@ enum AssetId {
 
 	AssetId_load_background,
 	AssetId_menu_background,
+	AssetId_score_background,
 
 	AssetId_background,
 
@@ -135,7 +136,7 @@ enum AssetId {
 	AssetId_scene_dundee,
 	AssetId_scene_edinburgh,
 	AssetId_scene_highlands,
-	AssetId_scene_ocean,
+	AssetId_scene_forth,
 	END_ASSET_GROUP(lower_scene),
 
 	AssetId_scene_space,
@@ -161,8 +162,12 @@ enum AssetId {
 	AssetId_rocket_large,
 	AssetId_goggles,
 	AssetId_concord,
+	AssetId_circle,
 	AssetId_shield,
 	AssetId_glow,
+
+	AssetId_label_clone,
+	AssetId_score_clone,
 
 	BEGIN_ASSET_GROUP(atom_smasher),
 	AssetId_atom_smasher_1fer,
@@ -183,24 +188,29 @@ enum AssetId {
 	
 	AssetId_sun,
 
-#define ASSET_ID_COLLECT_X	\
-	X(arm)					\
-	X(bicycle)				\
-	X(chair)				\
-	X(computer)				\
-	X(cup)					\
-	X(guitar)				\
-	X(lion)					\
-	X(mini)					\
-	X(mobile)				\
-	X(necklace) 			\
-	X(shoes)
+#define ASSET_ID_COLLECT_X \
+	X(bike) \
+	X(chair) \
+	X(computer) \
+	X(cup) \
+	X(guitar) \
+	X(lion) \
+	X(mini) \
+	X(mobile) \
+	X(necklace) \
+	X(shoes) \
 
 	BEGIN_ASSET_GROUP(collect),
 #define X(NAME) AssetId_collect_##NAME,
 	ASSET_ID_COLLECT_X
 #undef X
 	END_ASSET_GROUP(collect),
+
+	BEGIN_ASSET_GROUP(score),
+#define X(NAME) AssetId_score_##NAME,
+	ASSET_ID_COLLECT_X
+#undef X
+	END_ASSET_GROUP(score),
 
 	AssetId_about_title,
 	AssetId_about_body,
@@ -220,6 +230,7 @@ enum AssetId {
 	AssetId_baa,
 	AssetId_special,
 	AssetId_shield_loop,
+	AssetId_unlock,
 
 	AssetId_move_up,
 	AssetId_move_down,
@@ -233,6 +244,7 @@ enum AssetId {
 	AssetId_pixelate,
 
 	AssetId_menu_music,
+	AssetId_intro_music,
 	AssetId_game_music,
 	AssetId_space_music,
 
@@ -247,6 +259,7 @@ enum AssetId {
 	//NOTE: Fonts
 	ADD_FONT_ASSET_ID(pragmata_pro),
 	ADD_FONT_ASSET_ID(munro),
+	ADD_FONT_ASSET_ID(munro_large),
 
 	AssetId_count,
 };
@@ -261,12 +274,12 @@ enum AssetId {
 #define ASSET_GROUP_INDEX_TO_ID(name, index) ((AssetId)(AssetId_one_before_first_##name + 1 + index))
 
 enum AssetType {
-#define ASSET_TYPE_NAME_STRUCT_X	\
-	X(texture, Texture)				\
-	X(sprite, Texture)				\
-	X(audio_clip, AudioClip)		\
-	X(tile_map, TileMap)			\
-	X(font, Font)					\
+#define ASSET_TYPE_NAME_STRUCT_X \
+	X(texture, Texture) \
+	X(sprite, Texture) \
+	X(audio_clip, AudioClip) \
+	X(tile_map, TileMap) \
+	X(font, Font) \
 
 #define X(NAME, STRUCT) AssetType_##NAME,
 	ASSET_TYPE_NAME_STRUCT_X

@@ -687,7 +687,7 @@ int main() {
 	{
 		char tmp_buf[256];
 		Str tmp_str = str_fixed_size(tmp_buf, ARRAY_COUNT(tmp_buf));
-		for(u32 i = 0; i < 24; i++) {
+		for(u32 i = 0; i < 28; i++) {
 			str_clear(&tmp_str);
 			str_print(&tmp_str, "placement%u.png", i);
 			push_tile_map(packer, tmp_str.ptr, AssetId_lower_map);
@@ -702,6 +702,7 @@ int main() {
 
 	{
 		push_texture(packer, "menu_background.png", AssetId_menu_background);
+		push_texture(packer, "score_background.png", AssetId_score_background);
 
 		push_texture(packer, "dundee_background.png", AssetId_background);
 		push_texture(packer, "edinburgh_background.png", AssetId_background);
@@ -723,10 +724,10 @@ int main() {
 		push_texture(packer, "highlands_layer2.png", AssetId_scene_highlands);
 		push_texture(packer, "highlands_layer3.png", AssetId_scene_highlands);
 
-		push_texture(packer, "ocean_layer0.png", AssetId_scene_ocean);
-		push_texture(packer, "ocean_layer1.png", AssetId_scene_ocean);
-		push_texture(packer, "empty_layer.png", AssetId_scene_ocean);
-		push_texture(packer, "empty_layer.png", AssetId_scene_ocean);
+		push_texture(packer, "ocean_layer0.png", AssetId_scene_forth);
+		push_texture(packer, "ocean_layer1.png", AssetId_scene_forth);
+		push_texture(packer, "empty_layer.png", AssetId_scene_forth);
+		push_texture(packer, "ocean_layer3.png", AssetId_scene_forth);
 
 		push_texture(packer, "space_layer0.png", AssetId_scene_space);
 		push_texture(packer, "space_layer1.png", AssetId_scene_space);
@@ -780,6 +781,7 @@ int main() {
 	{
 		push_font(packer, "pragmata_pro.ttf", AssetId_pragmata_pro, 16.0f),
 		push_font(packer, "munro.ttf", AssetId_munro, 30.0f),
+		push_font(packer, "munro.ttf", AssetId_munro_large, 60.0f),
 
 		begin_packed_texture(packer);
 
@@ -796,6 +798,11 @@ int main() {
 		pack_sprite_sheet(packer, "atom_smasher_1fer.png", AssetId_atom_smasher_1fer, 96, 96);
 
 		pack_sprite_sheet(packer, "glow.png", AssetId_glow, 96, 96);
+		pack_sprite_sheet(packer, "shield.png", AssetId_shield, 96, 96, 30);
+		pack_sprite(packer, "circle.png", AssetId_circle);
+
+		pack_sprite(packer, "score_clone.png", AssetId_score_clone);
+		pack_sprite(packer, "label_clone.png", AssetId_label_clone);
 
 		pack_sprite_sheet(packer, "dolly_idle.png", AssetId_dolly_idle, 48, 48);
 		pack_sprite_sheet(packer, "dolly_up.png", AssetId_dolly_up, 48, 48);
@@ -809,14 +816,16 @@ int main() {
 
 		pack_sprite_sheet(packer, "speed_up.png", AssetId_goggles, 48, 48);
 
-		pack_sprite(packer, "shield.png", AssetId_shield);
 		pack_sprite(packer, "clone.png", AssetId_clone);
-		// pack_sprite(packer, "clone_space.png", AssetId_clone_space);
-		pack_sprite_sheet(packer, "clone_space_.png", AssetId_clone_space, 48, 48);
+		pack_sprite_sheet(packer, "clone_space.png", AssetId_clone_space, 48, 48);
 
-	#define X(NAME) pack_sprite(packer, "collect_" #NAME ".png", AssetId_collect_##NAME);
+#define X(NAME) pack_sprite(packer, "collect_" #NAME ".png", AssetId_collect_##NAME);
 		ASSET_ID_COLLECT_X
-	#undef X
+#undef X
+
+#define X(NAME) pack_sprite(packer, "score_" #NAME ".png", AssetId_score_##NAME);
+		ASSET_ID_COLLECT_X
+#undef X
 
 		pack_sprite(packer, "concord.png", AssetId_concord);
 
@@ -825,22 +834,22 @@ int main() {
 		pack_sprite(packer, "about_body.png", AssetId_about_body);
 		pack_sprite(packer, "about_title.png", AssetId_about_title);
 
-		pack_sprite(packer, "btn_play0.png", AssetId_btn_play);
-		pack_sprite(packer, "btn_play1.png", AssetId_btn_play);
-		pack_sprite(packer, "btn_about0.png", AssetId_btn_about);
-		pack_sprite(packer, "btn_about1.png", AssetId_btn_about);
-		pack_sprite(packer, "btn_back0.png", AssetId_btn_back);
-		pack_sprite(packer, "btn_back1.png", AssetId_btn_back);
-		pack_sprite(packer, "btn_baa0.png", AssetId_btn_baa);
-		pack_sprite(packer, "btn_baa1.png", AssetId_btn_baa);
-		pack_sprite(packer, "btn_replay0.png", AssetId_btn_replay);
-		pack_sprite(packer, "btn_replay1.png", AssetId_btn_replay);
-		pack_sprite(packer, "btn_up0.png", AssetId_btn_up);
-		pack_sprite(packer, "btn_up1.png", AssetId_btn_up);
-		pack_sprite(packer, "btn_down0.png", AssetId_btn_down);
-		pack_sprite(packer, "btn_down1.png", AssetId_btn_down);
-		pack_sprite(packer, "btn_skip0.png", AssetId_btn_skip);
-		pack_sprite(packer, "btn_skip1.png", AssetId_btn_skip);
+		pack_sprite(packer, "btn_play_off.png", AssetId_btn_play);
+		pack_sprite(packer, "btn_play_on.png", AssetId_btn_play);
+		pack_sprite(packer, "btn_about_off.png", AssetId_btn_about);
+		pack_sprite(packer, "btn_about_on.png", AssetId_btn_about);
+		pack_sprite(packer, "btn_menu_off.png", AssetId_btn_back);
+		pack_sprite(packer, "btn_menu_on.png", AssetId_btn_back);
+		pack_sprite(packer, "btn_baa_off.png", AssetId_btn_baa);
+		pack_sprite(packer, "btn_baa_on.png", AssetId_btn_baa);
+		pack_sprite(packer, "btn_replay_off.png", AssetId_btn_replay);
+		pack_sprite(packer, "btn_replay_on.png", AssetId_btn_replay);
+		pack_sprite(packer, "btn_up_off.png", AssetId_btn_up);
+		pack_sprite(packer, "btn_up_on.png", AssetId_btn_up);
+		pack_sprite(packer, "btn_down_off.png", AssetId_btn_down);
+		pack_sprite(packer, "btn_down_on.png", AssetId_btn_down);
+		pack_sprite(packer, "btn_next_off.png", AssetId_btn_skip);
+		pack_sprite(packer, "btn_next_on.png", AssetId_btn_skip);
 
 		pack_sprite_sheet(packer, "intro0.png", AssetId_intro0, 75, 75);
 		pack_sprite_sheet(packer, "intro1.png", AssetId_intro1, 75, 75);

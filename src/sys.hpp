@@ -58,6 +58,8 @@
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 
+#define SWAP(t, x, y) { t tmp__ = (x); (x) = (y); (y) = tmp__; }
+
 typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
@@ -161,6 +163,7 @@ inline void zero_memory_arena(MemoryArena * arena) {
 }
 
 #define ZERO_STRUCT(x) zero_memory(x, sizeof(*x))
+// #define ZERO_ARRAY(x) zero_memory(x, sizeof((x)))
 inline void zero_memory(void * ptr, size_t size) {
 	u8 * ptr_u8 = (u8 *)ptr;
 	for(size_t i = 0; i < size; i++) {
@@ -264,7 +267,7 @@ inline Str * allocate_str(MemoryArena * arena, u32 max_len) {
 	return str;
 }
 
-inline Str str_fixed_size(char const * ptr, u32 max_len) {
+inline Str str_fixed_size(char * ptr, u32 max_len) {
 	Str str;
 	str.ptr = (char *)ptr;
 	str.len = 0;
@@ -434,20 +437,21 @@ inline void str_print(Str * str, char const * fmt, ...) {
 #define KEY_PRESSED (1 << KEY_PRESSED_BIT)
 #define KEY_RELEASED (1 << KEY_RELEASED_BIT)
 
-inline MemoryPtr read_file_to_memory(char const * file_name) {
+inline MemoryPtr read_file_to_memory(char const * file_name, b32 null_terminate = false) {
 	MemoryPtr mem_ptr = {};
 
 	std::FILE * file_ptr = std::fopen(file_name, "rb");
 	if(file_ptr) {
 		std::fseek(file_ptr, 0, SEEK_END);
-		mem_ptr.size = (size_t)std::ftell(file_ptr);
+		size_t file_size = (size_t)std::ftell(file_ptr);
 		std::rewind(file_ptr);
 
+		mem_ptr.size = null_terminate ? file_size + 1 : file_size;
 		mem_ptr.ptr = ALLOC_MEMORY(u8, mem_ptr.size);
-		size_t read_result = std::fread(mem_ptr.ptr, 1, mem_ptr.size, file_ptr);
-		ASSERT(read_result == mem_ptr.size);
+		size_t read_result = std::fread(mem_ptr.ptr, 1, file_size, file_ptr);
+		ASSERT(read_result == file_size);
 
-		std::fclose(file_ptr);		
+		std::fclose(file_ptr);
 	}
 
 	return mem_ptr;

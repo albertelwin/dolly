@@ -267,6 +267,8 @@ b32 process_next_asset_file(AssetState * assets) {
 		asset_file_one((char *)"audio/baa15.ogg", AssetId_baa),
 		asset_file_one((char *)"audio/special.ogg", AssetId_special),
 		asset_file_one((char *)"audio/shield_loop.ogg", AssetId_shield_loop),
+		asset_file_one((char *)"audio/pickup0.ogg", AssetId_unlock),
+		asset_file_one((char *)"audio/pickup1.ogg", AssetId_unlock),
 
 		asset_file_one((char *)"audio/move_up.ogg", AssetId_move_up),
 		asset_file_one((char *)"audio/move_down.ogg", AssetId_move_down),
@@ -280,6 +282,7 @@ b32 process_next_asset_file(AssetState * assets) {
 		asset_file_one((char *)"audio/pixelate.ogg", AssetId_pixelate),
 
 		asset_file_one((char *)"audio/menu_music.ogg", AssetId_menu_music),
+		asset_file_one((char *)"audio/intro_music.ogg", AssetId_intro_music),
 		asset_file_one((char *)"audio/game_music.ogg", AssetId_game_music),
 		asset_file_one((char *)"audio/space_music.ogg", AssetId_space_music),
 
