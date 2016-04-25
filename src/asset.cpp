@@ -177,6 +177,7 @@ void process_asset_file(AssetState * assets, AssetFile asset_file) {
 		i32 channels, sample_rate;
 		i16 * samples;
 		i32 sample_count = stb_vorbis_decode_filename(asset_file.file_name, &channels, &sample_rate, &samples);
+		ASSERT(sample_count);
 		ASSERT(channels == AUDIO_CHANNELS);
 		ASSERT(sample_rate == AUDIO_SAMPLE_RATE)
 
@@ -249,6 +250,7 @@ b32 process_next_asset_file(AssetState * assets) {
 		asset_file_one((char *)"audio/pickup2.ogg", AssetId_pickup),
 		asset_file_one((char *)"audio/bang0.ogg", AssetId_bang),
 		asset_file_one((char *)"audio/bang1.ogg", AssetId_bang),
+
 		asset_file_one((char *)"audio/baa0.ogg", AssetId_baa),
 		asset_file_one((char *)"audio/baa1.ogg", AssetId_baa),
 		asset_file_one((char *)"audio/baa2.ogg", AssetId_baa),
@@ -265,14 +267,26 @@ b32 process_next_asset_file(AssetState * assets) {
 		asset_file_one((char *)"audio/baa13.ogg", AssetId_baa),
 		asset_file_one((char *)"audio/baa14.ogg", AssetId_baa),
 		asset_file_one((char *)"audio/baa15.ogg", AssetId_baa),
+		asset_file_one((char *)"audio/baa16.ogg", AssetId_baa),
+		asset_file_one((char *)"audio/baa17.ogg", AssetId_baa),
+		asset_file_one((char *)"audio/baa18.ogg", AssetId_baa),
+		asset_file_one((char *)"audio/baa19.ogg", AssetId_baa),
+		asset_file_one((char *)"audio/baa20.ogg", AssetId_baa),
+		asset_file_one((char *)"audio/baa21.ogg", AssetId_baa),
+		asset_file_one((char *)"audio/baa22.ogg", AssetId_baa),
+		asset_file_one((char *)"audio/baa23.ogg", AssetId_baa),
+		asset_file_one((char *)"audio/baa24.ogg", AssetId_baa),
+		asset_file_one((char *)"audio/baa25.ogg", AssetId_baa),
+		asset_file_one((char *)"audio/baa26.ogg", AssetId_baa),
+		asset_file_one((char *)"audio/baa27.ogg", AssetId_baa),
+		asset_file_one((char *)"audio/baa28.ogg", AssetId_baa),
+
 		asset_file_one((char *)"audio/special.ogg", AssetId_special),
 		asset_file_one((char *)"audio/shield_loop.ogg", AssetId_shield_loop),
-		asset_file_one((char *)"audio/pickup0.ogg", AssetId_unlock),
-		asset_file_one((char *)"audio/pickup1.ogg", AssetId_unlock),
+		asset_file_one((char *)"audio/tally.ogg", AssetId_tally),
 
 		asset_file_one((char *)"audio/move_up.ogg", AssetId_move_up),
 		asset_file_one((char *)"audio/move_down.ogg", AssetId_move_down),
-		asset_file_one((char *)"audio/falling.ogg", AssetId_falling),
 
 		asset_file_one((char *)"audio/click_yes.ogg", AssetId_click_yes),
 		asset_file_one((char *)"audio/click_no.ogg", AssetId_click_no),

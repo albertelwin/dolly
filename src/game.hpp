@@ -196,16 +196,14 @@ struct InfoDisplay {
 };
 
 enum ButtonId {
-	ButtonId_start,
-	ButtonId_left,
-	ButtonId_right,
 	ButtonId_up,
 	ButtonId_down,
 
 	ButtonId_quit,
-	ButtonId_mute,
 
 	ButtonId_debug,
+	ButtonId_debug_mode,
+	ButtonId_debug_switch,
 
 	ButtonId_count,
 };

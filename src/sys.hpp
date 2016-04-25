@@ -16,7 +16,7 @@
 #define __TOKEN_STRINGIFY(x) #x
 #define TOKEN_STRINGIFY(x) __TOKEN_STRINGIFY(x)
 
-#if DEBUG_ENABLED
+#if ASSERTIONS_ENABLED
 
 #if defined(WIN32)
 #define __PRINT_ASSERT(x) MessageBoxA(0, x, "ASSERT", MB_OK | MB_ICONERROR); std::printf("ASSERT: %s\n", x)

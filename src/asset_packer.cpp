@@ -687,7 +687,7 @@ int main() {
 	{
 		char tmp_buf[256];
 		Str tmp_str = str_fixed_size(tmp_buf, ARRAY_COUNT(tmp_buf));
-		for(u32 i = 0; i < 28; i++) {
+		for(u32 i = 0; i < 27; i++) {
 			str_clear(&tmp_str);
 			str_print(&tmp_str, "placement%u.png", i);
 			push_tile_map(packer, tmp_str.ptr, AssetId_lower_map);
@@ -785,24 +785,17 @@ int main() {
 
 		begin_packed_texture(packer);
 
-		pack_sprite(packer, "rocket_large0.png", AssetId_rocket_large);
-		pack_sprite(packer, "rocket_large1.png", AssetId_rocket_large);
-		pack_sprite(packer, "rocket_large2.png", AssetId_rocket_large);
-
 		pack_sprite(packer, "sun.png", AssetId_sun);
 		pack_sprite(packer, "rocket.png", AssetId_rocket);
 
-		pack_sprite_sheet(packer, "atom_smasher_4fer.png", AssetId_atom_smasher_4fer, 96, 240);
-		pack_sprite_sheet(packer, "atom_smasher_3fer.png", AssetId_atom_smasher_3fer, 96, 192);
-		pack_sprite_sheet(packer, "atom_smasher_2fer.png", AssetId_atom_smasher_2fer, 96, 144);
-		pack_sprite_sheet(packer, "atom_smasher_1fer.png", AssetId_atom_smasher_1fer, 96, 96);
+		pack_sprite_sheet(packer, "atom_smasher_4fer.png", AssetId_atom_smasher_4fer, 96, 240, 18);
+		pack_sprite_sheet(packer, "atom_smasher_3fer.png", AssetId_atom_smasher_3fer, 96, 192, 18);
+		pack_sprite_sheet(packer, "atom_smasher_2fer.png", AssetId_atom_smasher_2fer, 96, 144, 16);
+		pack_sprite_sheet(packer, "atom_smasher_1fer.png", AssetId_atom_smasher_1fer, 96, 96, 22);
 
+		pack_sprite(packer, "circle.png", AssetId_circle);
 		pack_sprite_sheet(packer, "glow.png", AssetId_glow, 96, 96);
 		pack_sprite_sheet(packer, "shield.png", AssetId_shield, 96, 96, 30);
-		pack_sprite(packer, "circle.png", AssetId_circle);
-
-		pack_sprite(packer, "score_clone.png", AssetId_score_clone);
-		pack_sprite(packer, "label_clone.png", AssetId_label_clone);
 
 		pack_sprite_sheet(packer, "dolly_idle.png", AssetId_dolly_idle, 48, 48);
 		pack_sprite_sheet(packer, "dolly_up.png", AssetId_dolly_up, 48, 48);
@@ -815,21 +808,23 @@ int main() {
 		pack_sprite(packer, "dolly_space_down.png", AssetId_dolly_space_down);
 
 		pack_sprite_sheet(packer, "speed_up.png", AssetId_goggles, 48, 48);
-
+		
+		pack_sprite(packer, "label_clone.png", AssetId_label_clone);
 		pack_sprite(packer, "clone.png", AssetId_clone);
+		pack_sprite(packer, "clone_blink.png", AssetId_clone_blink);
 		pack_sprite_sheet(packer, "clone_space.png", AssetId_clone_space, 48, 48);
 
 #define X(NAME) pack_sprite(packer, "collect_" #NAME ".png", AssetId_collect_##NAME);
 		ASSET_ID_COLLECT_X
 #undef X
 
-#define X(NAME) pack_sprite(packer, "score_" #NAME ".png", AssetId_score_##NAME);
-		ASSET_ID_COLLECT_X
-#undef X
-
 		pack_sprite(packer, "concord.png", AssetId_concord);
 
 		begin_packed_texture(packer, TextureSampling_point);
+
+		pack_sprite(packer, "rocket_large0.png", AssetId_rocket_large);
+		pack_sprite(packer, "rocket_large1.png", AssetId_rocket_large);
+		pack_sprite(packer, "rocket_large2.png", AssetId_rocket_large);
 
 		pack_sprite(packer, "about_body.png", AssetId_about_body);
 		pack_sprite(packer, "about_title.png", AssetId_about_title);
@@ -851,14 +846,21 @@ int main() {
 		pack_sprite(packer, "btn_next_off.png", AssetId_btn_skip);
 		pack_sprite(packer, "btn_next_on.png", AssetId_btn_skip);
 
+		pack_sprite(packer, "score_clone.png", AssetId_score_clone);
+
 		pack_sprite_sheet(packer, "intro0.png", AssetId_intro0, 75, 75);
 		pack_sprite_sheet(packer, "intro1.png", AssetId_intro1, 75, 75);
 		pack_sprite_sheet(packer, "intro2.png", AssetId_intro2, 75, 75);
 		pack_sprite_sheet(packer, "intro3.png", AssetId_intro3, 75, 75);
 		pack_sprite_sheet(packer, "intro4.png", AssetId_intro4, 75, 75, 61);
+		pack_sprite_sheet(packer, "intro5.png", AssetId_intro5, 75, 75);
 
 		pack_sprite(packer, "intro4_background0.png", AssetId_intro4_background);
 		pack_sprite(packer, "intro4_background1.png", AssetId_intro4_background);
+
+#define X(NAME) pack_sprite(packer, "score_" #NAME ".png", AssetId_score_##NAME);
+		ASSET_ID_COLLECT_X
+#undef X
 
 		write_out_asset_pack(packer, "atlas.pak");
 	}

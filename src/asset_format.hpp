@@ -157,6 +157,7 @@ enum AssetId {
 	AssetId_dolly_space_down,
 
 	AssetId_clone,
+	AssetId_clone_blink,
 	AssetId_clone_space,
 	AssetId_rocket,
 	AssetId_rocket_large,
@@ -182,6 +183,7 @@ enum AssetId {
 	AssetId_intro2,
 	AssetId_intro3,
 	AssetId_intro4,
+	AssetId_intro5,
 	END_ASSET_GROUP(intro),
 
 	AssetId_intro4_background,
@@ -230,11 +232,10 @@ enum AssetId {
 	AssetId_baa,
 	AssetId_special,
 	AssetId_shield_loop,
-	AssetId_unlock,
+	AssetId_tally,
 
 	AssetId_move_up,
 	AssetId_move_down,
-	AssetId_falling,
 
 	AssetId_click_yes,
 	AssetId_click_no,

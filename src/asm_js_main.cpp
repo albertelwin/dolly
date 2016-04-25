@@ -228,16 +228,13 @@ int main_init() {
 		args.game_button_to_key_map[i] = null_key_code;
 	}
 
-	args.game_button_to_key_map[ButtonId_start] = SDLK_SPACE;
-	args.game_button_to_key_map[ButtonId_left] = SDLK_LEFT;
-	args.game_button_to_key_map[ButtonId_right] = SDLK_RIGHT;
 	args.game_button_to_key_map[ButtonId_up] = SDLK_UP;
 	args.game_button_to_key_map[ButtonId_down] = SDLK_DOWN;
-
 	args.game_button_to_key_map[ButtonId_quit] = SDLK_ESCAPE;
-	args.game_button_to_key_map[ButtonId_mute] = SDLK_RETURN;
 
 	args.game_button_to_key_map[ButtonId_debug] = SDLK_0;
+	args.game_button_to_key_map[ButtonId_debug_mode] = SDLK_LCTRL;
+	args.game_button_to_key_map[ButtonId_debug_switch] = SDLK_RETURN;
 
 	for(u32 i = 0; i < ButtonId_count; i++) {
 		ASSERT(args.game_button_to_key_map[i] != null_key_code);
