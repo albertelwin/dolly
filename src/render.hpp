@@ -19,10 +19,10 @@ struct Shader {
 	u32 transform;
 	u32 color;
 	u32 tex0;
-	u32 tex0_dim;
 
 	u32 pixelate_scale;
-	u32 fade_amount;
+	u32 pixelate_dim;
+	u32 brightness;
 };
 
 enum RenderMode {
@@ -114,7 +114,7 @@ struct RenderState {
 
 	f32 pixelate_time;
 	f32 fade_amount;
-	
+
 	RenderBatch * render_batch;
 };
 

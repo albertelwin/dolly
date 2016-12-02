@@ -40,14 +40,14 @@ var LibraryWebAudio = {
 	web_audio_suspend: function() {
 		if(WebAudio.context) {
 			WebAudio.context.suspend();
-			WebAudio.paused = true;			
+			WebAudio.paused = true;
 		}
 	},
 
 	web_audio_resume: function() {
 		if(WebAudio.context) {
 			WebAudio.context.resume();
-			WebAudio.paused = false;			
+			WebAudio.paused = false;
 		}
 	},
 

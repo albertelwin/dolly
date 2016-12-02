@@ -187,7 +187,7 @@ enum AssetId {
 	END_ASSET_GROUP(intro),
 
 	AssetId_intro4_background,
-	
+
 	AssetId_sun,
 
 #define ASSET_ID_COLLECT_X \

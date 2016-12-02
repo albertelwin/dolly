@@ -132,7 +132,7 @@ void push_quad_to_batch(RenderBatch * batch, math::Vec2 pos0, math::Vec2 pos1, m
 	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;
 
 	v[batch->e++] =  pos1.x; v[batch->e++] =  pos0.y; v[batch->e++] =   uv1.x; v[batch->e++] =   uv0.y;
-	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;	
+	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;
 
 	v[batch->e++] =  pos1.x; v[batch->e++] =  pos1.y; v[batch->e++] =   uv1.x; v[batch->e++] =   uv1.y;
 	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;
@@ -144,7 +144,7 @@ void push_rotated_quad_to_batch(RenderBatch * batch, math::Vec2 pos0, math::Vec2
 	f32 * v = batch->v_arr;
 
 	color.rgb *= color.a;
-	
+
 	v[batch->e++] =  pos0.x; v[batch->e++] =  pos0.y; v[batch->e++] =   uv0.x; v[batch->e++] =   uv0.y;
 	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;
 
@@ -158,7 +158,7 @@ void push_rotated_quad_to_batch(RenderBatch * batch, math::Vec2 pos0, math::Vec2
 	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;
 
 	v[batch->e++] =  pos3.x; v[batch->e++] =  pos3.y; v[batch->e++] =   uv1.x; v[batch->e++] =   uv0.y;
-	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;	
+	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;
 
 	v[batch->e++] =  pos1.x; v[batch->e++] =  pos1.y; v[batch->e++] =   uv1.x; v[batch->e++] =   uv1.y;
 	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;
@@ -187,12 +187,12 @@ void push_quad_lines_to_batch(RenderBatch * batch, math::Rec2 * rec, math::Vec4 
 	v[batch->e++] =  pos1.x; v[batch->e++] =  pos1.y; v[batch->e++] =    0.0f; v[batch->e++] =    0.0f;
 	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;
 	v[batch->e++] =  pos0.x; v[batch->e++] =  pos1.y; v[batch->e++] =    0.0f; v[batch->e++] =    0.0f;
-	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;	
+	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;
 
 	v[batch->e++] =  pos0.x; v[batch->e++] =  pos1.y; v[batch->e++] =    0.0f; v[batch->e++] =    0.0f;
 	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;
 	v[batch->e++] =  pos0.x; v[batch->e++] =  pos0.y; v[batch->e++] =    0.0f; v[batch->e++] =    0.0f;
-	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;	
+	v[batch->e++] = color.r; v[batch->e++] = color.g; v[batch->e++] = color.b; v[batch->e++] = color.a;
 }
 
 void push_sprite_to_batch(RenderBatch * batch, Texture * sprite, math::Vec2 pos, math::Vec2 dim, f32 angle, math::Vec4 color) {
@@ -213,12 +213,13 @@ void push_sprite_to_batch(RenderBatch * batch, Texture * sprite, math::Vec2 pos,
 	push_rotated_quad_to_batch(batch, pos0, pos1, pos2, pos3, uv0, uv1, color);
 }
 
-void render_v_buf(gl::VertexBuffer * v_buf, RenderMode render_mode, Shader * shader, math::Mat4 * transform, Texture * tex0, math::Vec4 color = math::vec4(1.0f)) {
+void render_v_buf(gl::VertexBuffer * v_buf, RenderMode render_mode, Shader * shader, math::Mat3 * transform, Texture * tex0, math::Vec4 color = math::vec4(1.0f)) {
 	DEBUG_TIME_BLOCK();
 
 	glUseProgram(shader->id);
 
-	glUniformMatrix4fv(shader->transform, 1, GL_FALSE, transform->v);
+	// glUniformMatrix4fv(shader->transform, 1, GL_FALSE, transform->v);
+	glUniformMatrix3fv(shader->transform, 1, GL_FALSE, transform->v);
 
 	color.rgb *= color.a;
 	glUniform4f(shader->color, color.r, color.g, color.b, color.a);
@@ -243,7 +244,7 @@ void render_v_buf(gl::VertexBuffer * v_buf, RenderMode render_mode, Shader * sha
 	glDrawArrays(render_mode, 0, v_buf->vert_count);
 }
 
-void render_and_clear_render_batch(RenderBatch * batch, Shader * shader, math::Mat4 * transform) {
+void render_and_clear_render_batch(RenderBatch * batch, Shader * shader, math::Mat3 * transform) {
 	DEBUG_TIME_BLOCK();
 
 	if(batch->e > 0) {
@@ -285,9 +286,9 @@ void load_render(RenderState * render_state, MemoryArena * arena, AssetState * a
 	post_shader->id = gl::link_shader_program(post_vert, post_frag);
 	post_shader->i_position = glGetAttribLocation(post_shader->id, "i_position");
 	post_shader->tex0 = glGetUniformLocation(post_shader->id, "tex0");
-	post_shader->tex0_dim = glGetUniformLocation(post_shader->id, "tex0_dim");
 	post_shader->pixelate_scale = glGetUniformLocation(post_shader->id, "pixelate_scale");
-	post_shader->fade_amount = glGetUniformLocation(post_shader->id, "fade_amount");
+	post_shader->pixelate_dim = glGetUniformLocation(post_shader->id, "pixelate_dim");
+	post_shader->brightness = glGetUniformLocation(post_shader->id, "brightness");
 
 	render_state->frame_buffer = gl::create_frame_buffer(back_buffer_width, back_buffer_height, false);
 
@@ -350,7 +351,7 @@ void begin_render(RenderState * render_state) {
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);	
+	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 }
 
 void end_render(RenderState * render_state) {
@@ -366,8 +367,6 @@ void end_render(RenderState * render_state) {
 
 		glUseProgram(post_shader->id);
 
-		glUniform2f(post_shader->tex0_dim, (f32)render_state->frame_buffer.width, (f32)render_state->frame_buffer.height);
-
 		f32 pixelate_time = render_state->pixelate_time;
 		f32 pixelate_scale = math::frac(pixelate_time);
 		if((u32)pixelate_time & 1) {
@@ -377,8 +376,11 @@ void end_render(RenderState * render_state) {
 		pixelate_scale = 1.0f / math::pow(2.0f, (pixelate_scale * 8.0f));
 		glUniform1f(post_shader->pixelate_scale, pixelate_scale);
 
-		f32 fade_amount = math::clamp01(render_state->fade_amount);
-		glUniform1f(post_shader->fade_amount, fade_amount);
+		math::Vec2 pixelate_dim = math::vec2((f32)render_state->frame_buffer.width, (f32)render_state->frame_buffer.height) * pixelate_scale;
+		glUniform4f(post_shader->pixelate_dim, pixelate_dim.x, pixelate_dim.y, 1.0f / pixelate_dim.x, 1.0f / pixelate_dim.y);
+
+		f32 brightness = 1.0 - math::clamp01(render_state->fade_amount);
+		glUniform1f(post_shader->brightness, brightness);
 
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, render_state->frame_buffer.texture_id);
@@ -429,7 +431,7 @@ RenderElement * push_render_elem(RenderGroup * render_group, Asset * asset, math
 			f32 epsilon = 0.1f;
 			if(math::rec_overlap(render_group->projection_bounds, math::rec2_pos_dim(pos2, dim * (1.0f + epsilon)))) {
 				culled = false;
-			}			
+			}
 		}
 		else {
 			if(math::rec_overlap(render_group->projection_bounds, math::rec2_pos_dim(pos2, dim))) {
@@ -544,7 +546,7 @@ void push_str_to_render_group(RenderGroup * render_group, Font * font, FontLayou
 				//TODO: We need something that works universally!!
 				if(layout->pixel_align) {
 					align.x = (i32)align.x;
-					align.y = (i32)align.y;					
+					align.y = (i32)align.y;
 				}
 
 				push_render_elem(render_group, asset, math::vec3(align + sprite->offset * layout->scale, 0.0f), sprite->dim * layout->scale, 0.0f, color);
@@ -555,7 +557,7 @@ void push_str_to_render_group(RenderGroup * render_group, Font * font, FontLayou
 				layout->pos.x += font->whitespace_advance * layout->scale;
 			}
 		}
-	} 
+	}
 }
 
 void push_c_str_to_render_group(RenderGroup * render_group, Font * font, FontLayout * layout, char const * c_str, math::Vec4 color = math::vec4(1.0f)) {
@@ -568,7 +570,14 @@ void render_and_clear_render_group(RenderState * render_state, RenderGroup * ren
 	DEBUG_TIME_BLOCK();
 
 	RenderTransform * render_transform = &render_group->transform;
-	math::Mat4 projection = math::orthographic_projection((f32)render_transform->projection_width, (f32)render_transform->projection_height);
+
+	f32 proj_x = 2.0f / (f32)render_transform->projection_width;
+	f32 proj_y = 2.0f / (f32)render_transform->projection_height;
+	math::Mat3 projection = {
+		proj_x, 0.0f, 0.0f,
+		0.0f, proj_y, 0.0f,
+		0.0f, 0.0f, 1.0f,
+	};
 
 	u32 null_atlas_index = U32_MAX;
 	u32 current_atlas_index = null_atlas_index;
@@ -590,8 +599,16 @@ void render_and_clear_render_group(RenderState * render_state, RenderGroup * ren
 				current_atlas_index = null_atlas_index;
 			}
 
-			//TODO: This is total overkill!!
-			math::Mat4 transform = projection * math::translate(elem->pos.x, elem->pos.y, 0.0f) * math::rotate_around_z(elem->angle) * math::scale(elem->dim.x, elem->dim.y, 1.0f);
+			f32 sin_a = math::sin(elem->angle);
+			f32 cos_a = math::cos(elem->angle);
+
+			//NOTE: Combined transform matrix = proj * translate * rotate * scale!!
+			math::Mat3 transform = {
+				 elem->dim.x * cos_a * proj_x, elem->dim.x * sin_a * proj_y, 0.0f,
+				-elem->dim.y * sin_a * proj_x, elem->dim.y * cos_a * proj_y, 0.0f,
+				 elem->pos.x * proj_x, elem->pos.y * proj_y, 1.0f,
+			};
+
 			gl::VertexBuffer * v_buf = elem->scrollable ? &render_state->scrollable_quad_v_buf : &render_state->quad_v_buf;
 			render_v_buf(v_buf, RenderMode_triangles, basic_shader, &transform, tex, elem->color);
 		}

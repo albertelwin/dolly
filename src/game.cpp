@@ -947,6 +947,8 @@ void change_meta_state(GameState * game_state, MetaStateType type) {
 }
 
 void game_tick(GameMemory * game_memory, GameInput * game_input) {
+	DEBUG_TIME_BLOCK();
+
 	ASSERT(sizeof(GameState) <= game_memory->size);
 	GameState * game_state = (GameState *)game_memory->ptr;
 
@@ -1820,6 +1822,8 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 			case MetaStateType_main: {
 				MainMetaState * main_state = (MainMetaState *)get_meta_state(game_state, MetaStateType_main);
 
+				AssetRef asset = asset_ref(AssetId_dolly_idle);
+
 				EntityArray * entities = &main_state->entities;
 				for(u32 i = 0; i < entities->count; i++) {
 					Entity * entity = entities->elems + i;
@@ -1834,7 +1838,11 @@ void game_tick(GameMemory * game_memory, GameInput * game_input) {
 					render_batch->mode = RenderMode_lines;
 
 					RenderTransform * render_transform = &main_state->render_group->transform;
-					math::Mat4 projection = math::orthographic_projection((f32)render_transform->projection_width, (f32)render_transform->projection_height);
+					math::Mat3 projection = {
+						2.0f / (f32)render_transform->projection_width, 0.0f, 0.0f,
+						0.0f, 2.0f / (f32)render_transform->projection_height, 0.0f,
+						0.0f, 0.0f, 1.0f,
+					};
 
 					for(u32 i = 0; i < entities->count; i++) {
 						Entity * entity = entities->elems + i;

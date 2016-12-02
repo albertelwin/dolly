@@ -20,7 +20,7 @@ extern "C" {
 	extern void web_audio_ios_fix();
 }
 
-struct MainLoopArgs {	
+struct MainLoopArgs {
 	GameMemory game_memory;
 	GameInput game_input;
 
@@ -243,7 +243,7 @@ int main_init() {
 	math::Vec2 mouse_pos = get_mouse_pos();
 	args.game_input.last_mouse_pos = mouse_pos;
 	args.game_input.mouse_pos = mouse_pos;
-	
+
 	args.bytes_per_sample = sizeof(i16);
 	args.channels = 2;
 

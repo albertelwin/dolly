@@ -188,7 +188,7 @@ Texture load_texture(char const * file_name, AssetId id, TextureSampling samplin
 				img_data[i + 1] = (u8)(g * 255.0f);
 				img_data[i + 2] = (u8)(b * 255.0f);
 			}
-		}		
+		}
 	}
 	else {
 		ASSERT(channels == 3);
@@ -357,7 +357,7 @@ AudioClip load_audio_clip(char const * file_name, AssetId id) {
 	ASSERT(clip.samples > 0);
 	u32 samples_with_padding = clip.samples + AUDIO_PADDING_SAMPLES;
 
-	clip.size = samples_with_padding * sizeof(i16) * AUDIO_CHANNELS; 
+	clip.size = samples_with_padding * sizeof(i16) * AUDIO_CHANNELS;
 	clip.ptr = ALLOC_MEMORY(i16, clip.size);
 	if(wav_format->channels == 2) {
 		for(u32 i = 0; i < samples_with_padding * 2; i++) {
@@ -773,7 +773,7 @@ int main() {
 		push_audio_clip(packer, "wav/game_music.wav", AssetId_game_music),
 		push_audio_clip(packer, "wav/space_music.wav", AssetId_space_music),
 
-		write_out_asset_pack(packer, "audio.pak");		
+		write_out_asset_pack(packer, "audio.pak");
 	}
 #endif
 
@@ -808,7 +808,7 @@ int main() {
 		pack_sprite(packer, "dolly_space_down.png", AssetId_dolly_space_down);
 
 		pack_sprite_sheet(packer, "speed_up.png", AssetId_goggles, 48, 48);
-		
+
 		pack_sprite(packer, "label_clone.png", AssetId_label_clone);
 		pack_sprite(packer, "clone.png", AssetId_clone);
 		pack_sprite(packer, "clone_blink.png", AssetId_clone_blink);

@@ -185,7 +185,7 @@ inline void copy_memory(void * dst, void * src, size_t size) {
 inline void * push_memory_(MemoryArena * arena, size_t size, b32 zero = true) {
 	size_t aligned_size = ALIGN16(size);
 	ASSERT((arena->used + aligned_size) <= arena->size);
-	
+
 	void * ptr = arena->base_address + arena->used;
 	if(zero) {
 		zero_memory(ptr, aligned_size);
@@ -342,7 +342,7 @@ inline void str_push_u32(Str * str, u32 val) {
 
 		while(val) {
 			*dst-- = '0' + val % 10;
-			val /= 10; 
+			val /= 10;
 		}
 	}
 }
